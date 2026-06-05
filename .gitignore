@@ -1,6 +1,4 @@
-# env files anywhere
+# env files (IMPORTANT)
 .env
-
-# or be more explicit
-client/.env
-server/.env
+**/.env
+**/.env.*
