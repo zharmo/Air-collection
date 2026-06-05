@@ -8,8 +8,6 @@ const {
 const { getProductById } = require('../models/Product');
 const { sendSuccess, sendError } = require('../utils/responseHandler');
 
-// @desc    Get cart
-// @route   GET /api/cart
 const getCart = async (req, res) => {
   try {
     const cart = await getCartWithItems(req.user.id);
@@ -20,11 +18,9 @@ const getCart = async (req, res) => {
   }
 };
 
-// @desc    Add item to cart
-// @route   POST /api/cart/add
 const addToCart = async (req, res) => {
   try {
-    const { productId, quantity } = req.body;
+    const { productId, quantity, size, color } = req.body;
     if (!productId || !quantity || quantity < 1) {
       return sendError(res, 'Product ID and positive quantity required', 400);
     }
@@ -37,7 +33,7 @@ const addToCart = async (req, res) => {
       return sendError(res, 'Insufficient stock', 400);
     }
 
-    const cartItem = await addItemToCart(req.user.id, productId, quantity, product.price);
+    await addItemToCart(req.user.id, productId, quantity, product.price, size, color);
     const updatedCart = await getCartWithItems(req.user.id);
     sendSuccess(res, updatedCart, 'Item added to cart');
   } catch (error) {
@@ -46,31 +42,23 @@ const addToCart = async (req, res) => {
   }
 };
 
-// @desc    Remove item from cart
-// @route   DELETE /api/cart/remove?itemId=xxx
 const removeFromCart = async (req, res) => {
   try {
     const { itemId } = req.query;
-    if (!itemId) {
-      return sendError(res, 'Item ID required', 400);
-    }
+    if (!itemId) return sendError(res, 'Item ID required', 400);
     await removeItemFromCart(req.user.id, itemId);
     const updatedCart = await getCartWithItems(req.user.id);
-    sendSuccess(res, updatedCart, 'Item removed from cart');
+    sendSuccess(res, updatedCart, 'Item removed');
   } catch (error) {
     console.error(error);
     sendError(res, 'Server error', 500);
   }
 };
 
-// @desc    Update cart item quantity
-// @route   PUT /api/cart/update (extra, but we can include)
 const updateCartItem = async (req, res) => {
   try {
     const { itemId, quantity } = req.body;
-    if (!itemId || quantity === undefined || quantity < 0) {
-      return sendError(res, 'Item ID and valid quantity required', 400);
-    }
+    if (!itemId || quantity === undefined || quantity < 0) return sendError(res, 'Invalid data', 400);
     if (quantity === 0) {
       await removeItemFromCart(req.user.id, itemId);
     } else {
@@ -84,8 +72,6 @@ const updateCartItem = async (req, res) => {
   }
 };
 
-// @desc    Clear cart
-// @route   DELETE /api/cart/clear
 const clearCartItems = async (req, res) => {
   try {
     await clearCart(req.user.id);

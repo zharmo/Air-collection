@@ -1,6 +1,5 @@
 const pool = require('../config/db');
 
-// Get or create cart for user
 const getOrCreateCart = async (userId) => {
   let result = await pool.query('SELECT * FROM carts WHERE user_id = $1', [userId]);
   if (result.rows.length === 0) {
@@ -12,7 +11,8 @@ const getOrCreateCart = async (userId) => {
 const getCartWithItems = async (userId) => {
   const cart = await getOrCreateCart(userId);
   const itemsResult = await pool.query(
-    `SELECT ci.id, ci.product_id, ci.quantity, ci.price, p.name, p.slug, p.stock_quantity,
+    `SELECT ci.id, ci.product_id, ci.quantity, ci.price, ci.size, ci.color,
+            p.name, p.slug, p.stock_quantity,
             (SELECT image_url FROM product_images WHERE product_id = p.id AND is_primary = true LIMIT 1) as image
      FROM cart_items ci
      JOIN products p ON ci.product_id = p.id
@@ -24,29 +24,28 @@ const getCartWithItems = async (userId) => {
   return cart;
 };
 
-const addItemToCart = async (userId, productId, quantity, price) => {
+const addItemToCart = async (userId, productId, quantity, price, size = null, color = null) => {
   const cart = await getOrCreateCart(userId);
-  // Check if item exists
   const existing = await pool.query(
-    'SELECT * FROM cart_items WHERE cart_id = $1 AND product_id = $2',
-    [cart.id, productId]
+    `SELECT * FROM cart_items 
+     WHERE cart_id = $1 AND product_id = $2 
+       AND (size IS NOT DISTINCT FROM $3) 
+       AND (color IS NOT DISTINCT FROM $4)`,
+    [cart.id, productId, size, color]
   );
   if (existing.rows.length > 0) {
-    // Update quantity
     const newQuantity = existing.rows[0].quantity + quantity;
     const result = await pool.query(
       `UPDATE cart_items SET quantity = $1, updated_at = NOW()
-       WHERE cart_id = $2 AND product_id = $3
-       RETURNING *`,
-      [newQuantity, cart.id, productId]
+       WHERE id = $2 RETURNING *`,
+      [newQuantity, existing.rows[0].id]
     );
     return result.rows[0];
   } else {
     const result = await pool.query(
-      `INSERT INTO cart_items (cart_id, product_id, quantity, price)
-       VALUES ($1, $2, $3, $4)
-       RETURNING *`,
-      [cart.id, productId, quantity, price]
+      `INSERT INTO cart_items (cart_id, product_id, quantity, price, size, color)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [cart.id, productId, quantity, price, size, color]
     );
     return result.rows[0];
   }
@@ -74,6 +73,7 @@ const clearCart = async (userId) => {
 };
 
 module.exports = {
+  getOrCreateCart,
   getCartWithItems,
   addItemToCart,
   removeItemFromCart,
