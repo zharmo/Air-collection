@@ -14,6 +14,7 @@ const wishlistRoutes = require('./routes/wishlistRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 const contactRoutes = require('./routes/contactRoutes');
+const guestOrderRoutes = require('./routes/guestOrderRoutes'); // <-- added
 
 // Import error handlers
 const { notFound, errorHandler } = require('./middleware/errorMiddleware');
@@ -42,6 +43,7 @@ app.use('/api/wishlist', wishlistRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/api/contact', contactRoutes);
+app.use('/api/guest-orders', guestOrderRoutes); // <-- added
 
 // ========== ERROR HANDLING MIDDLEWARE ==========
 app.use(notFound);
