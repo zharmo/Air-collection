@@ -1,0 +1,6 @@
+# env files anywhere
+.env
+
+# or be more explicit
+client/.env
+server/.env
