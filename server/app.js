@@ -2,6 +2,8 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const dotenv = require('dotenv');
+const session = require('express-session');
+const passport = require('./config/passport');
 
 dotenv.config();
 
@@ -14,7 +16,7 @@ const wishlistRoutes = require('./routes/wishlistRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 const contactRoutes = require('./routes/contactRoutes');
-const guestOrderRoutes = require('./routes/guestOrderRoutes'); // <-- added
+const guestOrderRoutes = require('./routes/guestOrderRoutes');
 
 // Import error handlers
 const { notFound, errorHandler } = require('./middleware/errorMiddleware');
@@ -22,16 +24,31 @@ const { notFound, errorHandler } = require('./middleware/errorMiddleware');
 const app = express();
 
 // ========== MIDDLEWARE ==========
-app.use(cors());
+app.use(cors({
+    origin: 'http://localhost:3000', // frontend URL
+    credentials: true
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Session middleware (required for Passport)
+app.use(session({
+    secret: process.env.SESSION_SECRET || 'a-default-secret-change-this',
+    resave: false,
+    saveUninitialized: false,
+    cookie: { secure: false } // set to true if using HTTPS
+}));
+
+// Passport middleware
+app.use(passport.initialize());
+app.use(passport.session());
 
 // Serve static files for uploaded images
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // ========== HEALTH CHECK ==========
 app.get('/api/health', (req, res) => {
-  res.status(200).json({ message: 'Server is running', success: true });
+    res.status(200).json({ message: 'Server is running', success: true });
 });
 
 // ========== API ROUTES ==========
@@ -43,7 +60,7 @@ app.use('/api/wishlist', wishlistRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/api/contact', contactRoutes);
-app.use('/api/guest-orders', guestOrderRoutes); // <-- added
+app.use('/api/guest-orders', guestOrderRoutes);
 
 // ========== ERROR HANDLING MIDDLEWARE ==========
 app.use(notFound);
