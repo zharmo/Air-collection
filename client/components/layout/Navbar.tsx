@@ -1,62 +1,71 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { useState, useEffect, useRef } from 'react';
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useState, useEffect, useRef } from "react";
 import {
-    FaShoppingCart, FaHeart, FaUser, FaSearch,
-    FaTimes, FaSignOutAlt, FaTachometerAlt,
-    FaBoxOpen, FaUserCircle, FaArrowRight
-} from 'react-icons/fa';
-import { useAuth } from '@/context/AuthContext';
-import { useCart } from '@/context/CartContext';
-import { useWishlist } from '@/context/WishlistContext';
+  FaShoppingCart,
+  FaHeart,
+  FaUser,
+  FaSearch,
+  FaTimes,
+  FaSignOutAlt,
+  FaTachometerAlt,
+  FaBoxOpen,
+  FaUserCircle,
+  FaArrowRight,
+} from "react-icons/fa";
+import { useAuth } from "@/context/AuthContext";
+import { useCart } from "@/context/CartContext";
+import { useWishlist } from "@/context/WishlistContext";
 
 export default function Navbar() {
-    const pathname = usePathname();
-    const [isMenuOpen, setIsMenuOpen] = useState(false);
-    const [showSearch, setShowSearch] = useState(false);
-    const [scrolled, setScrolled] = useState(false);
-    const [showUserMenu, setShowUserMenu] = useState(false);
-    const searchRef = useRef<HTMLInputElement>(null);
-    const { user, logout } = useAuth();
-    const { cart } = useCart();
-    const { wishlist } = useWishlist();
+  const pathname = usePathname();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const { user, logout } = useAuth();
+  const { cart } = useCart();
+  const { wishlist } = useWishlist();
 
-    const cartCount = cart?.items?.length || 0;
-    const wishlistCount = wishlist?.items?.length || 0;
+  const cartCount = cart?.items?.length || 0;
+  const wishlistCount = wishlist?.items?.length || 0;
 
-    useEffect(() => {
-        const onScroll = () => setScrolled(window.scrollY > 20);
-        window.addEventListener('scroll', onScroll);
-        return () => window.removeEventListener('scroll', onScroll);
-    }, []);
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 20);
+    window.addEventListener("scroll", onScroll);
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
-    useEffect(() => {
-        if (showSearch && searchRef.current) searchRef.current.focus();
-    }, [showSearch]);
+  useEffect(() => {
+    if (showSearch && searchRef.current) searchRef.current.focus();
+  }, [showSearch]);
 
-    useEffect(() => {
-        document.body.style.overflow = isMenuOpen ? 'hidden' : '';
-        return () => { document.body.style.overflow = ''; };
-    }, [isMenuOpen]);
-
-    const handleLogout = () => {
-        logout();
-        setShowUserMenu(false);
-        window.location.href = '/';
+  useEffect(() => {
+    document.body.style.overflow = isMenuOpen ? "hidden" : "";
+    return () => {
+      document.body.style.overflow = "";
     };
+  }, [isMenuOpen]);
 
-    const navLinks = [
-        { label: 'Home', href: '/' },
-        { label: 'Categories', href: '/categories' },
-        { label: 'About', href: '/about' },
-        { label: 'Contact', href: '/contact' },
-    ];
+  const handleLogout = () => {
+    logout();
+    setShowUserMenu(false);
+    window.location.href = "/";
+  };
 
-    return (
-        <>
-            <style>{`
+  const navLinks = [
+    { label: "Home", href: "/" },
+    { label: "All Products", href: "/products" },
+    { label: "About", href: "/about" },
+    { label: "Contact", href: "/contact" },
+  ];
+
+  return (
+    <>
+      <style>{`
                 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Jost:wght@300;400;500;600&display=swap');
 
                 :root {
@@ -376,163 +385,203 @@ export default function Navbar() {
                 }
             `}</style>
 
-            {/* ── Navbar ── */}
-            <nav className={`ac-nav${scrolled ? ' is-scrolled' : ''}${isMenuOpen ? ' is-open' : ''}`}>
-                <div className="ac-bar">
+      {/* ── Navbar ── */}
+      <nav
+        className={`ac-nav${scrolled ? " is-scrolled" : ""}${isMenuOpen ? " is-open" : ""}`}
+      >
+        <div className="ac-bar">
+          {/* ── LEFT: desktop nav links / mobile hamburger ── */}
+          <div style={{ flex: 1, display: "flex", alignItems: "center" }}>
+            {/* Desktop links */}
+            <ul className="ac-left ac-left-links">
+              {navLinks.map((link) => (
+                <li key={link.href}>
+                  <Link
+                    href={link.href}
+                    className={pathname === link.href ? "is-active" : ""}
+                  >
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
 
-                    {/* ── LEFT: desktop nav links / mobile hamburger ── */}
-                    <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
-                        {/* Desktop links */}
-                        <ul className="ac-left ac-left-links">
-                            {navLinks.map(link => (
-                                <li key={link.href}>
-                                    <Link href={link.href} className={pathname === link.href ? 'is-active' : ''}>
-                                        {link.label}
-                                    </Link>
-                                </li>
-                            ))}
-                        </ul>
+            {/* Hamburger — tablet & mobile */}
+            <button
+              className={`ac-burger${isMenuOpen ? " is-open" : ""}`}
+              onClick={() => setIsMenuOpen((prev) => !prev)}
+              aria-label="Toggle navigation"
+            >
+              <span className="ac-burger-line" />
+              <span className="ac-burger-line" />
+              <span className="ac-burger-line" />
+            </button>
+          </div>
 
-                        {/* Hamburger — tablet & mobile */}
-                        <button
-                            className={`ac-burger${isMenuOpen ? ' is-open' : ''}`}
-                            onClick={() => setIsMenuOpen(prev => !prev)}
-                            aria-label="Toggle navigation"
+          {/* ── CENTER: logo ── */}
+          <Link
+            href="/"
+            className="ac-logo"
+            onClick={() => setIsMenuOpen(false)}
+          >
+            Air Collection
+          </Link>
+
+          {/* ── RIGHT: icons — always shown on every screen size ── */}
+          <div className="ac-icons">
+            {/* Search */}
+            <button
+              className="ac-icon"
+              onClick={() => {
+                setShowSearch(true);
+                setIsMenuOpen(false);
+              }}
+              aria-label="Search"
+            >
+              <FaSearch size={14} />
+            </button>
+
+            <span className="ac-divider" />
+
+            {/* Wishlist */}
+            <Link href="/wishlist" className="ac-icon" aria-label="Wishlist">
+              <FaHeart size={14} />
+              {wishlistCount > 0 && (
+                <span className="ac-badge">
+                  {wishlistCount > 9 ? "9+" : wishlistCount}
+                </span>
+              )}
+            </Link>
+
+            {/* Cart */}
+            <Link href="/cart" className="ac-icon" aria-label="Cart">
+              <FaShoppingCart size={14} />
+              {cartCount > 0 && (
+                <span className="ac-badge">
+                  {cartCount > 9 ? "9+" : cartCount}
+                </span>
+              )}
+            </Link>
+
+            {/* Account */}
+            <div className="ac-user-wrap">
+              <button
+                className="ac-icon"
+                onClick={() => setShowUserMenu((prev) => !prev)}
+                aria-label="Account"
+              >
+                <FaUser size={14} />
+              </button>
+
+              {showUserMenu && (
+                <>
+                  {/* Backdrop to close */}
+                  <div
+                    style={{ position: "fixed", inset: 0, zIndex: 499 }}
+                    onClick={() => setShowUserMenu(false)}
+                  />
+                  <div className="ac-dropdown">
+                    {user ? (
+                      <>
+                        <Link
+                          href="/profile"
+                          className="ac-drop-item"
+                          onClick={() => setShowUserMenu(false)}
                         >
-                            <span className="ac-burger-line" />
-                            <span className="ac-burger-line" />
-                            <span className="ac-burger-line" />
-                        </button>
-                    </div>
-
-                    {/* ── CENTER: logo ── */}
-                    <Link href="/" className="ac-logo" onClick={() => setIsMenuOpen(false)}>
-                        Air Collection
-                    </Link>
-
-                    {/* ── RIGHT: icons — always shown on every screen size ── */}
-                    <div className="ac-icons">
-                        {/* Search */}
-                        <button
-                            className="ac-icon"
-                            onClick={() => { setShowSearch(true); setIsMenuOpen(false); }}
-                            aria-label="Search"
+                          <FaUserCircle size={12} /> Profile
+                        </Link>
+                        <Link
+                          href="/orders"
+                          className="ac-drop-item"
+                          onClick={() => setShowUserMenu(false)}
                         >
-                            <FaSearch size={14} />
-                        </button>
-
-                        <span className="ac-divider" />
-
-                        {/* Wishlist */}
-                        <Link href="/wishlist" className="ac-icon" aria-label="Wishlist">
-                            <FaHeart size={14} />
-                            {wishlistCount > 0 && (
-                                <span className="ac-badge">{wishlistCount > 9 ? '9+' : wishlistCount}</span>
-                            )}
+                          <FaBoxOpen size={12} /> My Orders
                         </Link>
-
-                        {/* Cart */}
-                        <Link href="/cart" className="ac-icon" aria-label="Cart">
-                            <FaShoppingCart size={14} />
-                            {cartCount > 0 && (
-                                <span className="ac-badge">{cartCount > 9 ? '9+' : cartCount}</span>
-                            )}
-                        </Link>
-
-                        {/* Account */}
-                        <div className="ac-user-wrap">
-                            <button
-                                className="ac-icon"
-                                onClick={() => setShowUserMenu(prev => !prev)}
-                                aria-label="Account"
-                            >
-                                <FaUser size={14} />
-                            </button>
-
-                            {showUserMenu && (
-                                <>
-                                    {/* Backdrop to close */}
-                                    <div
-                                        style={{ position: 'fixed', inset: 0, zIndex: 499 }}
-                                        onClick={() => setShowUserMenu(false)}
-                                    />
-                                    <div className="ac-dropdown">
-                                        {user ? (
-                                            <>
-                                                <Link href="/profile" className="ac-drop-item" onClick={() => setShowUserMenu(false)}>
-                                                    <FaUserCircle size={12} /> Profile
-                                                </Link>
-                                                <Link href="/orders" className="ac-drop-item" onClick={() => setShowUserMenu(false)}>
-                                                    <FaBoxOpen size={12} /> My Orders
-                                                </Link>
-                                                {user.role === 'admin' && (
-                                                    <Link href="/admin/dashboard" className="ac-drop-item" onClick={() => setShowUserMenu(false)}>
-                                                        <FaTachometerAlt size={12} /> Admin Panel
-                                                    </Link>
-                                                )}
-                                                <button className="ac-drop-item" onClick={handleLogout}>
-                                                    <FaSignOutAlt size={12} /> Logout
-                                                </button>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Link href="/auth/signin" className="ac-drop-item" onClick={() => setShowUserMenu(false)}>
-                                                    Login
-                                                </Link>
-                                                <Link href="/auth/signup" className="ac-drop-item" onClick={() => setShowUserMenu(false)}>
-                                                    Register
-                                                </Link>
-                                            </>
-                                        )}
-                                    </div>
-                                </>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            </nav>
-
-            {/* ── Search overlay ── */}
-            {showSearch && (
-                <div className="ac-search-overlay" onClick={() => setShowSearch(false)}>
-                    <div className="ac-search-box" onClick={e => e.stopPropagation()}>
-                        <FaSearch size={14} style={{ color: '#ccc', flexShrink: 0 }} />
-                        <form action="/search" method="GET" style={{ flex: 1 }}>
-                            <input
-                                ref={searchRef}
-                                type="search"
-                                name="q"
-                                placeholder="Search products…"
-                            />
-                        </form>
-                        <button className="ac-search-close" onClick={() => setShowSearch(false)}>
-                            <FaTimes size={16} />
+                        {user.role === "admin" && (
+                          <Link
+                            href="/admin/dashboard"
+                            className="ac-drop-item"
+                            onClick={() => setShowUserMenu(false)}
+                          >
+                            <FaTachometerAlt size={12} /> Admin Panel
+                          </Link>
+                        )}
+                        <button className="ac-drop-item" onClick={handleLogout}>
+                          <FaSignOutAlt size={12} /> Logout
                         </button>
-                    </div>
-                </div>
-            )}
-
-            {/* ── Mobile / tablet drawer ── */}
-            {/* Only nav links here — icons always stay in the navbar above */}
-            <div className={`ac-drawer ${isMenuOpen ? 'drawer-open' : 'drawer-closed'}`}>
-                <ul className="ac-drawer-list">
-                    {navLinks.map(link => (
-                        <li key={link.href}>
-                            <Link
-                                href={link.href}
-                                className={`ac-drawer-link${pathname === link.href ? ' drawer-active' : ''}`}
-                                onClick={() => setIsMenuOpen(false)}
-                            >
-                                {link.label}
-                                <FaArrowRight size={10} />
-                            </Link>
-                        </li>
-                    ))}
-                </ul>
+                      </>
+                    ) : (
+                      <>
+                        <Link
+                          href="/auth/signin"
+                          className="ac-drop-item"
+                          onClick={() => setShowUserMenu(false)}
+                        >
+                          Login
+                        </Link>
+                        <Link
+                          href="/auth/signup"
+                          className="ac-drop-item"
+                          onClick={() => setShowUserMenu(false)}
+                        >
+                          Register
+                        </Link>
+                      </>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
+          </div>
+        </div>
+      </nav>
 
-            {/* Spacer so page content starts below fixed navbar */}
-            <div style={{ height: 'var(--nav-h)' }} />
-        </>
-    );
+      {/* ── Search overlay ── */}
+      {showSearch && (
+        <div className="ac-search-overlay" onClick={() => setShowSearch(false)}>
+          <div className="ac-search-box" onClick={(e) => e.stopPropagation()}>
+            <FaSearch size={14} style={{ color: "#ccc", flexShrink: 0 }} />
+            <form action="/search" method="GET" style={{ flex: 1 }}>
+              <input
+                ref={searchRef}
+                type="search"
+                name="q"
+                placeholder="Search products…"
+              />
+            </form>
+            <button
+              className="ac-search-close"
+              onClick={() => setShowSearch(false)}
+            >
+              <FaTimes size={16} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Mobile / tablet drawer ── */}
+      {/* Only nav links here — icons always stay in the navbar above */}
+      <div
+        className={`ac-drawer ${isMenuOpen ? "drawer-open" : "drawer-closed"}`}
+      >
+        <ul className="ac-drawer-list">
+          {navLinks.map((link) => (
+            <li key={link.href}>
+              <Link
+                href={link.href}
+                className={`ac-drawer-link${pathname === link.href ? " drawer-active" : ""}`}
+                onClick={() => setIsMenuOpen(false)}
+              >
+                {link.label}
+                <FaArrowRight size={10} />
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {/* Spacer so page content starts below fixed navbar */}
+      <div style={{ height: "var(--nav-h)" }} />
+    </>
+  );
 }

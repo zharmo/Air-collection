@@ -1,119 +1,169 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { FaStar, FaRegStar, FaStarHalfAlt, FaArrowRight, FaCheckCircle, FaQuoteLeft } from 'react-icons/fa';
-import axiosInstance from '@/utils/axiosConfig';
-import { useCart } from '@/context/CartContext';
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import {
+  FaStar,
+  FaRegStar,
+  FaStarHalfAlt,
+  FaArrowRight,
+  FaCheckCircle,
+  FaQuoteLeft,
+} from "react-icons/fa";
+import axiosInstance from "@/utils/axiosConfig";
+import { useCart } from "@/context/CartContext";
 
 interface Product {
-    id: number;
-    name: string;
-    price: number;
-    compare_price?: number;
-    images: { image_url: string; is_primary: boolean }[];
-    stock_quantity: number;
+  id: number;
+  name: string;
+  price: number;
+  compare_price?: number;
+  images: { image_url: string; is_primary: boolean }[];
+  stock_quantity: number;
 }
 
 export default function HomePage() {
-    const [email, setEmail] = useState('');
-    const [subscribed, setSubscribed] = useState(false);
-    const { addToCart } = useCart();
+  const [email, setEmail] = useState("");
+  const [subscribed, setSubscribed] = useState(false);
+  const { addToCart } = useCart();
 
-    const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
-    const [bestSellers, setBestSellers] = useState<Product[]>([]);
-    const [newArrivals, setNewArrivals] = useState<Product[]>([]);
-    const [aiRecommended, setAiRecommended] = useState<Product[]>([]);
-    const [loading, setLoading] = useState(true);
+  const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
+  const [bestSellers, setBestSellers] = useState<Product[]>([]);
+  const [newArrivals, setNewArrivals] = useState<Product[]>([]);
+  const [aiRecommended, setAiRecommended] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
 
-    const categories = [
-        { name: 'Baggy Pants', slug: 'baggy-pants', icon: '👖', desc: 'Relaxed & Oversized' },
-        { name: 'Footwear', slug: 'footwear', icon: '👟', desc: 'Step in Style' },
-        { name: 'T-Shirts', slug: 'tshirt', icon: '👕', desc: 'Essential Basics' },
-        { name: 'Drop Shoulder', slug: 'drop-shoulder', icon: '👚', desc: 'Effortless Drape' },
-    ];
+  const categories = [
+    {
+      name: "Baggy Pants",
+      slug: "baggy-pants",
+      icon: "👖",
+      desc: "Relaxed & Oversized",
+    },
+    { name: "Footwear", slug: "footwear", icon: "👟", desc: "Step in Style" },
+    { name: "T-Shirts", slug: "tshirt", icon: "👕", desc: "Essential Basics" },
+    {
+      name: "Drop Shoulder",
+      slug: "drop-shoulder",
+      icon: "👚",
+      desc: "Effortless Drape",
+    },
+  ];
 
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000';
+  const backendUrl =
+    process.env.NEXT_PUBLIC_API_URL?.replace("/api", "") ||
+    "http://localhost:5000";
 
-    useEffect(() => {
-        const fetchProducts = async () => {
-            try {
-                const res = await axiosInstance.get('/products');
-                const allProducts = res.data.data;
-                setFeaturedProducts(allProducts.slice(0, 2));
-                setBestSellers(allProducts.slice(2, 5));
-                setNewArrivals(allProducts.slice(5, 8));
-                setAiRecommended(allProducts.slice(8, 12));
-            } catch (error) {
-                console.error('Failed to fetch products', error);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchProducts();
-    }, []);
-
-    const handleSubscribe = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (email) {
-            setSubscribed(true);
-            setEmail('');
-            setTimeout(() => setSubscribed(false), 4000);
-        }
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const res = await axiosInstance.get("/products");
+        const allProducts = res.data.data;
+        setFeaturedProducts(allProducts.slice(0, 2));
+        setBestSellers(allProducts.slice(2, 5));
+        setNewArrivals(allProducts.slice(5, 8));
+        setAiRecommended(allProducts.slice(8, 12));
+      } catch (error) {
+        console.error("Failed to fetch products", error);
+      } finally {
+        setLoading(false);
+      }
     };
+    fetchProducts();
+  }, []);
 
-    // FIXED: Convert price to number to ensure it appears in cart
-    const handleAddToCart = (product: Product) => {
-        const imageUrl = getPrimaryImage(product);
-        addToCart(product.id, 1, {
-            name: product.name,
-            price: Number(product.price),   // ensure numeric value
-            image: imageUrl,
-        });
-    };
-
-    const getPrimaryImage = (product: Product) => {
-        const primary = product.images?.find(img => img.is_primary);
-        const imagePath = primary?.image_url || product.images?.[0]?.image_url;
-        if (!imagePath) return '/images/placeholders/placeholder.jpg';
-        if (imagePath.startsWith('/uploads')) return `${backendUrl}${imagePath}`;
-        return imagePath;
-    };
-
-    const renderStars = (rating: number = 5) => {
-        const full = Math.floor(rating);
-        const half = rating % 1 !== 0;
-        const empty = 5 - full - (half ? 1 : 0);
-        return (
-            <span style={{ display: 'inline-flex', gap: 3 }}>
-                {[...Array(full)].map((_, i) => <FaStar key={i} style={{ color: '#c8a96e' }} />)}
-                {half && <FaStarHalfAlt style={{ color: '#c8a96e' }} />}
-                {[...Array(empty)].map((_, i) => <FaRegStar key={i} style={{ color: '#c8a96e' }} />)}
-            </span>
-        );
-    };
-
-    if (loading) {
-        return (
-            <div style={{ minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
-                    <div style={{
-                        width: 40, height: 40, borderRadius: '50%',
-                        border: '2px solid #e5e5e5', borderTopColor: '#0a0a0a',
-                        animation: 'spin 0.8s linear infinite'
-                    }} />
-                    <p style={{ fontFamily: 'Jost, sans-serif', fontSize: 12, letterSpacing: '0.2em', textTransform: 'uppercase', color: '#999' }}>
-                        Loading
-                    </p>
-                </div>
-                <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-            </div>
-        );
+  const handleSubscribe = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (email) {
+      setSubscribed(true);
+      setEmail("");
+      setTimeout(() => setSubscribed(false), 4000);
     }
+  };
 
+  // FIXED: Convert price to number to ensure it appears in cart
+  const handleAddToCart = (product: Product) => {
+    const imageUrl = getPrimaryImage(product);
+    addToCart(product.id, 1, {
+      name: product.name,
+      price: Number(product.price), // ensure numeric value
+      image: imageUrl,
+    });
+  };
+
+  const getPrimaryImage = (product: Product) => {
+    const primary = product.images?.find((img) => img.is_primary);
+    const imagePath = primary?.image_url || product.images?.[0]?.image_url;
+    if (!imagePath) return "/images/placeholders/placeholder.jpg";
+    if (imagePath.startsWith("/uploads")) return `${backendUrl}${imagePath}`;
+    return imagePath;
+  };
+
+  const renderStars = (rating: number = 5) => {
+    const full = Math.floor(rating);
+    const half = rating % 1 !== 0;
+    const empty = 5 - full - (half ? 1 : 0);
     return (
-        <>
-            <style>{`
+      <span style={{ display: "inline-flex", gap: 3 }}>
+        {[...Array(full)].map((_, i) => (
+          <FaStar key={i} style={{ color: "#c8a96e" }} />
+        ))}
+        {half && <FaStarHalfAlt style={{ color: "#c8a96e" }} />}
+        {[...Array(empty)].map((_, i) => (
+          <FaRegStar key={i} style={{ color: "#c8a96e" }} />
+        ))}
+      </span>
+    );
+  };
+
+  if (loading) {
+    return (
+      <div
+        style={{
+          minHeight: "80vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 16,
+          }}
+        >
+          <div
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: "50%",
+              border: "2px solid #e5e5e5",
+              borderTopColor: "#0a0a0a",
+              animation: "spin 0.8s linear infinite",
+            }}
+          />
+          <p
+            style={{
+              fontFamily: "Jost, sans-serif",
+              fontSize: 12,
+              letterSpacing: "0.2em",
+              textTransform: "uppercase",
+              color: "#999",
+            }}
+          >
+            Loading
+          </p>
+        </div>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <style>{`
                 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Jost:wght@300;400;500;600&display=swap');
 
                 :root {
@@ -732,317 +782,462 @@ export default function HomePage() {
                 }
             `}</style>
 
-            {/* ── HERO ── */}
-            <section className="hero">
-                <div className="hero-content">
-                    <div className="hero-eyebrow">
-                        <span className="hero-eyebrow-line" />
-                        <span className="label-caps">New Season 2025</span>
-                    </div>
-                    <h1 className="hero-title">Light<br />as Air.</h1>
-                    <p className="hero-sub">
-                        Effortless silhouettes in breathable linen and natural fabrics.
-                        Wear the feeling of weightlessness.
-                    </p>
-                    <div className="hero-actions">
-                        <Link href="/products?new=true" className="btn-primary-ink">
-                            Shop New Arrivals <FaArrowRight size={12} />
-                        </Link>
-                        <Link href="/categories" className="btn-ghost-ink">
-                            Explore Categories
-                        </Link>
-                    </div>
-                </div>
-                <div className="hero-visual">
-                    <div className="hero-orb">🪶</div>
-                    <div className="hero-stat-bar">
-                        <div className="hero-stat">
-                            <div className="h-section" style={{ fontSize: 28 }}>5K+</div>
-                            <div className="label-caps" style={{ marginTop: 4, fontSize: 10 }}>Happy Customers</div>
-                        </div>
-                        <div className="hero-stat" style={{ borderLeft: '1px solid rgba(0,0,0,0.08)' }}>
-                            <div className="h-section" style={{ fontSize: 28 }}>4.9</div>
-                            <div className="label-caps" style={{ marginTop: 4, fontSize: 10 }}>Avg Rating</div>
-                        </div>
-                        <div className="hero-stat" style={{ borderLeft: '1px solid rgba(0,0,0,0.08)' }}>
-                            <div className="h-section" style={{ fontSize: 28 }}>100%</div>
-                            <div className="label-caps" style={{ marginTop: 4, fontSize: 10 }}>Natural Fabrics</div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            {/* ── TRUST BAR ── */}
-            <div className="trust-bar">
-                <div className="trust-inner">
-                    {[
-                        'Free Shipping Over $80', '✦', 'Easy Returns', '✦',
-                        'Natural Fabrics', '✦', '5000+ Happy Customers', '✦',
-                        'New Season Collection', '✦', 'Handcrafted Quality', '✦',
-                        'Free Shipping Over $80', '✦', 'Easy Returns', '✦',
-                        'Natural Fabrics', '✦', '5000+ Happy Customers', '✦',
-                        'New Season Collection', '✦', 'Handcrafted Quality', '✦',
-                    ].map((item, i) => (
-                        <span key={i} className={item === '✦' ? 'trust-sep' : 'trust-item'}>
-                            {item}
-                        </span>
-                    ))}
-                </div>
+      {/* ── HERO ── */}
+      <section className="hero">
+        <div className="hero-content">
+          <div className="hero-eyebrow">
+            <span className="hero-eyebrow-line" />
+            <span className="label-caps">New Season 2025</span>
+          </div>
+          <h1 className="hero-title">
+            Light
+            <br />
+            as Air.
+          </h1>
+          <p className="hero-sub">
+            Effortless silhouettes in breathable linen and natural fabrics. Wear
+            the feeling of weightlessness.
+          </p>
+          <div className="hero-actions">
+            <Link href="/products?new=true" className="btn-primary-ink">
+              Shop New Arrivals <FaArrowRight size={12} />
+            </Link>
+            <Link href="/categories" className="btn-ghost-ink">
+              Explore Categories
+            </Link>
+          </div>
+        </div>
+        <div className="hero-visual">
+          <div className="hero-orb">🪶</div>
+          <div className="hero-stat-bar">
+            <div className="hero-stat">
+              <div className="h-section" style={{ fontSize: 28 }}>
+                5K+
+              </div>
+              <div
+                className="label-caps"
+                style={{ marginTop: 4, fontSize: 10 }}
+              >
+                Happy Customers
+              </div>
             </div>
+            <div
+              className="hero-stat"
+              style={{ borderLeft: "1px solid rgba(0,0,0,0.08)" }}
+            >
+              <div className="h-section" style={{ fontSize: 28 }}>
+                4.9
+              </div>
+              <div
+                className="label-caps"
+                style={{ marginTop: 4, fontSize: 10 }}
+              >
+                Avg Rating
+              </div>
+            </div>
+            <div
+              className="hero-stat"
+              style={{ borderLeft: "1px solid rgba(0,0,0,0.08)" }}
+            >
+              <div className="h-section" style={{ fontSize: 28 }}>
+                100%
+              </div>
+              <div
+                className="label-caps"
+                style={{ marginTop: 4, fontSize: 10 }}
+              >
+                Natural Fabrics
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
-            {/* ── FEATURED ── */}
-            {featuredProducts.length > 0 && (
-                <section className="section">
-                    <div className="section-header">
-                        <div>
-                            <div className="label-caps" style={{ marginBottom: 10 }}>Curated For You</div>
-                            <h2 className="h-section">Featured Pieces</h2>
-                        </div>
-                        <Link href="/products" className="btn-ghost-ink">
-                            View All Collection <FaArrowRight size={10} />
-                        </Link>
-                    </div>
-                    <div className="product-grid-2">
-                        {featuredProducts.map((product) => (
-                            <div key={product.id} className="product-card">
-                                <div className="product-card-image">
-                                    <Link href={`/products/${product.id}`}>
-                                        <img src={getPrimaryImage(product)} alt={product.name} />
-                                    </Link>
-                                    <div className="product-card-overlay">
-                                        <button onClick={() => handleAddToCart(product)}>
-                                            Add to Cart <FaArrowRight size={10} />
-                                        </button>
-                                    </div>
-                                </div>
-                                <div className="product-card-body">
-                                    <Link href={`/products/${product.id}`} className="product-card-name">
-                                        {product.name}
-                                    </Link>
-                                    <div>
-                                        <span className="product-card-price">${product.price}</span>
-                                        {product.compare_price && (
-                                            <span className="product-card-compare">${product.compare_price}</span>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </section>
-            )}
+      {/* ── TRUST BAR ── */}
+      <div className="trust-bar">
+        <div className="trust-inner">
+          {[
+            "Free Shipping Over $80",
+            "✦",
+            "Easy Returns",
+            "✦",
+            "Natural Fabrics",
+            "✦",
+            "5000+ Happy Customers",
+            "✦",
+            "New Season Collection",
+            "✦",
+            "Handcrafted Quality",
+            "✦",
+            "Free Shipping Over $80",
+            "✦",
+            "Easy Returns",
+            "✦",
+            "Natural Fabrics",
+            "✦",
+            "5000+ Happy Customers",
+            "✦",
+            "New Season Collection",
+            "✦",
+            "Handcrafted Quality",
+            "✦",
+          ].map((item, i) => (
+            <span key={i} className={item === "✦" ? "trust-sep" : "trust-item"}>
+              {item}
+            </span>
+          ))}
+        </div>
+      </div>
 
-            {/* ── CATEGORIES ── */}
-            <section className="category-section">
-                <div className="section-header" style={{ marginBottom: 48 }}>
-                    <div>
-                        <div className="label-caps" style={{ marginBottom: 10 }}>Browse the Range</div>
-                        <h2 className="h-section">Shop by Category</h2>
-                    </div>
+      {/* ── FEATURED ── */}
+      {featuredProducts.length > 0 && (
+        <section className="section">
+          <div className="section-header">
+            <div>
+              <h2 className="h-section">Featured Pieces</h2>
+            </div>
+            <Link href="/products" className="btn-ghost-ink">
+              View All <FaArrowRight size={10} />
+            </Link>
+          </div>
+          <div className="product-grid-2">
+            {featuredProducts.map((product) => (
+              <div key={product.id} className="product-card">
+                <div className="product-card-image">
+                  <Link href={`/products/${product.id}`}>
+                    <img src={getPrimaryImage(product)} alt={product.name} />
+                  </Link>
+                  <div className="product-card-overlay">
+                    <button onClick={() => handleAddToCart(product)}>
+                      Add to Cart <FaArrowRight size={10} />
+                    </button>
+                  </div>
                 </div>
-                <div className="category-grid">
-                    {categories.map((cat) => (
-                        <Link key={cat.slug} href={`/categories/${cat.slug}`} className="category-card">
-                            <span className="category-icon">{cat.icon}</span>
-                            <span className="category-name">{cat.name}</span>
-                            <span className="category-desc">{cat.desc}</span>
-                        </Link>
-                    ))}
-                </div>
-            </section>
-
-            {/* ── BEST SELLERS ── */}
-            {bestSellers.length > 0 && (
-                <section className="section">
-                    <div className="section-header">
-                        <div>
-                            <div className="label-caps" style={{ marginBottom: 10 }}>Community Favourites</div>
-                            <h2 className="h-section">Best Sellers</h2>
-                        </div>
-                        <Link href="/products?sort=popular" className="btn-ghost-ink">
-                            View All <FaArrowRight size={10} />
-                        </Link>
-                    </div>
-                    <div className="product-grid-3">
-                        {bestSellers.map((product) => (
-                            <div key={product.id} className="product-card">
-                                <div className="product-card-image">
-                                    <Link href={`/products/${product.id}`}>
-                                        <img src={getPrimaryImage(product)} alt={product.name} />
-                                    </Link>
-                                    <div className="product-card-overlay">
-                                        <button onClick={() => handleAddToCart(product)}>
-                                            Add to Cart <FaArrowRight size={10} />
-                                        </button>
-                                    </div>
-                                </div>
-                                <div className="product-card-body">
-                                    <Link href={`/products/${product.id}`} className="product-card-name">
-                                        {product.name}
-                                    </Link>
-                                    <span className="product-card-price">${product.price}</span>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </section>
-            )}
-
-            {/* ── NEW ARRIVALS ── */}
-            {newArrivals.length > 0 && (
-                <section className="section" style={{ background: 'var(--surface-muted)' }}>
-                    <div className="section-header">
-                        <div>
-                            <div className="label-caps" style={{ marginBottom: 10 }}>Fresh In</div>
-                            <h2 className="h-section">New Arrivals</h2>
-                        </div>
-                        <Link href="/products?new=true" className="btn-ghost-ink">
-                            See All New <FaArrowRight size={10} />
-                        </Link>
-                    </div>
-                    <div className="product-grid-3">
-                        {newArrivals.map((product) => (
-                            <div key={product.id} className="product-card">
-                                <div className="product-card-image">
-                                    <div className="product-card-badge new">New</div>
-                                    <Link href={`/products/${product.id}`}>
-                                        <img src={getPrimaryImage(product)} alt={product.name} />
-                                    </Link>
-                                    <div className="product-card-overlay">
-                                        <button onClick={() => handleAddToCart(product)}>
-                                            Add to Cart <FaArrowRight size={10} />
-                                        </button>
-                                    </div>
-                                </div>
-                                <div className="product-card-body">
-                                    <Link href={`/products/${product.id}`} className="product-card-name">
-                                        {product.name}
-                                    </Link>
-                                    <div>
-                                        <span className="product-card-price">${product.price}</span>
-                                        {product.compare_price && (
-                                            <span className="product-card-compare">${product.compare_price}</span>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </section>
-            )}
-
-            {/* ── AI RECOMMENDED ── */}
-            {aiRecommended.length > 0 && (
-                <section className="section">
-                    <div className="section-header">
-                        <div>
-                            <div className="label-caps" style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
-                                <span style={{ color: 'var(--accent)' }}>✦</span> AI Picks
-                            </div>
-                            <h2 className="h-section">Recommended for You</h2>
-                        </div>
-                    </div>
-                    <div className="product-grid-4">
-                        {aiRecommended.map((product) => (
-                            <div key={product.id} className="product-card">
-                                <div className="product-card-image" style={{ aspectRatio: '2/3' }}>
-                                    <div className="product-card-badge ai">AI Pick</div>
-                                    <Link href={`/products/${product.id}`}>
-                                        <img src={getPrimaryImage(product)} alt={product.name} />
-                                    </Link>
-                                    <div className="product-card-overlay">
-                                        <button onClick={() => handleAddToCart(product)}>
-                                            Add to Cart <FaArrowRight size={10} />
-                                        </button>
-                                    </div>
-                                </div>
-                                <div className="product-card-body">
-                                    <Link href={`/products/${product.id}`} className="product-card-name" style={{ fontSize: 13 }}>
-                                        {product.name}
-                                    </Link>
-                                    <span className="product-card-price" style={{ fontSize: 18 }}>${product.price}</span>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </section>
-            )}
-
-            {/* ── REVIEW ── */}
-            <section className="review-section">
-                <div>
-                    <FaQuoteLeft size={24} className="review-quote-icon" />
-                    <p className="review-text">
-                        "The quality of the linen is unmatched. It truly feels like wearing air — I've never experienced comfort like this from a clothing brand."
-                    </p>
-                    <div className="review-author">
-                        <div className="review-avatar">🌿</div>
-                        <div>
-                            <div style={{ fontFamily: 'Jost', fontWeight: 500, fontSize: 14, letterSpacing: '0.05em', color: 'var(--ink)' }}>
-                                Olivia Chen
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
-                                {renderStars(5)}
-                                <span className="label-caps" style={{ fontSize: 10, color: 'var(--ink-faint)' }}>Verified Customer</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div className="review-stat-grid">
-                    {[
-                        { num: '5K+', label: 'Happy Customers' },
-                        { num: '4.9', label: 'Average Rating' },
-                        { num: '98%', label: 'Would Recommend' },
-                        { num: '3yr', label: 'Trusted Brand' },
-                    ].map((s) => (
-                        <div key={s.label} className="review-stat">
-                            <div className="review-stat-num">{s.num}</div>
-                            <div className="label-caps" style={{ fontSize: 10, color: 'var(--ink-soft)' }}>{s.label}</div>
-                        </div>
-                    ))}
-                </div>
-            </section>
-
-            {/* ── NEWSLETTER ── */}
-            <section className="newsletter-section">
-                <div>
-                    <div className="label-caps" style={{ color: 'var(--accent)', marginBottom: 16, letterSpacing: '0.25em' }}>
-                        Stay in the Air
-                    </div>
-                    <h2 style={{ fontFamily: 'Cormorant Garamond', fontSize: 44, fontWeight: 500, color: '#fff', lineHeight: 1.05, marginBottom: 16 }}>
-                        First to Know.<br />Always.
-                    </h2>
-                    <p className="body-text" style={{ color: 'rgba(255,255,255,0.45)', fontSize: 15, maxWidth: 340 }}>
-                        Receive exclusive access to new drops, seasonal edits, and members-only stories.
-                    </p>
-                </div>
-                <div>
-                    {subscribed ? (
-                        <div className="success-msg">
-                            <FaCheckCircle /> You're on the list. Watch your inbox.
-                        </div>
-                    ) : (
-                        <form onSubmit={handleSubscribe}>
-                            <div className="newsletter-input-row">
-                                <input
-                                    type="email"
-                                    className="newsletter-input"
-                                    placeholder="Your email address"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    required
-                                />
-                                <button type="submit" className="newsletter-btn">
-                                    Subscribe <FaArrowRight size={11} />
-                                </button>
-                            </div>
-                        </form>
+                <div className="product-card-body">
+                  <Link
+                    href={`/products/${product.id}`}
+                    className="product-card-name"
+                  >
+                    {product.name}
+                  </Link>
+                  <div>
+                    <span className="product-card-price">${product.price}</span>
+                    {product.compare_price && (
+                      <span className="product-card-compare">
+                        ${product.compare_price}
+                      </span>
                     )}
-                    <p className="label-caps" style={{ color: 'rgba(255,255,255,0.2)', marginTop: 20, fontSize: 10 }}>
-                        No spam. Unsubscribe anytime. We respect your privacy.
-                    </p>
+                  </div>
                 </div>
-            </section>
-        </>
-    );
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ── CATEGORIES ── */}
+      <section className="category-section">
+        <div className="section-header" style={{ marginBottom: 48 }}>
+          <div>
+            <h2 className="h-section">Categories</h2>
+          </div>
+          <Link href="/categories" className="btn-ghost-ink">
+            View All <FaArrowRight size={10} />
+          </Link>
+        </div>
+        <div className="category-grid">
+          {categories.map((cat) => (
+            <Link
+              key={cat.slug}
+              href={`/categories/${cat.slug}`}
+              className="category-card"
+            >
+              <span className="category-icon">{cat.icon}</span>
+              <span className="category-name">{cat.name}</span>
+              <span className="category-desc">{cat.desc}</span>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      {/* ── BEST SELLERS ── */}
+      {bestSellers.length > 0 && (
+        <section className="section">
+          <div className="section-header">
+            <div>
+              <h2 className="h-section">Best Sellers</h2>
+            </div>
+            <Link href="/products?sort=popular" className="btn-ghost-ink">
+              View All <FaArrowRight size={10} />
+            </Link>
+          </div>
+          <div className="product-grid-3">
+            {bestSellers.map((product) => (
+              <div key={product.id} className="product-card">
+                <div className="product-card-image">
+                  <Link href={`/products/${product.id}`}>
+                    <img src={getPrimaryImage(product)} alt={product.name} />
+                  </Link>
+                  <div className="product-card-overlay">
+                    <button onClick={() => handleAddToCart(product)}>
+                      Add to Cart <FaArrowRight size={10} />
+                    </button>
+                  </div>
+                </div>
+                <div className="product-card-body">
+                  <Link
+                    href={`/products/${product.id}`}
+                    className="product-card-name"
+                  >
+                    {product.name}
+                  </Link>
+                  <span className="product-card-price">${product.price}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ── NEW ARRIVALS ── */}
+      {newArrivals.length > 0 && (
+        <section
+          className="section"
+          style={{ background: "var(--surface-muted)" }}
+        >
+          <div className="section-header">
+            <div>
+              <h2 className="h-section">New Arrivals</h2>
+            </div>
+            <Link href="/products?new=true" className="btn-ghost-ink">
+              View All <FaArrowRight size={10} />
+            </Link>
+          </div>
+          <div className="product-grid-3">
+            {newArrivals.map((product) => (
+              <div key={product.id} className="product-card">
+                <div className="product-card-image">
+                  <div className="product-card-badge new">New</div>
+                  <Link href={`/products/${product.id}`}>
+                    <img src={getPrimaryImage(product)} alt={product.name} />
+                  </Link>
+                  <div className="product-card-overlay">
+                    <button onClick={() => handleAddToCart(product)}>
+                      Add to Cart <FaArrowRight size={10} />
+                    </button>
+                  </div>
+                </div>
+                <div className="product-card-body">
+                  <Link
+                    href={`/products/${product.id}`}
+                    className="product-card-name"
+                  >
+                    {product.name}
+                  </Link>
+                  <div>
+                    <span className="product-card-price">${product.price}</span>
+                    {product.compare_price && (
+                      <span className="product-card-compare">
+                        ${product.compare_price}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ── AI RECOMMENDED ── */}
+      {aiRecommended.length > 0 && (
+        <section className="section">
+          <div className="section-header">
+            <div>
+              <div
+                className="label-caps"
+                style={{
+                  marginBottom: 10,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                }}
+              >
+                <span style={{ color: "var(--accent)" }}>✦</span> AI Picks
+              </div>
+              <h2 className="h-section">Recommended for You</h2>
+            </div>
+          </div>
+          <div className="product-grid-4">
+            {aiRecommended.map((product) => (
+              <div key={product.id} className="product-card">
+                <div
+                  className="product-card-image"
+                  style={{ aspectRatio: "2/3" }}
+                >
+                  <div className="product-card-badge ai">AI Pick</div>
+                  <Link href={`/products/${product.id}`}>
+                    <img src={getPrimaryImage(product)} alt={product.name} />
+                  </Link>
+                  <div className="product-card-overlay">
+                    <button onClick={() => handleAddToCart(product)}>
+                      Add to Cart <FaArrowRight size={10} />
+                    </button>
+                  </div>
+                </div>
+                <div className="product-card-body">
+                  <Link
+                    href={`/products/${product.id}`}
+                    className="product-card-name"
+                    style={{ fontSize: 13 }}
+                  >
+                    {product.name}
+                  </Link>
+                  <span className="product-card-price" style={{ fontSize: 18 }}>
+                    ${product.price}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ── REVIEW ── */}
+      <section className="review-section">
+        <div>
+          <FaQuoteLeft size={24} className="review-quote-icon" />
+          <p className="review-text">
+            "The quality of the linen is unmatched. It truly feels like wearing
+            air — I've never experienced comfort like this from a clothing
+            brand."
+          </p>
+          <div className="review-author">
+            <div className="review-avatar">🌿</div>
+            <div>
+              <div
+                style={{
+                  fontFamily: "Jost",
+                  fontWeight: 500,
+                  fontSize: 14,
+                  letterSpacing: "0.05em",
+                  color: "var(--ink)",
+                }}
+              >
+                Olivia Chen
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  marginTop: 4,
+                }}
+              >
+                {renderStars(5)}
+                <span
+                  className="label-caps"
+                  style={{ fontSize: 10, color: "var(--ink-faint)" }}
+                >
+                  Verified Customer
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="review-stat-grid">
+          {[
+            { num: "5K+", label: "Happy Customers" },
+            { num: "4.9", label: "Average Rating" },
+            { num: "98%", label: "Would Recommend" },
+            { num: "3yr", label: "Trusted Brand" },
+          ].map((s) => (
+            <div key={s.label} className="review-stat">
+              <div className="review-stat-num">{s.num}</div>
+              <div
+                className="label-caps"
+                style={{ fontSize: 10, color: "var(--ink-soft)" }}
+              >
+                {s.label}
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── NEWSLETTER ── */}
+      <section className="newsletter-section">
+        <div>
+          <div
+            className="label-caps"
+            style={{
+              color: "var(--accent)",
+              marginBottom: 16,
+              letterSpacing: "0.25em",
+            }}
+          >
+            Stay in the Air
+          </div>
+          <h2
+            style={{
+              fontFamily: "Cormorant Garamond",
+              fontSize: 44,
+              fontWeight: 500,
+              color: "#fff",
+              lineHeight: 1.05,
+              marginBottom: 16,
+            }}
+          >
+            First to Know.
+            <br />
+            Always.
+          </h2>
+          <p
+            className="body-text"
+            style={{
+              color: "rgba(255,255,255,0.45)",
+              fontSize: 15,
+              maxWidth: 340,
+            }}
+          >
+            Receive exclusive access to new drops, seasonal edits, and
+            members-only stories.
+          </p>
+        </div>
+        <div>
+          {subscribed ? (
+            <div className="success-msg">
+              <FaCheckCircle /> You're on the list. Watch your inbox.
+            </div>
+          ) : (
+            <form onSubmit={handleSubscribe}>
+              <div className="newsletter-input-row">
+                <input
+                  type="email"
+                  className="newsletter-input"
+                  placeholder="Your email address"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+                <button type="submit" className="newsletter-btn">
+                  Subscribe <FaArrowRight size={11} />
+                </button>
+              </div>
+            </form>
+          )}
+          <p
+            className="label-caps"
+            style={{
+              color: "rgba(255,255,255,0.2)",
+              marginTop: 20,
+              fontSize: 10,
+            }}
+          >
+            No spam. Unsubscribe anytime. We respect your privacy.
+          </p>
+        </div>
+      </section>
+    </>
+  );
 }
