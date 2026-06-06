@@ -5,8 +5,8 @@ import { usePathname } from 'next/navigation';
 import { useState, useEffect, useRef } from 'react';
 import {
     FaShoppingCart, FaHeart, FaUser, FaSearch,
-    FaTimes, FaChevronDown, FaSignOutAlt, FaTachometerAlt,
-    FaBoxOpen, FaUserCircle
+    FaTimes, FaSignOutAlt, FaTachometerAlt,
+    FaBoxOpen, FaUserCircle, FaArrowRight
 } from 'react-icons/fa';
 import { useAuth } from '@/context/AuthContext';
 import { useCart } from '@/context/CartContext';
@@ -36,8 +36,14 @@ export default function Navbar() {
         if (showSearch && searchRef.current) searchRef.current.focus();
     }, [showSearch]);
 
+    useEffect(() => {
+        document.body.style.overflow = isMenuOpen ? 'hidden' : '';
+        return () => { document.body.style.overflow = ''; };
+    }, [isMenuOpen]);
+
     const handleLogout = () => {
         logout();
+        setShowUserMenu(false);
         window.location.href = '/';
     };
 
@@ -54,509 +60,426 @@ export default function Navbar() {
                 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Jost:wght@300;400;500;600&display=swap');
 
                 :root {
-                    --nav-height: 72px;
+                    --nav-h: 66px;
                     --ink: #0a0a0a;
-                    --ink-soft: #5a5a5a;
-                    --surface: #ffffff;
+                    --ink-soft: #5c5c5c;
+                    --ink-faint: #aaa;
+                    --white: #ffffff;
+                    --warm: #fafaf7;
                     --accent: #c8a96e;
-                    --accent-dark: #a8893e;
-                    --border: rgba(0,0,0,0.08);
+                    --border: rgba(0,0,0,0.09);
                 }
 
-                .air-navbar {
+                /* ─── Navbar shell ─── */
+                .ac-nav {
                     position: fixed;
-                    top: 0;
-                    left: 0;
-                    right: 0;
+                    top: 0; left: 0; right: 0;
                     z-index: 1000;
-                    height: var(--nav-height);
-                    display: flex;
-                    align-items: center;
-                    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-                    background: rgba(255,255,255,0);
+                    height: var(--nav-h);
+                    transition: background 0.35s ease, box-shadow 0.35s ease, border-color 0.35s ease;
+                    background: transparent;
                     border-bottom: 1px solid transparent;
                 }
-
-                .air-navbar.scrolled {
-                    background: rgba(255,255,255,0.95);
-                    backdrop-filter: blur(20px);
-                    -webkit-backdrop-filter: blur(20px);
+                .ac-nav.is-scrolled,
+                .ac-nav.is-open {
+                    background: rgba(255,255,255,0.96);
+                    backdrop-filter: blur(18px);
+                    -webkit-backdrop-filter: blur(18px);
                     border-bottom-color: var(--border);
-                    box-shadow: 0 1px 40px rgba(0,0,0,0.06);
+                    box-shadow: 0 2px 28px rgba(0,0,0,0.07);
                 }
 
-                .air-navbar.menu-open {
-                    background: var(--surface);
-                    border-bottom-color: var(--border);
-                }
-
-                .nav-inner {
-                    width: 100%;
+                /* ─── Three-column flex bar ─── */
+                .ac-bar {
+                    height: var(--nav-h);
                     max-width: 1400px;
                     margin: 0 auto;
-                    padding: 0 32px;
-                    display: grid;
-                    grid-template-columns: 1fr auto 1fr;
-                    align-items: center;
-                    gap: 24px;
-                }
-
-                .nav-logo {
-                    font-family: 'Cormorant Garamond', serif;
-                    font-weight: 600;
-                    font-size: 22px;
-                    letter-spacing: 0.12em;
-                    color: var(--ink);
-                    text-decoration: none;
-                    text-transform: uppercase;
-                    transition: opacity 0.2s;
-                    grid-column: 2;
-                    white-space: nowrap;
-                }
-
-                .nav-logo:hover { opacity: 0.7; color: var(--ink); }
-
-                .nav-links {
+                    padding: 0 36px;
                     display: flex;
                     align-items: center;
-                    gap: 36px;
-                    list-style: none;
-                    margin: 0;
-                    padding: 0;
-                    grid-column: 1;
+                    justify-content: space-between;
+                    gap: 16px;
                 }
 
-                .nav-links a {
+                /* ─── Left: desktop links OR hamburger ─── */
+                .ac-left {
+                    flex: 1;
+                    display: flex;
+                    align-items: center;
+                    gap: 32px;
+                    list-style: none;
+                    margin: 0; padding: 0;
+                    min-width: 0;
+                }
+
+                /* Desktop nav link */
+                .ac-left a {
                     font-family: 'Jost', sans-serif;
-                    font-size: 11.5px;
+                    font-size: 11px;
                     font-weight: 500;
-                    letter-spacing: 0.18em;
+                    letter-spacing: 0.2em;
                     text-transform: uppercase;
                     color: var(--ink);
                     text-decoration: none;
                     position: relative;
-                    padding-bottom: 4px;
-                    transition: color 0.2s;
+                    padding-bottom: 3px;
+                    white-space: nowrap;
+                    transition: opacity 0.2s;
                 }
-
-                .nav-links a::after {
+                .ac-left a::after {
                     content: '';
                     position: absolute;
-                    bottom: 0;
-                    left: 0;
-                    width: 0;
-                    height: 1px;
+                    bottom: 0; left: 0;
+                    width: 0; height: 1px;
                     background: var(--accent);
-                    transition: width 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+                    transition: width 0.32s cubic-bezier(0.16,1,0.3,1);
                 }
+                .ac-left a:hover { opacity: 0.55; }
+                .ac-left a:hover::after,
+                .ac-left a.is-active::after { width: 100%; }
 
-                .nav-links a:hover::after,
-                .nav-links a.active-link::after {
-                    width: 100%;
-                }
-
-                .nav-links a.active-link {
-                    color: var(--ink);
-                }
-
-                .nav-links a:hover {
-                    color: var(--ink);
-                }
-
-                .nav-actions {
-                    display: flex;
-                    align-items: center;
-                    gap: 20px;
-                    grid-column: 3;
-                    justify-content: flex-end;
-                }
-
-                .nav-icon-btn {
+                /* Hamburger button — hidden on desktop */
+                .ac-burger {
+                    display: none;
+                    flex-direction: column;
+                    justify-content: center;
+                    gap: 5px;
                     background: none;
                     border: none;
-                    padding: 6px;
                     cursor: pointer;
+                    padding: 8px 4px;
+                    -webkit-tap-highlight-color: transparent;
+                }
+                .ac-burger-line {
+                    width: 22px;
+                    height: 1.5px;
+                    background: var(--ink);
+                    border-radius: 2px;
+                    transition: transform 0.32s cubic-bezier(0.16,1,0.3,1), opacity 0.2s;
+                    transform-origin: center;
+                }
+                .ac-burger.is-open .ac-burger-line:nth-child(1) { transform: translateY(6.5px) rotate(45deg); }
+                .ac-burger.is-open .ac-burger-line:nth-child(2) { opacity: 0; transform: scaleX(0); }
+                .ac-burger.is-open .ac-burger-line:nth-child(3) { transform: translateY(-6.5px) rotate(-45deg); }
+
+                /* ─── Center: logo ─── */
+                .ac-logo {
+                    flex-shrink: 0;
+                    font-family: 'Cormorant Garamond', serif;
+                    font-weight: 600;
+                    font-size: 20px;
+                    letter-spacing: 0.16em;
+                    text-transform: uppercase;
                     color: var(--ink);
+                    text-decoration: none;
+                    transition: opacity 0.2s;
+                    white-space: nowrap;
+                }
+                .ac-logo:hover { opacity: 0.6; color: var(--ink); }
+
+                /* ─── Right: icons — ALWAYS visible at all screen sizes ─── */
+                .ac-icons {
+                    flex: 1;
+                    display: flex;           /* never hidden */
+                    align-items: center;
+                    justify-content: flex-end;
+                    gap: 6px;
+                }
+
+                .ac-icon {
+                    position: relative;
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    position: relative;
-                    transition: opacity 0.2s, transform 0.2s;
-                    text-decoration: none;
-                }
-
-                .nav-icon-btn:hover {
-                    opacity: 0.55;
-                    transform: translateY(-1px);
+                    width: 38px;
+                    height: 38px;
+                    background: none;
+                    border: none;
+                    cursor: pointer;
                     color: var(--ink);
+                    text-decoration: none;
+                    border-radius: 50%;
+                    transition: background 0.18s, opacity 0.18s;
+                    -webkit-tap-highlight-color: transparent;
+                    flex-shrink: 0;
                 }
+                .ac-icon:hover { background: rgba(0,0,0,0.05); color: var(--ink); }
 
-                .nav-badge {
+                .ac-badge {
                     position: absolute;
-                    top: -4px;
-                    right: -6px;
+                    top: 4px; right: 4px;
                     background: var(--ink);
                     color: #fff;
                     font-family: 'Jost', sans-serif;
-                    font-size: 9px;
-                    font-weight: 600;
-                    width: 16px;
-                    height: 16px;
-                    border-radius: 50%;
+                    font-size: 8px;
+                    font-weight: 700;
+                    min-width: 14px;
+                    height: 14px;
+                    border-radius: 7px;
+                    padding: 0 3px;
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    letter-spacing: 0;
+                    line-height: 1;
+                    pointer-events: none;
                 }
 
-                .nav-divider {
+                .ac-divider {
                     width: 1px;
-                    height: 20px;
-                    background: var(--border);
+                    height: 16px;
+                    background: rgba(0,0,0,0.12);
+                    flex-shrink: 0;
+                    margin: 0 2px;
                 }
 
-                /* Search overlay */
-                .search-overlay {
-                    position: fixed;
-                    inset: 0;
-                    z-index: 1100;
-                    background: rgba(10,10,10,0.6);
-                    backdrop-filter: blur(4px);
+                /* ─── User dropdown ─── */
+                .ac-user-wrap { position: relative; }
+                .ac-dropdown {
+                    position: absolute;
+                    top: calc(100% + 10px);
+                    right: 0;
+                    background: var(--white);
+                    border: 1px solid rgba(0,0,0,0.11);
+                    min-width: 190px;
+                    box-shadow: 0 12px 40px rgba(0,0,0,0.13);
+                    z-index: 500;
+                    animation: acDropIn 0.2s cubic-bezier(0.16,1,0.3,1);
+                }
+                .ac-drop-item {
+                    display: flex; align-items: center; gap: 10px;
+                    padding: 13px 18px;
+                    font-family: 'Jost', sans-serif;
+                    font-size: 11px; font-weight: 500;
+                    letter-spacing: 0.12em; text-transform: uppercase;
+                    color: var(--ink); text-decoration: none;
+                    cursor: pointer; background: none; border: none;
+                    width: 100%; text-align: left;
+                    border-bottom: 1px solid var(--border);
+                    transition: background 0.14s;
+                }
+                .ac-drop-item:last-child { border-bottom: none; }
+                .ac-drop-item:hover { background: var(--warm); }
+                .ac-drop-item svg { opacity: 0.4; flex-shrink: 0; }
+
+                /* ─── Search overlay ─── */
+                .ac-search-overlay {
+                    position: fixed; inset: 0; z-index: 1200;
+                    background: rgba(10,10,10,0.5);
+                    backdrop-filter: blur(8px);
+                    -webkit-backdrop-filter: blur(8px);
                     display: flex;
                     align-items: flex-start;
-                    padding-top: 120px;
                     justify-content: center;
-                    animation: fadeIn 0.25s ease;
+                    padding-top: 100px;
+                    animation: acFadeIn 0.2s ease;
                 }
-
-                .search-box {
-                    background: var(--surface);
-                    width: 100%;
-                    max-width: 640px;
-                    margin: 0 24px;
-                    padding: 8px 20px;
-                    display: flex;
-                    align-items: center;
-                    gap: 16px;
+                .ac-search-box {
+                    background: var(--white);
+                    width: 100%; max-width: 600px;
+                    margin: 0 20px;
+                    display: flex; align-items: center;
+                    gap: 14px;
+                    padding: 4px 20px;
                     border-bottom: 2px solid var(--ink);
                 }
-
-                .search-box input {
-                    flex: 1;
-                    border: none;
-                    outline: none;
+                .ac-search-box input {
+                    flex: 1; border: none; outline: none;
                     font-family: 'Jost', sans-serif;
-                    font-size: 20px;
-                    font-weight: 300;
-                    letter-spacing: 0.04em;
-                    color: var(--ink);
-                    background: transparent;
-                    padding: 12px 0;
-                }
-
-                .search-box input::placeholder { color: #aaa; }
-
-                .search-close {
-                    background: none;
-                    border: none;
-                    cursor: pointer;
-                    color: var(--ink-soft);
-                    padding: 8px;
-                    transition: color 0.2s;
-                }
-
-                .search-close:hover { color: var(--ink); }
-
-                /* User dropdown */
-                .user-dropdown {
-                    position: relative;
-                }
-
-                .user-menu {
-                    position: absolute;
-                    top: calc(100% + 16px);
-                    right: 0;
-                    background: var(--surface);
-                    border: 1px solid var(--border);
-                    min-width: 200px;
-                    box-shadow: 0 20px 60px rgba(0,0,0,0.12);
-                    animation: dropDown 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-                    z-index: 200;
-                }
-
-                .user-menu-item {
-                    display: flex;
-                    align-items: center;
-                    gap: 12px;
-                    padding: 14px 20px;
-                    font-family: 'Jost', sans-serif;
-                    font-size: 12px;
-                    font-weight: 500;
-                    letter-spacing: 0.1em;
-                    text-transform: uppercase;
-                    color: var(--ink);
-                    text-decoration: none;
-                    cursor: pointer;
-                    border: none;
-                    background: none;
-                    width: 100%;
-                    text-align: left;
-                    transition: background 0.15s;
-                    border-bottom: 1px solid var(--border);
-                }
-
-                .user-menu-item:last-child { border-bottom: none; }
-                .user-menu-item:hover { background: #fafaf8; }
-                .user-menu-item svg { opacity: 0.5; }
-
-                /* Mobile menu */
-                .mobile-menu {
-                    position: fixed;
-                    top: var(--nav-height);
-                    left: 0;
-                    right: 0;
-                    bottom: 0;
-                    background: var(--surface);
-                    z-index: 999;
-                    padding: 40px 32px;
-                    display: flex;
-                    flex-direction: column;
-                    gap: 0;
-                    overflow-y: auto;
-                    transform: translateX(${isMenuOpen ? '0' : '100%'});
-                    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-                }
-
-                .mobile-nav-link {
-                    display: block;
-                    font-family: 'Cormorant Garamond', serif;
-                    font-size: 36px;
-                    font-weight: 500;
-                    color: var(--ink);
-                    text-decoration: none;
+                    font-size: 17px; font-weight: 300;
+                    color: var(--ink); background: transparent;
                     padding: 16px 0;
+                    letter-spacing: 0.03em;
+                }
+                .ac-search-box input::placeholder { color: #ccc; }
+                .ac-search-close {
+                    background: none; border: none; cursor: pointer;
+                    color: var(--ink-faint); padding: 8px;
+                    transition: color 0.18s;
+                    display: flex; align-items: center;
+                }
+                .ac-search-close:hover { color: var(--ink); }
+
+                /* ─── Mobile drawer ─── */
+                .ac-drawer {
+                    position: fixed;
+                    top: var(--nav-h);
+                    left: 0; right: 0;
+                    background: var(--white);
+                    z-index: 999;
                     border-bottom: 1px solid var(--border);
-                    letter-spacing: 0.04em;
-                    transition: opacity 0.2s, padding-left 0.3s;
+                    box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+                    transition: transform 0.34s cubic-bezier(0.16,1,0.3,1),
+                                opacity 0.3s ease;
+                    overflow: hidden;
+                }
+                .ac-drawer.drawer-closed {
+                    transform: translateY(-8px);
+                    opacity: 0;
+                    pointer-events: none;
+                }
+                .ac-drawer.drawer-open {
+                    transform: translateY(0);
+                    opacity: 1;
                 }
 
-                .mobile-nav-link:hover {
-                    opacity: 0.5;
-                    padding-left: 8px;
+                .ac-drawer-list {
+                    list-style: none; margin: 0; padding: 8px 0;
                 }
-
-                .mobile-user-section {
-                    margin-top: 40px;
-                    display: flex;
-                    flex-direction: column;
-                    gap: 0;
-                }
-
-                .mobile-user-link {
-                    display: flex;
-                    align-items: center;
-                    gap: 12px;
+                .ac-drawer-link {
+                    display: flex; align-items: center;
+                    justify-content: space-between;
+                    padding: 15px 28px;
                     font-family: 'Jost', sans-serif;
-                    font-size: 12px;
-                    font-weight: 500;
-                    letter-spacing: 0.15em;
-                    text-transform: uppercase;
-                    color: var(--ink-soft);
-                    text-decoration: none;
-                    padding: 14px 0;
+                    font-size: 12px; font-weight: 500;
+                    letter-spacing: 0.18em; text-transform: uppercase;
+                    color: var(--ink); text-decoration: none;
                     border-bottom: 1px solid var(--border);
-                    cursor: pointer;
-                    border: none;
-                    background: none;
-                    width: 100%;
-                    text-align: left;
-                    transition: color 0.2s;
+                    transition: background 0.15s, padding-left 0.22s, color 0.15s;
                 }
-
-                .mobile-user-link:hover { color: var(--ink); }
-
-                .hamburger-btn {
-                    background: none;
-                    border: none;
-                    cursor: pointer;
-                    padding: 6px;
-                    color: var(--ink);
-                    display: flex;
-                    flex-direction: column;
-                    gap: 5px;
-                    display: none;
+                .ac-drawer-link:last-child { border-bottom: none; }
+                .ac-drawer-link:hover,
+                .ac-drawer-link.drawer-active {
+                    background: var(--warm);
+                    padding-left: 36px;
                 }
+                .ac-drawer-link.drawer-active { color: var(--accent); }
+                .ac-drawer-link svg { opacity: 0.2; transition: opacity 0.2s, transform 0.2s; }
+                .ac-drawer-link:hover svg { opacity: 0.5; transform: translateX(3px); }
 
-                .ham-line {
-                    width: 24px;
-                    height: 1.5px;
-                    background: var(--ink);
-                    transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-                    transform-origin: center;
-                }
+                /* ─── Keyframes ─── */
+                @keyframes acFadeIn  { from { opacity:0 } to { opacity:1 } }
+                @keyframes acDropIn  { from { opacity:0; transform:translateY(-6px) } to { opacity:1; transform:translateY(0) } }
 
-                .ham-line.open:nth-child(1) { transform: translateY(6.5px) rotate(45deg); }
-                .ham-line.open:nth-child(2) { opacity: 0; transform: scaleX(0); }
-                .ham-line.open:nth-child(3) { transform: translateY(-6.5px) rotate(-45deg); }
+                /* ─── Responsive ─── */
 
-                @keyframes fadeIn {
-                    from { opacity: 0; }
-                    to { opacity: 1; }
-                }
-
-                @keyframes dropDown {
-                    from { opacity: 0; transform: translateY(-8px); }
-                    to { opacity: 1; transform: translateY(0); }
-                }
-
+                /* Tablet (≤1024px): hide desktop links, show hamburger */
                 @media (max-width: 1024px) {
-                    .nav-inner {
-                        grid-template-columns: auto 1fr auto;
-                        padding: 0 20px;
-                    }
-                    .nav-logo { grid-column: 2; text-align: center; }
-                    .nav-links { display: none; }
-                    .hamburger-btn { display: flex; grid-column: 1; }
-                    .nav-actions { grid-column: 3; }
+                    .ac-left-links { display: none !important; }
+                    .ac-burger     { display: flex; }
+                    .ac-bar        { padding: 0 24px; }
+                }
+
+                /* Mobile (≤640px): smaller padding, tighter icon gap */
+                @media (max-width: 640px) {
+                    .ac-bar  { padding: 0 16px; gap: 8px; }
+                    .ac-icons { gap: 2px; }
+                    .ac-icon  { width: 34px; height: 34px; }
+                    .ac-logo  { font-size: 17px; letter-spacing: 0.12em; }
+                }
+
+                /* Very small (≤360px): even tighter */
+                @media (max-width: 360px) {
+                    .ac-bar   { padding: 0 10px; }
+                    .ac-icon  { width: 30px; height: 30px; }
+                    .ac-icons { gap: 0; }
+                    .ac-divider { display: none; }
                 }
             `}</style>
 
-            <nav className={`air-navbar ${scrolled ? 'scrolled' : ''} ${isMenuOpen ? 'menu-open' : ''}`}>
-                <div className="nav-inner">
-                    {/* Hamburger — mobile only */}
-                    <button
-                        className="hamburger-btn"
-                        onClick={() => setIsMenuOpen(!isMenuOpen)}
-                        aria-label="Toggle menu"
-                    >
-                        <span className={`ham-line ${isMenuOpen ? 'open' : ''}`} />
-                        <span className={`ham-line ${isMenuOpen ? 'open' : ''}`} />
-                        <span className={`ham-line ${isMenuOpen ? 'open' : ''}`} />
-                    </button>
+            {/* ── Navbar ── */}
+            <nav className={`ac-nav${scrolled ? ' is-scrolled' : ''}${isMenuOpen ? ' is-open' : ''}`}>
+                <div className="ac-bar">
 
-                    {/* Nav links — desktop */}
-                    <ul className="nav-links">
-                        {navLinks.map(link => (
-                            <li key={link.href}>
-                                <Link
-                                    href={link.href}
-                                    className={pathname === link.href ? 'active-link' : ''}
-                                >
-                                    {link.label}
-                                </Link>
-                            </li>
-                        ))}
-                    </ul>
+                    {/* ── LEFT: desktop nav links / mobile hamburger ── */}
+                    <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
+                        {/* Desktop links */}
+                        <ul className="ac-left ac-left-links">
+                            {navLinks.map(link => (
+                                <li key={link.href}>
+                                    <Link href={link.href} className={pathname === link.href ? 'is-active' : ''}>
+                                        {link.label}
+                                    </Link>
+                                </li>
+                            ))}
+                        </ul>
 
-                    {/* Logo */}
-                    <Link href="/" className="nav-logo">Air Collection</Link>
+                        {/* Hamburger — tablet & mobile */}
+                        <button
+                            className={`ac-burger${isMenuOpen ? ' is-open' : ''}`}
+                            onClick={() => setIsMenuOpen(prev => !prev)}
+                            aria-label="Toggle navigation"
+                        >
+                            <span className="ac-burger-line" />
+                            <span className="ac-burger-line" />
+                            <span className="ac-burger-line" />
+                        </button>
+                    </div>
 
-                    {/* Action icons */}
-                    <div className="nav-actions">
-                        <button className="nav-icon-btn" onClick={() => setShowSearch(true)} aria-label="Search">
-                            <FaSearch size={16} />
+                    {/* ── CENTER: logo ── */}
+                    <Link href="/" className="ac-logo" onClick={() => setIsMenuOpen(false)}>
+                        Air Collection
+                    </Link>
+
+                    {/* ── RIGHT: icons — always shown on every screen size ── */}
+                    <div className="ac-icons">
+                        {/* Search */}
+                        <button
+                            className="ac-icon"
+                            onClick={() => { setShowSearch(true); setIsMenuOpen(false); }}
+                            aria-label="Search"
+                        >
+                            <FaSearch size={14} />
                         </button>
 
-                        <div className="nav-divider" />
+                        <span className="ac-divider" />
 
-                        <Link href="/wishlist" className="nav-icon-btn" aria-label="Wishlist">
-                            <FaHeart size={16} />
-                            {wishlistCount > 0 && <span className="nav-badge">{wishlistCount}</span>}
-                        </Link>
-
-                        <Link href="/cart" className="nav-icon-btn" aria-label="Cart">
-                            <FaShoppingCart size={16} />
-                            {cartCount > 0 && <span className="nav-badge">{cartCount}</span>}
-                        </Link>
-
-                        {/* Desktop user dropdown */}
-                        <div className="user-dropdown" style={{ display: 'none' }} id="desktop-user">
-                            <button
-                                className="nav-icon-btn"
-                                onClick={() => setShowUserMenu(!showUserMenu)}
-                                aria-label="Account"
-                            >
-                                <FaUser size={15} />
-                                <FaChevronDown size={9} style={{ marginLeft: 4, opacity: 0.5 }} />
-                            </button>
-                            {showUserMenu && (
-                                <>
-                                    <div
-                                        style={{ position: 'fixed', inset: 0, zIndex: 199 }}
-                                        onClick={() => setShowUserMenu(false)}
-                                    />
-                                    <div className="user-menu">
-                                        {user ? (
-                                            <>
-                                                <Link href="/profile" className="user-menu-item" onClick={() => setShowUserMenu(false)}>
-                                                    <FaUserCircle size={13} /> Profile
-                                                </Link>
-                                                <Link href="/orders" className="user-menu-item" onClick={() => setShowUserMenu(false)}>
-                                                    <FaBoxOpen size={13} /> My Orders
-                                                </Link>
-                                                {user.role === 'admin' && (
-                                                    <Link href="/admin/dashboard" className="user-menu-item" onClick={() => setShowUserMenu(false)}>
-                                                        <FaTachometerAlt size={13} /> Admin Panel
-                                                    </Link>
-                                                )}
-                                                <button className="user-menu-item" onClick={handleLogout}>
-                                                    <FaSignOutAlt size={13} /> Logout
-                                                </button>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Link href="/auth/signin" className="user-menu-item" onClick={() => setShowUserMenu(false)}>
-                                                    Login
-                                                </Link>
-                                                <Link href="/auth/signup" className="user-menu-item" onClick={() => setShowUserMenu(false)}>
-                                                    Register
-                                                </Link>
-                                            </>
-                                        )}
-                                    </div>
-                                </>
+                        {/* Wishlist */}
+                        <Link href="/wishlist" className="ac-icon" aria-label="Wishlist">
+                            <FaHeart size={14} />
+                            {wishlistCount > 0 && (
+                                <span className="ac-badge">{wishlistCount > 9 ? '9+' : wishlistCount}</span>
                             )}
-                        </div>
+                        </Link>
 
-                        {/* Always visible user icon (desktop) */}
-                        <div className="user-dropdown" style={{ display: 'flex' }}>
+                        {/* Cart */}
+                        <Link href="/cart" className="ac-icon" aria-label="Cart">
+                            <FaShoppingCart size={14} />
+                            {cartCount > 0 && (
+                                <span className="ac-badge">{cartCount > 9 ? '9+' : cartCount}</span>
+                            )}
+                        </Link>
+
+                        {/* Account */}
+                        <div className="ac-user-wrap">
                             <button
-                                className="nav-icon-btn"
-                                onClick={() => setShowUserMenu(!showUserMenu)}
+                                className="ac-icon"
+                                onClick={() => setShowUserMenu(prev => !prev)}
                                 aria-label="Account"
                             >
-                                <FaUser size={15} />
+                                <FaUser size={14} />
                             </button>
+
                             {showUserMenu && (
                                 <>
+                                    {/* Backdrop to close */}
                                     <div
-                                        style={{ position: 'fixed', inset: 0, zIndex: 199 }}
+                                        style={{ position: 'fixed', inset: 0, zIndex: 499 }}
                                         onClick={() => setShowUserMenu(false)}
                                     />
-                                    <div className="user-menu">
+                                    <div className="ac-dropdown">
                                         {user ? (
                                             <>
-                                                <Link href="/profile" className="user-menu-item" onClick={() => setShowUserMenu(false)}>
-                                                    <FaUserCircle size={13} /> Profile
+                                                <Link href="/profile" className="ac-drop-item" onClick={() => setShowUserMenu(false)}>
+                                                    <FaUserCircle size={12} /> Profile
                                                 </Link>
-                                                <Link href="/orders" className="user-menu-item" onClick={() => setShowUserMenu(false)}>
-                                                    <FaBoxOpen size={13} /> My Orders
+                                                <Link href="/orders" className="ac-drop-item" onClick={() => setShowUserMenu(false)}>
+                                                    <FaBoxOpen size={12} /> My Orders
                                                 </Link>
                                                 {user.role === 'admin' && (
-                                                    <Link href="/admin/dashboard" className="user-menu-item" onClick={() => setShowUserMenu(false)}>
-                                                        <FaTachometerAlt size={13} /> Admin Panel
+                                                    <Link href="/admin/dashboard" className="ac-drop-item" onClick={() => setShowUserMenu(false)}>
+                                                        <FaTachometerAlt size={12} /> Admin Panel
                                                     </Link>
                                                 )}
-                                                <button className="user-menu-item" onClick={handleLogout}>
-                                                    <FaSignOutAlt size={13} /> Logout
+                                                <button className="ac-drop-item" onClick={handleLogout}>
+                                                    <FaSignOutAlt size={12} /> Logout
                                                 </button>
                                             </>
                                         ) : (
                                             <>
-                                                <Link href="/auth/signin" className="user-menu-item" onClick={() => setShowUserMenu(false)}>
+                                                <Link href="/auth/signin" className="ac-drop-item" onClick={() => setShowUserMenu(false)}>
                                                     Login
                                                 </Link>
-                                                <Link href="/auth/signup" className="user-menu-item" onClick={() => setShowUserMenu(false)}>
+                                                <Link href="/auth/signup" className="ac-drop-item" onClick={() => setShowUserMenu(false)}>
                                                     Register
                                                 </Link>
                                             </>
@@ -569,84 +492,47 @@ export default function Navbar() {
                 </div>
             </nav>
 
-            {/* Search Overlay */}
+            {/* ── Search overlay ── */}
             {showSearch && (
-                <div className="search-overlay" onClick={() => setShowSearch(false)}>
-                    <div className="search-box" onClick={e => e.stopPropagation()}>
-                        <FaSearch size={16} style={{ color: '#999', flexShrink: 0 }} />
+                <div className="ac-search-overlay" onClick={() => setShowSearch(false)}>
+                    <div className="ac-search-box" onClick={e => e.stopPropagation()}>
+                        <FaSearch size={14} style={{ color: '#ccc', flexShrink: 0 }} />
                         <form action="/search" method="GET" style={{ flex: 1 }}>
                             <input
                                 ref={searchRef}
                                 type="search"
                                 name="q"
-                                placeholder="Search for products…"
+                                placeholder="Search products…"
                             />
                         </form>
-                        <button className="search-close" onClick={() => setShowSearch(false)}>
-                            <FaTimes size={18} />
+                        <button className="ac-search-close" onClick={() => setShowSearch(false)}>
+                            <FaTimes size={16} />
                         </button>
                     </div>
                 </div>
             )}
 
-            {/* Mobile Menu */}
-            <div
-                className="mobile-menu"
-                style={{
-                    transform: isMenuOpen ? 'translateX(0)' : 'translateX(100%)',
-                    transition: 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
-                    position: 'fixed',
-                    top: 'var(--nav-height)',
-                    left: 0, right: 0, bottom: 0,
-                    background: '#fff',
-                    zIndex: 999,
-                    padding: '40px 32px',
-                    overflowY: 'auto',
-                }}
-            >
-                {navLinks.map(link => (
-                    <Link
-                        key={link.href}
-                        href={link.href}
-                        className="mobile-nav-link"
-                        onClick={() => setIsMenuOpen(false)}
-                    >
-                        {link.label}
-                    </Link>
-                ))}
-                <div className="mobile-user-section">
-                    {user ? (
-                        <>
-                            <Link href="/profile" className="mobile-user-link" onClick={() => setIsMenuOpen(false)}>
-                                <FaUserCircle size={14} /> Profile
+            {/* ── Mobile / tablet drawer ── */}
+            {/* Only nav links here — icons always stay in the navbar above */}
+            <div className={`ac-drawer ${isMenuOpen ? 'drawer-open' : 'drawer-closed'}`}>
+                <ul className="ac-drawer-list">
+                    {navLinks.map(link => (
+                        <li key={link.href}>
+                            <Link
+                                href={link.href}
+                                className={`ac-drawer-link${pathname === link.href ? ' drawer-active' : ''}`}
+                                onClick={() => setIsMenuOpen(false)}
+                            >
+                                {link.label}
+                                <FaArrowRight size={10} />
                             </Link>
-                            <Link href="/orders" className="mobile-user-link" onClick={() => setIsMenuOpen(false)}>
-                                <FaBoxOpen size={14} /> My Orders
-                            </Link>
-                            {user.role === 'admin' && (
-                                <Link href="/admin/dashboard" className="mobile-user-link" onClick={() => setIsMenuOpen(false)}>
-                                    <FaTachometerAlt size={14} /> Admin Panel
-                                </Link>
-                            )}
-                            <button className="mobile-user-link" onClick={handleLogout}>
-                                <FaSignOutAlt size={14} /> Logout
-                            </button>
-                        </>
-                    ) : (
-                        <>
-                            <Link href="/auth/signin" className="mobile-user-link" onClick={() => setIsMenuOpen(false)}>
-                                Login
-                            </Link>
-                            <Link href="/auth/signup" className="mobile-user-link" onClick={() => setIsMenuOpen(false)}>
-                                Create Account
-                            </Link>
-                        </>
-                    )}
-                </div>
+                        </li>
+                    ))}
+                </ul>
             </div>
 
-            {/* Navbar spacer */}
-            <div style={{ height: 'var(--nav-height)' }} />
+            {/* Spacer so page content starts below fixed navbar */}
+            <div style={{ height: 'var(--nav-h)' }} />
         </>
     );
 }
