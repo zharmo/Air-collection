@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { FaStar, FaRegStar, FaStarHalfAlt, FaArrowRight, FaCheckCircle } from 'react-icons/fa';
+import { FaStar, FaRegStar, FaStarHalfAlt, FaArrowRight, FaCheckCircle, FaQuoteLeft } from 'react-icons/fa';
 import axiosInstance from '@/utils/axiosConfig';
 import { useCart } from '@/context/CartContext';
 
@@ -27,10 +27,10 @@ export default function HomePage() {
     const [loading, setLoading] = useState(true);
 
     const categories = [
-        { name: 'BAGGY PANTS', slug: 'baggy-pants', icon: '👖' },
-        { name: 'FOOTWEAR', slug: 'footwear', icon: '👟' },
-        { name: 'TSHIRT', slug: 'tshirt', icon: '👕' },
-        { name: 'DROP SHOULDER', slug: 'drop-shoulder', icon: '👚' },
+        { name: 'Baggy Pants', slug: 'baggy-pants', icon: '👖', desc: 'Relaxed & Oversized' },
+        { name: 'Footwear', slug: 'footwear', icon: '👟', desc: 'Step in Style' },
+        { name: 'T-Shirts', slug: 'tshirt', icon: '👕', desc: 'Essential Basics' },
+        { name: 'Drop Shoulder', slug: 'drop-shoulder', icon: '👚', desc: 'Effortless Drape' },
     ];
 
     const backendUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000';
@@ -58,8 +58,12 @@ export default function HomePage() {
         if (email) {
             setSubscribed(true);
             setEmail('');
-            setTimeout(() => setSubscribed(false), 3000);
+            setTimeout(() => setSubscribed(false), 4000);
         }
+    };
+
+    const handleAddToCart = (product: Product) => {
+        addToCart(product.id, 1);
     };
 
     const getPrimaryImage = (product: Product) => {
@@ -70,251 +74,969 @@ export default function HomePage() {
         return imagePath;
     };
 
-    // Updated: add to cart passes name, price, image for guest cart
-    const handleAddToCart = async (product: Product) => {
-        const imageUrl = getPrimaryImage(product);
-        await addToCart(product.id, 1, {
-            name: product.name,
-            price: product.price,
-            image: imageUrl,
-        });
-    };
-
     const renderStars = (rating: number = 5) => {
         const full = Math.floor(rating);
         const half = rating % 1 !== 0;
         const empty = 5 - full - (half ? 1 : 0);
         return (
-            <>
-                {[...Array(full)].map((_, i) => <FaStar key={i} className="text-warning" />)}
-                {half && <FaStarHalfAlt className="text-warning" />}
-                {[...Array(empty)].map((_, i) => <FaRegStar key={i} className="text-warning" />)}
-            </>
+            <span style={{ display: 'inline-flex', gap: 3 }}>
+                {[...Array(full)].map((_, i) => <FaStar key={i} style={{ color: '#c8a96e' }} />)}
+                {half && <FaStarHalfAlt style={{ color: '#c8a96e' }} />}
+                {[...Array(empty)].map((_, i) => <FaRegStar key={i} style={{ color: '#c8a96e' }} />)}
+            </span>
         );
     };
 
     if (loading) {
-        return <div className="container py-5 text-center"><div className="spinner-border text-dark" /></div>;
+        return (
+            <div style={{ minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+                    <div style={{
+                        width: 40, height: 40, borderRadius: '50%',
+                        border: '2px solid #e5e5e5', borderTopColor: '#0a0a0a',
+                        animation: 'spin 0.8s linear infinite'
+                    }} />
+                    <p style={{ fontFamily: 'Jost, sans-serif', fontSize: 12, letterSpacing: '0.2em', textTransform: 'uppercase', color: '#999' }}>
+                        Loading
+                    </p>
+                </div>
+                <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+            </div>
+        );
     }
 
     return (
         <>
-            {/* Hero Section */}
-            <div className="hero-section bg-light d-flex align-items-center" style={{ minHeight: '70vh', background: 'linear-gradient(135deg, #f5f0eb 0%, #e8e0d8 100%)' }}>
-                <div className="container">
-                    <div className="row align-items-center">
-                        <div className="col-lg-6">
-                            <h1 className="display-1 fw-bold mb-3">Light as Air</h1>
-                            <p className="lead mb-4">Discover effortless style and breathable comfort.</p>
-                            <Link href="/products?new=true" className="btn btn-dark btn-lg rounded-0 px-5 py-3">
-                                SHOP NEW ARRIVALS <FaArrowRight className="ms-2" />
-                            </Link>
+            <style>{`
+                @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Jost:wght@300;400;500;600&display=swap');
+
+                :root {
+                    --ink: #0a0a0a;
+                    --ink-soft: #6b6b6b;
+                    --ink-faint: #ababab;
+                    --surface: #ffffff;
+                    --surface-warm: #fafaf7;
+                    --surface-muted: #f4f2ef;
+                    --accent: #c8a96e;
+                    --accent-light: #f0e8d8;
+                    --border: rgba(0,0,0,0.08);
+                    --border-strong: rgba(0,0,0,0.15);
+                    --product-bg: #f7f6f3;
+                    --radius: 0px;
+                    --card-shadow: 0 2px 20px rgba(0,0,0,0.06);
+                    --card-shadow-hover: 0 12px 48px rgba(0,0,0,0.12);
+                }
+
+                * { box-sizing: border-box; }
+
+                body { background: var(--surface); }
+
+                /* ── Typography helpers ── */
+                .h-display {
+                    font-family: 'Cormorant Garamond', serif;
+                    font-weight: 500;
+                    letter-spacing: -0.01em;
+                    line-height: 1;
+                    color: var(--ink);
+                }
+
+                .h-section {
+                    font-family: 'Cormorant Garamond', serif;
+                    font-size: 36px;
+                    font-weight: 500;
+                    color: var(--ink);
+                    margin: 0;
+                }
+
+                .label-caps {
+                    font-family: 'Jost', sans-serif;
+                    font-size: 11px;
+                    font-weight: 500;
+                    letter-spacing: 0.2em;
+                    text-transform: uppercase;
+                    color: var(--ink-soft);
+                }
+
+                .body-text {
+                    font-family: 'Jost', sans-serif;
+                    font-weight: 300;
+                    color: var(--ink-soft);
+                    line-height: 1.7;
+                }
+
+                /* ── Hero ── */
+                .hero {
+                    min-height: calc(100vh - 72px);
+                    background: var(--surface-warm);
+                    position: relative;
+                    overflow: hidden;
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    align-items: center;
+                }
+
+                .hero::before {
+                    content: '';
+                    position: absolute;
+                    inset: 0;
+                    background: radial-gradient(ellipse 80% 80% at 70% 50%, #f0e8d8 0%, transparent 70%);
+                    pointer-events: none;
+                }
+
+                .hero-content {
+                    padding: 80px 80px 80px max(40px, calc((100vw - 1400px) / 2 + 40px));
+                    position: relative;
+                    z-index: 1;
+                }
+
+                .hero-eyebrow {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 12px;
+                    margin-bottom: 28px;
+                }
+
+                .hero-eyebrow-line {
+                    width: 40px;
+                    height: 1px;
+                    background: var(--accent);
+                }
+
+                .hero-title {
+                    font-family: 'Cormorant Garamond', serif;
+                    font-size: clamp(64px, 8vw, 110px);
+                    font-weight: 500;
+                    line-height: 0.95;
+                    letter-spacing: -0.02em;
+                    color: var(--ink);
+                    margin-bottom: 28px;
+                }
+
+                .hero-sub {
+                    font-family: 'Jost', sans-serif;
+                    font-size: 16px;
+                    font-weight: 300;
+                    color: var(--ink-soft);
+                    letter-spacing: 0.03em;
+                    margin-bottom: 48px;
+                    max-width: 380px;
+                    line-height: 1.7;
+                }
+
+                .hero-actions {
+                    display: flex;
+                    align-items: center;
+                    gap: 32px;
+                }
+
+                .btn-primary-ink {
+                    font-family: 'Jost', sans-serif;
+                    font-size: 12px;
+                    font-weight: 600;
+                    letter-spacing: 0.2em;
+                    text-transform: uppercase;
+                    background: var(--ink);
+                    color: #fff;
+                    border: 1.5px solid var(--ink);
+                    padding: 18px 40px;
+                    text-decoration: none;
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 12px;
+                    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+                    cursor: pointer;
+                }
+
+                .btn-primary-ink:hover {
+                    background: transparent;
+                    color: var(--ink);
+                }
+
+                .btn-ghost-ink {
+                    font-family: 'Jost', sans-serif;
+                    font-size: 12px;
+                    font-weight: 500;
+                    letter-spacing: 0.15em;
+                    text-transform: uppercase;
+                    color: var(--ink-soft);
+                    text-decoration: none;
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 8px;
+                    padding-bottom: 2px;
+                    border-bottom: 1px solid var(--border-strong);
+                    transition: color 0.2s, border-color 0.2s;
+                }
+
+                .btn-ghost-ink:hover {
+                    color: var(--ink);
+                    border-color: var(--ink);
+                }
+
+                .hero-visual {
+                    height: 100%;
+                    min-height: calc(100vh - 72px);
+                    position: relative;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    padding: 80px 40px;
+                }
+
+                .hero-orb {
+                    width: min(480px, 80%);
+                    aspect-ratio: 1;
+                    border-radius: 50%;
+                    background: linear-gradient(135deg, #fff 0%, #e8dfd0 100%);
+                    box-shadow: 0 40px 100px rgba(200, 169, 110, 0.25), 0 0 0 1px rgba(200,169,110,0.1);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 120px;
+                    animation: float 6s ease-in-out infinite;
+                }
+
+                @keyframes float {
+                    0%, 100% { transform: translateY(0px); }
+                    50% { transform: translateY(-16px); }
+                }
+
+                .hero-stat-bar {
+                    position: absolute;
+                    bottom: 60px;
+                    left: 0;
+                    right: 0;
+                    display: flex;
+                    gap: 0;
+                }
+
+                .hero-stat {
+                    flex: 1;
+                    padding: 24px 0;
+                    border-top: 1px solid var(--border-strong);
+                    text-align: center;
+                }
+
+                /* ── Section Layout ── */
+                .section {
+                    padding: 100px max(24px, calc((100vw - 1400px) / 2 + 40px));
+                }
+
+                .section-header {
+                    display: flex;
+                    align-items: flex-end;
+                    justify-content: space-between;
+                    margin-bottom: 56px;
+                    border-bottom: 1px solid var(--border);
+                    padding-bottom: 28px;
+                }
+
+                /* ── Product Cards ── */
+                .product-grid-2 {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 24px;
+                }
+
+                .product-grid-3 {
+                    display: grid;
+                    grid-template-columns: repeat(3, 1fr);
+                    gap: 24px;
+                }
+
+                .product-grid-4 {
+                    display: grid;
+                    grid-template-columns: repeat(4, 1fr);
+                    gap: 20px;
+                }
+
+                .product-card {
+                    background: var(--surface);
+                    cursor: pointer;
+                    position: relative;
+                    transition: box-shadow 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+                }
+
+                .product-card:hover {
+                    box-shadow: var(--card-shadow-hover);
+                }
+
+                .product-card-image {
+                    background: var(--product-bg);
+                    aspect-ratio: 3/4;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    overflow: hidden;
+                    position: relative;
+                }
+
+                .product-card-image img {
+                    width: 100%;
+                    height: 100%;
+                    object-fit: contain;
+                    padding: 28px;
+                    transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+                }
+
+                .product-card:hover .product-card-image img {
+                    transform: scale(1.04);
+                }
+
+                .product-card-badge {
+                    position: absolute;
+                    top: 16px;
+                    left: 16px;
+                    font-family: 'Jost', sans-serif;
+                    font-size: 9px;
+                    font-weight: 700;
+                    letter-spacing: 0.2em;
+                    text-transform: uppercase;
+                    padding: 6px 12px;
+                    background: var(--ink);
+                    color: #fff;
+                    z-index: 2;
+                }
+
+                .product-card-badge.new { background: var(--ink); }
+                .product-card-badge.ai { background: var(--accent); color: var(--ink); }
+
+                .product-card-overlay {
+                    position: absolute;
+                    bottom: 0;
+                    left: 0;
+                    right: 0;
+                    padding: 20px;
+                    background: var(--ink);
+                    transform: translateY(100%);
+                    transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+                    z-index: 3;
+                }
+
+                .product-card:hover .product-card-overlay {
+                    transform: translateY(0);
+                }
+
+                .product-card-overlay button {
+                    width: 100%;
+                    background: none;
+                    border: none;
+                    font-family: 'Jost', sans-serif;
+                    font-size: 11px;
+                    font-weight: 600;
+                    letter-spacing: 0.2em;
+                    text-transform: uppercase;
+                    color: #fff;
+                    cursor: pointer;
+                    padding: 8px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 10px;
+                    transition: opacity 0.2s;
+                }
+
+                .product-card-overlay button:hover { opacity: 0.7; }
+
+                .product-card-body {
+                    padding: 20px 0 8px;
+                }
+
+                .product-card-name {
+                    font-family: 'Jost', sans-serif;
+                    font-size: 14px;
+                    font-weight: 400;
+                    color: var(--ink);
+                    text-decoration: none;
+                    letter-spacing: 0.02em;
+                    display: block;
+                    margin-bottom: 8px;
+                    transition: opacity 0.2s;
+                }
+
+                .product-card-name:hover { opacity: 0.6; }
+
+                .product-card-price {
+                    font-family: 'Cormorant Garamond', serif;
+                    font-size: 20px;
+                    font-weight: 500;
+                    color: var(--ink);
+                }
+
+                .product-card-compare {
+                    font-family: 'Jost', sans-serif;
+                    font-size: 13px;
+                    color: var(--ink-faint);
+                    text-decoration: line-through;
+                    margin-left: 8px;
+                }
+
+                /* ── Categories ── */
+                .category-section {
+                    background: var(--surface-muted);
+                    padding: 100px max(24px, calc((100vw - 1400px) / 2 + 40px));
+                }
+
+                .category-grid {
+                    display: grid;
+                    grid-template-columns: repeat(4, 1fr);
+                    gap: 16px;
+                }
+
+                .category-card {
+                    background: var(--surface);
+                    padding: 40px 24px 32px;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    gap: 16px;
+                    text-decoration: none;
+                    position: relative;
+                    overflow: hidden;
+                    transition: box-shadow 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+                    border: 1px solid var(--border);
+                }
+
+                .category-card::before {
+                    content: '';
+                    position: absolute;
+                    bottom: 0;
+                    left: 0;
+                    right: 0;
+                    height: 2px;
+                    background: var(--accent);
+                    transform: scaleX(0);
+                    transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+                }
+
+                .category-card:hover::before { transform: scaleX(1); }
+
+                .category-card:hover {
+                    box-shadow: 0 8px 40px rgba(0,0,0,0.1);
+                }
+
+                .category-icon {
+                    font-size: 48px;
+                    line-height: 1;
+                }
+
+                .category-name {
+                    font-family: 'Jost', sans-serif;
+                    font-size: 12px;
+                    font-weight: 600;
+                    letter-spacing: 0.2em;
+                    text-transform: uppercase;
+                    color: var(--ink);
+                    text-align: center;
+                }
+
+                .category-desc {
+                    font-family: 'Jost', sans-serif;
+                    font-size: 12px;
+                    font-weight: 300;
+                    color: var(--ink-soft);
+                    text-align: center;
+                }
+
+                /* ── Marquee / Trust Bar ── */
+                .trust-bar {
+                    background: var(--ink);
+                    padding: 18px 0;
+                    overflow: hidden;
+                }
+
+                .trust-inner {
+                    display: flex;
+                    gap: 80px;
+                    animation: marquee 18s linear infinite;
+                    white-space: nowrap;
+                }
+
+                .trust-item {
+                    font-family: 'Jost', sans-serif;
+                    font-size: 11px;
+                    font-weight: 500;
+                    letter-spacing: 0.25em;
+                    text-transform: uppercase;
+                    color: rgba(255,255,255,0.7);
+                    flex-shrink: 0;
+                }
+
+                .trust-sep {
+                    color: var(--accent);
+                    flex-shrink: 0;
+                }
+
+                @keyframes marquee {
+                    from { transform: translateX(0); }
+                    to { transform: translateX(-50%); }
+                }
+
+                /* ── Review Section ── */
+                .review-section {
+                    background: var(--surface-warm);
+                    padding: 100px max(24px, calc((100vw - 1400px) / 2 + 40px));
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 80px;
+                    align-items: center;
+                }
+
+                .review-quote-icon {
+                    color: var(--accent);
+                    margin-bottom: 24px;
+                }
+
+                .review-text {
+                    font-family: 'Cormorant Garamond', serif;
+                    font-size: 28px;
+                    font-weight: 400;
+                    font-style: italic;
+                    line-height: 1.5;
+                    color: var(--ink);
+                    margin-bottom: 28px;
+                }
+
+                .review-author {
+                    display: flex;
+                    align-items: center;
+                    gap: 16px;
+                }
+
+                .review-avatar {
+                    width: 48px;
+                    height: 48px;
+                    border-radius: 50%;
+                    background: var(--surface-muted);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 20px;
+                }
+
+                .review-stat-grid {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 1px;
+                    background: var(--border-strong);
+                }
+
+                .review-stat {
+                    background: var(--surface-warm);
+                    padding: 36px 32px;
+                    text-align: center;
+                }
+
+                .review-stat-num {
+                    font-family: 'Cormorant Garamond', serif;
+                    font-size: 52px;
+                    font-weight: 500;
+                    color: var(--ink);
+                    line-height: 1;
+                    margin-bottom: 8px;
+                }
+
+                /* ── Newsletter ── */
+                .newsletter-section {
+                    background: var(--ink);
+                    padding: 100px max(24px, calc((100vw - 1400px) / 2 + 40px));
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 80px;
+                    align-items: center;
+                }
+
+                .newsletter-input-row {
+                    display: flex;
+                    gap: 0;
+                    border-bottom: 1px solid rgba(255,255,255,0.2);
+                }
+
+                .newsletter-input {
+                    flex: 1;
+                    background: none;
+                    border: none;
+                    outline: none;
+                    font-family: 'Jost', sans-serif;
+                    font-size: 16px;
+                    font-weight: 300;
+                    color: #fff;
+                    padding: 18px 0;
+                    letter-spacing: 0.04em;
+                }
+
+                .newsletter-input::placeholder { color: rgba(255,255,255,0.3); }
+
+                .newsletter-btn {
+                    font-family: 'Jost', sans-serif;
+                    font-size: 11px;
+                    font-weight: 700;
+                    letter-spacing: 0.2em;
+                    text-transform: uppercase;
+                    background: none;
+                    border: none;
+                    color: var(--accent);
+                    cursor: pointer;
+                    padding: 18px 0 18px 24px;
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    transition: gap 0.3s;
+                }
+
+                .newsletter-btn:hover { gap: 16px; }
+
+                .success-msg {
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    color: var(--accent);
+                    font-family: 'Jost', sans-serif;
+                    font-size: 14px;
+                    font-weight: 400;
+                    letter-spacing: 0.05em;
+                    padding: 18px 0;
+                    border-bottom: 1px solid rgba(255,255,255,0.2);
+                }
+
+                /* ── Responsive ── */
+                @media (max-width: 1024px) {
+                    .hero { grid-template-columns: 1fr; min-height: 80vh; }
+                    .hero-visual { display: none; }
+                    .hero-content { padding: 80px 24px; }
+                    .product-grid-4 { grid-template-columns: repeat(2, 1fr); }
+                    .category-grid { grid-template-columns: repeat(2, 1fr); }
+                    .review-section { grid-template-columns: 1fr; gap: 48px; }
+                    .newsletter-section { grid-template-columns: 1fr; gap: 40px; }
+                }
+
+                @media (max-width: 768px) {
+                    .product-grid-2 { grid-template-columns: 1fr; }
+                    .product-grid-3 { grid-template-columns: 1fr 1fr; }
+                    .hero-title { font-size: clamp(52px, 13vw, 80px); }
+                    .section { padding: 64px 24px; }
+                    .category-section { padding: 64px 24px; }
+                    .newsletter-section, .review-section { padding: 64px 24px; }
+                }
+
+                @media (max-width: 480px) {
+                    .product-grid-3 { grid-template-columns: 1fr; }
+                    .product-grid-4 { grid-template-columns: 1fr; }
+                    .category-grid { grid-template-columns: 1fr 1fr; }
+                }
+            `}</style>
+
+            {/* ── HERO ── */}
+            <section className="hero">
+                <div className="hero-content">
+                    <div className="hero-eyebrow">
+                        <span className="hero-eyebrow-line" />
+                        <span className="label-caps">New Season 2025</span>
+                    </div>
+                    <h1 className="hero-title">Light<br />as Air.</h1>
+                    <p className="hero-sub">
+                        Effortless silhouettes in breathable linen and natural fabrics.
+                        Wear the feeling of weightlessness.
+                    </p>
+                    <div className="hero-actions">
+                        <Link href="/products?new=true" className="btn-primary-ink">
+                            Shop New Arrivals <FaArrowRight size={12} />
+                        </Link>
+                        <Link href="/categories" className="btn-ghost-ink">
+                            Explore Categories
+                        </Link>
+                    </div>
+                </div>
+                <div className="hero-visual">
+                    <div className="hero-orb">🪶</div>
+                    <div className="hero-stat-bar">
+                        <div className="hero-stat">
+                            <div className="h-section" style={{ fontSize: 28 }}>5K+</div>
+                            <div className="label-caps" style={{ marginTop: 4, fontSize: 10 }}>Happy Customers</div>
                         </div>
-                        <div className="col-lg-6 text-center">
-                            <div className="bg-white rounded-circle mx-auto d-flex align-items-center justify-content-center" style={{ width: 300, height: 300, boxShadow: '0 20px 30px -10px rgba(0,0,0,0.1)' }}>
-                                <span className="display-1">🪶</span>
-                            </div>
+                        <div className="hero-stat" style={{ borderLeft: '1px solid rgba(0,0,0,0.08)' }}>
+                            <div className="h-section" style={{ fontSize: 28 }}>4.9</div>
+                            <div className="label-caps" style={{ marginTop: 4, fontSize: 10 }}>Avg Rating</div>
+                        </div>
+                        <div className="hero-stat" style={{ borderLeft: '1px solid rgba(0,0,0,0.08)' }}>
+                            <div className="h-section" style={{ fontSize: 28 }}>100%</div>
+                            <div className="label-caps" style={{ marginTop: 4, fontSize: 10 }}>Natural Fabrics</div>
                         </div>
                     </div>
                 </div>
+            </section>
+
+            {/* ── TRUST BAR ── */}
+            <div className="trust-bar">
+                <div className="trust-inner">
+                    {[
+                        'Free Shipping Over $80', '✦', 'Easy Returns', '✦',
+                        'Natural Fabrics', '✦', '5000+ Happy Customers', '✦',
+                        'New Season Collection', '✦', 'Handcrafted Quality', '✦',
+                        'Free Shipping Over $80', '✦', 'Easy Returns', '✦',
+                        'Natural Fabrics', '✦', '5000+ Happy Customers', '✦',
+                        'New Season Collection', '✦', 'Handcrafted Quality', '✦',
+                    ].map((item, i) => (
+                        <span key={i} className={item === '✦' ? 'trust-sep' : 'trust-item'}>
+                            {item}
+                        </span>
+                    ))}
+                </div>
             </div>
 
-            {/* Featured Products */}
+            {/* ── FEATURED ── */}
             {featuredProducts.length > 0 && (
-                <div className="container py-5">
-                    <div className="d-flex justify-content-between align-items-center mb-4">
-                        <h2 className="fw-bold">Featured</h2>
-                        <Link href="/products" className="text-dark text-decoration-none">View All →</Link>
+                <section className="section">
+                    <div className="section-header">
+                        <div>
+                            <div className="label-caps" style={{ marginBottom: 10 }}>Curated For You</div>
+                            <h2 className="h-section">Featured Pieces</h2>
+                        </div>
+                        <Link href="/products" className="btn-ghost-ink">
+                            View All Collection <FaArrowRight size={10} />
+                        </Link>
                     </div>
-                    <div className="row g-4">
+                    <div className="product-grid-2">
                         {featuredProducts.map((product) => (
-                            <div key={product.id} className="col-md-6">
-                                <div className="card border-0 shadow-sm h-100">
+                            <div key={product.id} className="product-card">
+                                <div className="product-card-image">
                                     <Link href={`/products/${product.id}`}>
-                                        <div className="d-flex align-items-center justify-content-center p-3" style={{ height: '300px', cursor: 'pointer', backgroundColor: '#fff' }}>
-                                            <img
-                                                src={getPrimaryImage(product)}
-                                                alt={product.name}
-                                                className="img-fluid"
-                                                style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
-                                            />
-                                        </div>
+                                        <img src={getPrimaryImage(product)} alt={product.name} />
                                     </Link>
-                                    <div className="card-body text-center">
-                                        <Link href={`/products/${product.id}`} className="text-dark text-decoration-none">
-                                            <h5 className="card-title">{product.name}</h5>
-                                        </Link>
-                                        <p className="card-text fw-bold">${product.price}</p>
-                                        <button className="btn btn-outline-dark rounded-0 px-4" onClick={() => handleAddToCart(product)}>Add to Cart</button>
+                                    <div className="product-card-overlay">
+                                        <button onClick={() => handleAddToCart(product)}>
+                                            Add to Cart <FaArrowRight size={10} />
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className="product-card-body">
+                                    <Link href={`/products/${product.id}`} className="product-card-name">
+                                        {product.name}
+                                    </Link>
+                                    <div>
+                                        <span className="product-card-price">${product.price}</span>
+                                        {product.compare_price && (
+                                            <span className="product-card-compare">${product.compare_price}</span>
+                                        )}
                                     </div>
                                 </div>
                             </div>
                         ))}
                     </div>
-                </div>
+                </section>
             )}
 
-            {/* Shop by Category */}
-            <div className="bg-light py-5">
-                <div className="container">
-                    <h2 className="fw-bold text-center mb-5">Shop by Category</h2>
-                    <div className="row g-4">
-                        {categories.map((cat) => (
-                            <div key={cat.slug} className="col-md-3 col-6">
-                                <Link href={`/categories/${cat.slug}`} className="text-decoration-none">
-                                    <div className="card border-0 text-center bg-transparent">
-                                        <div className="bg-white rounded-circle mx-auto d-flex align-items-center justify-content-center" style={{ width: 120, height: 120 }}>
-                                            <span style={{ fontSize: 48 }}>{cat.icon}</span>
-                                        </div>
-                                        <div className="card-body">
-                                            <h5 className="card-title text-dark">{cat.name}</h5>
-                                        </div>
-                                    </div>
-                                </Link>
-                            </div>
-                        ))}
+            {/* ── CATEGORIES ── */}
+            <section className="category-section">
+                <div className="section-header" style={{ marginBottom: 48 }}>
+                    <div>
+                        <div className="label-caps" style={{ marginBottom: 10 }}>Browse the Range</div>
+                        <h2 className="h-section">Shop by Category</h2>
                     </div>
                 </div>
-            </div>
+                <div className="category-grid">
+                    {categories.map((cat) => (
+                        <Link key={cat.slug} href={`/categories/${cat.slug}`} className="category-card">
+                            <span className="category-icon">{cat.icon}</span>
+                            <span className="category-name">{cat.name}</span>
+                            <span className="category-desc">{cat.desc}</span>
+                        </Link>
+                    ))}
+                </div>
+            </section>
 
-            {/* Best Sellers */}
+            {/* ── BEST SELLERS ── */}
             {bestSellers.length > 0 && (
-                <div className="container py-5">
-                    <h2 className="fw-bold mb-4">Best Sellers</h2>
-                    <div className="row g-4">
+                <section className="section">
+                    <div className="section-header">
+                        <div>
+                            <div className="label-caps" style={{ marginBottom: 10 }}>Community Favourites</div>
+                            <h2 className="h-section">Best Sellers</h2>
+                        </div>
+                        <Link href="/products?sort=popular" className="btn-ghost-ink">
+                            View All <FaArrowRight size={10} />
+                        </Link>
+                    </div>
+                    <div className="product-grid-3">
                         {bestSellers.map((product) => (
-                            <div key={product.id} className="col-md-4">
-                                <div className="card border-0 shadow-sm h-100">
+                            <div key={product.id} className="product-card">
+                                <div className="product-card-image">
                                     <Link href={`/products/${product.id}`}>
-                                        <div className="d-flex align-items-center justify-content-center p-3" style={{ height: '250px', cursor: 'pointer', backgroundColor: '#fff' }}>
-                                            <img
-                                                src={getPrimaryImage(product)}
-                                                alt={product.name}
-                                                className="img-fluid"
-                                                style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
-                                            />
-                                        </div>
+                                        <img src={getPrimaryImage(product)} alt={product.name} />
                                     </Link>
-                                    <div className="card-body text-center">
-                                        <Link href={`/products/${product.id}`} className="text-dark text-decoration-none">
-                                            <h5 className="card-title">{product.name}</h5>
-                                        </Link>
-                                        <p className="card-text fw-bold">${product.price}</p>
-                                        <button className="btn btn-sm btn-outline-dark rounded-0" onClick={() => handleAddToCart(product)}>Add to Cart</button>
+                                    <div className="product-card-overlay">
+                                        <button onClick={() => handleAddToCart(product)}>
+                                            Add to Cart <FaArrowRight size={10} />
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className="product-card-body">
+                                    <Link href={`/products/${product.id}`} className="product-card-name">
+                                        {product.name}
+                                    </Link>
+                                    <span className="product-card-price">${product.price}</span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </section>
+            )}
+
+            {/* ── NEW ARRIVALS ── */}
+            {newArrivals.length > 0 && (
+                <section className="section" style={{ background: 'var(--surface-muted)' }}>
+                    <div className="section-header">
+                        <div>
+                            <div className="label-caps" style={{ marginBottom: 10 }}>Fresh In</div>
+                            <h2 className="h-section">New Arrivals</h2>
+                        </div>
+                        <Link href="/products?new=true" className="btn-ghost-ink">
+                            See All New <FaArrowRight size={10} />
+                        </Link>
+                    </div>
+                    <div className="product-grid-3">
+                        {newArrivals.map((product) => (
+                            <div key={product.id} className="product-card">
+                                <div className="product-card-image">
+                                    <div className="product-card-badge new">New</div>
+                                    <Link href={`/products/${product.id}`}>
+                                        <img src={getPrimaryImage(product)} alt={product.name} />
+                                    </Link>
+                                    <div className="product-card-overlay">
+                                        <button onClick={() => handleAddToCart(product)}>
+                                            Add to Cart <FaArrowRight size={10} />
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className="product-card-body">
+                                    <Link href={`/products/${product.id}`} className="product-card-name">
+                                        {product.name}
+                                    </Link>
+                                    <div>
+                                        <span className="product-card-price">${product.price}</span>
+                                        {product.compare_price && (
+                                            <span className="product-card-compare">${product.compare_price}</span>
+                                        )}
                                     </div>
                                 </div>
                             </div>
                         ))}
                     </div>
-                </div>
+                </section>
             )}
 
-            {/* New Arrivals */}
-            {newArrivals.length > 0 && (
-                <div className="bg-white py-5">
-                    <div className="container">
-                        <h2 className="fw-bold mb-4">New Arrivals</h2>
-                        <div className="row g-4">
-                            {newArrivals.map((product) => (
-                                <div key={product.id} className="col-md-4">
-                                    <div className="card border-0 shadow-sm h-100">
-                                        <Link href={`/products/${product.id}`}>
-                                            <div className="d-flex align-items-center justify-content-center p-3 position-relative" style={{ height: '250px', cursor: 'pointer', backgroundColor: '#fff' }}>
-                                                <span className="badge bg-danger position-absolute top-0 start-0 m-2 rounded-0">NEW</span>
-                                                <img
-                                                    src={getPrimaryImage(product)}
-                                                    alt={product.name}
-                                                    className="img-fluid"
-                                                    style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
-                                                />
-                                            </div>
-                                        </Link>
-                                        <div className="card-body text-center">
-                                            <Link href={`/products/${product.id}`} className="text-dark text-decoration-none">
-                                                <h5>{product.name}</h5>
-                                            </Link>
-                                            <p className="mb-0">
-                                                <span className="fw-bold">${product.price}</span>
-                                                {product.compare_price && <span className="text-muted ms-2"><del>${product.compare_price}</del></span>}
-                                            </p>
-                                        </div>
+            {/* ── AI RECOMMENDED ── */}
+            {aiRecommended.length > 0 && (
+                <section className="section">
+                    <div className="section-header">
+                        <div>
+                            <div className="label-caps" style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <span style={{ color: 'var(--accent)' }}>✦</span> AI Picks
+                            </div>
+                            <h2 className="h-section">Recommended for You</h2>
+                        </div>
+                    </div>
+                    <div className="product-grid-4">
+                        {aiRecommended.map((product) => (
+                            <div key={product.id} className="product-card">
+                                <div className="product-card-image" style={{ aspectRatio: '2/3' }}>
+                                    <div className="product-card-badge ai">AI Pick</div>
+                                    <Link href={`/products/${product.id}`}>
+                                        <img src={getPrimaryImage(product)} alt={product.name} />
+                                    </Link>
+                                    <div className="product-card-overlay">
+                                        <button onClick={() => handleAddToCart(product)}>
+                                            Add to Cart <FaArrowRight size={10} />
+                                        </button>
                                     </div>
                                 </div>
-                            ))}
+                                <div className="product-card-body">
+                                    <Link href={`/products/${product.id}`} className="product-card-name" style={{ fontSize: 13 }}>
+                                        {product.name}
+                                    </Link>
+                                    <span className="product-card-price" style={{ fontSize: 18 }}>${product.price}</span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </section>
+            )}
+
+            {/* ── REVIEW ── */}
+            <section className="review-section">
+                <div>
+                    <FaQuoteLeft size={24} className="review-quote-icon" />
+                    <p className="review-text">
+                        "The quality of the linen is unmatched. It truly feels like wearing air — I've never experienced comfort like this from a clothing brand."
+                    </p>
+                    <div className="review-author">
+                        <div className="review-avatar">🌿</div>
+                        <div>
+                            <div style={{ fontFamily: 'Jost', fontWeight: 500, fontSize: 14, letterSpacing: '0.05em', color: 'var(--ink)' }}>
+                                Olivia Chen
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                                {renderStars(5)}
+                                <span className="label-caps" style={{ fontSize: 10, color: 'var(--ink-faint)' }}>Verified Customer</span>
+                            </div>
                         </div>
                     </div>
                 </div>
-            )}
+                <div className="review-stat-grid">
+                    {[
+                        { num: '5K+', label: 'Happy Customers' },
+                        { num: '4.9', label: 'Average Rating' },
+                        { num: '98%', label: 'Would Recommend' },
+                        { num: '3yr', label: 'Trusted Brand' },
+                    ].map((s) => (
+                        <div key={s.label} className="review-stat">
+                            <div className="review-stat-num">{s.num}</div>
+                            <div className="label-caps" style={{ fontSize: 10, color: 'var(--ink-soft)' }}>{s.label}</div>
+                        </div>
+                    ))}
+                </div>
+            </section>
 
-            {/* AI Recommended */}
-            {aiRecommended.length > 0 && (
-                <div className="container py-5">
-                    <div className="d-flex align-items-center mb-4">
-                        <span className="badge bg-info text-dark me-2 px-3 py-2 rounded-0">✨ AI PICK</span>
-                        <h2 className="fw-bold mb-0">Recommended for You</h2>
+            {/* ── NEWSLETTER ── */}
+            <section className="newsletter-section">
+                <div>
+                    <div className="label-caps" style={{ color: 'var(--accent)', marginBottom: 16, letterSpacing: '0.25em' }}>
+                        Stay in the Air
                     </div>
-                    <div className="row g-4">
-                        {aiRecommended.map((product) => (
-                            <div key={product.id} className="col-md-4 col-lg-3">
-                                <div className="card border-0 shadow-sm h-100">
-                                    <Link href={`/products/${product.id}`}>
-                                        <div className="d-flex align-items-center justify-content-center p-3" style={{ height: '200px', cursor: 'pointer', backgroundColor: '#fff' }}>
-                                            <img
-                                                src={getPrimaryImage(product)}
-                                                alt={product.name}
-                                                className="img-fluid"
-                                                style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
-                                            />
-                                        </div>
-                                    </Link>
-                                    <div className="card-body text-center">
-                                        <Link href={`/products/${product.id}`} className="text-dark text-decoration-none">
-                                            <h6>{product.name}</h6>
-                                        </Link>
-                                        <p className="fw-bold">${product.price}</p>
-                                        <button className="btn btn-outline-dark btn-sm rounded-0 w-100" onClick={() => handleAddToCart(product)}>Add to Cart</button>
-                                    </div>
-                                </div>
+                    <h2 style={{ fontFamily: 'Cormorant Garamond', fontSize: 44, fontWeight: 500, color: '#fff', lineHeight: 1.05, marginBottom: 16 }}>
+                        First to Know.<br />Always.
+                    </h2>
+                    <p className="body-text" style={{ color: 'rgba(255,255,255,0.45)', fontSize: 15, maxWidth: 340 }}>
+                        Receive exclusive access to new drops, seasonal edits, and members-only stories.
+                    </p>
+                </div>
+                <div>
+                    {subscribed ? (
+                        <div className="success-msg">
+                            <FaCheckCircle /> You're on the list. Watch your inbox.
+                        </div>
+                    ) : (
+                        <form onSubmit={handleSubscribe}>
+                            <div className="newsletter-input-row">
+                                <input
+                                    type="email"
+                                    className="newsletter-input"
+                                    placeholder="Your email address"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    required
+                                />
+                                <button type="submit" className="newsletter-btn">
+                                    Subscribe <FaArrowRight size={11} />
+                                </button>
                             </div>
-                        ))}
-                    </div>
+                        </form>
+                    )}
+                    <p className="label-caps" style={{ color: 'rgba(255,255,255,0.2)', marginTop: 20, fontSize: 10 }}>
+                        No spam. Unsubscribe anytime. We respect your privacy.
+                    </p>
                 </div>
-            )}
-
-            {/* Customer Reviews (static) */}
-            <div className="bg-light py-5">
-                <div className="container text-center">
-                    <div className="mb-3">{renderStars(5)}</div>
-                    <p className="fs-3 fst-italic">"The quality of the linen is unmatched. It truly feels like wearing air."</p>
-                    <p className="fw-bold">— Olivia Chen</p>
-                    <div className="mt-3">
-                        <FaCheckCircle className="text-success me-2" />
-                        <span>Verified Customer · 5,000+ Happy Customers</span>
-                    </div>
-                </div>
-            </div>
-
-            {/* Newsletter */}
-            <div className="container py-5">
-                <div className="row justify-content-center">
-                    <div className="col-md-8 text-center">
-                        <h2 className="fw-bold">Stay in the Air</h2>
-                        <p className="mb-4 text-muted">Receive exclusive access to new drops and stories.</p>
-                        {subscribed ? (
-                            <div className="alert alert-success">Thank you for subscribing!</div>
-                        ) : (
-                            <form onSubmit={handleSubscribe} className="row g-2 justify-content-center">
-                                <div className="col-sm-8">
-                                    <input type="email" className="form-control form-control-lg rounded-0" placeholder="EMAIL ADDRESS" value={email} onChange={(e) => setEmail(e.target.value)} required />
-                                </div>
-                                <div className="col-sm-auto">
-                                    <button type="submit" className="btn btn-dark btn-lg rounded-0 px-5">SUBSCRIBE</button>
-                                </div>
-                            </form>
-                        )}
-                    </div>
-                </div>
-            </div>
+            </section>
         </>
     );
 }
