@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { FaSearch, FaPlus, FaEdit, FaTrash, FaTimes, FaCloudUploadAlt } from 'react-icons/fa';
 import axiosInstance from '@/utils/axiosConfig';
 
@@ -28,6 +28,14 @@ interface SizeVariant {
     isAvailable: boolean;
 }
 
+interface ProductImageUpload {
+    id?: number;
+    imageFile: File | null;
+    imagePreview: string | null;
+    imageUrl?: string;
+    isPrimary: boolean;
+}
+
 interface Product {
     id: number;
     name: string;
@@ -37,7 +45,7 @@ interface Product {
     stock_quantity: number;
     category_name: string;
     category_id: number;
-    images: { image_url: string; is_primary: boolean }[];
+    images: { id?: number; image_url: string; is_primary: boolean }[];
     colors?: ColorVariant[];
     sizes?: SizeVariant[];
     is_active: boolean;
@@ -66,10 +74,10 @@ export default function ProductsManagement() {
         initialStock: '',
     });
     const [colors, setColors] = useState<ColorVariant[]>([]);
+    const [productImages, setProductImages] = useState<ProductImageUpload[]>([]);
     const [sizes, setSizes] = useState<SizeVariant[]>([]);
     const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
     const [categoryType, setCategoryType] = useState<string>('');
-    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const backendUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000';
 
@@ -181,8 +189,31 @@ export default function ProductsManagement() {
         setColors(updated);
     };
 
+    const handleProductImages = (files: FileList | null) => {
+        if (!files?.length) return;
+        const hasPrimary = productImages.some(image => image.isPrimary);
+        const uploads = Array.from(files).map((file, idx) => ({
+            imageFile: file,
+            imagePreview: URL.createObjectURL(file),
+            isPrimary: !hasPrimary && productImages.length === 0 && idx === 0,
+        }));
+        setProductImages([...productImages, ...uploads]);
+    };
+
+    const removeProductImage = (idx: number) => {
+        const updated = productImages.filter((_, i) => i !== idx);
+        if (productImages[idx]?.isPrimary && updated.length > 0) {
+            updated[0] = { ...updated[0], isPrimary: true };
+        }
+        setProductImages(updated);
+    };
+
+    const setPrimaryProductImage = (idx: number) => {
+        setProductImages(productImages.map((image, i) => ({ ...image, isPrimary: i === idx })));
+    };
+
     const addSizeVariant = () => {
-        let newSize: SizeVariant = {
+        const newSize: SizeVariant = {
             colorName: '',
             sizeName: '',
             sizeType: categoryType,
@@ -215,11 +246,11 @@ export default function ProductsManagement() {
         setSizes(updated);
     };
 
-    const uploadColorImage = async (productId: number, colorName: string, file: File): Promise<string> => {
+    const uploadProductImage = async (productId: number, file: File, options: { colorName?: string; isPrimary?: boolean } = {}): Promise<string> => {
         const fd = new FormData();
         fd.append('image', file);
-        fd.append('color', colorName);
-        fd.append('is_primary', 'false');
+        if (options.colorName) fd.append('color', options.colorName);
+        fd.append('is_primary', options.isPrimary ? 'true' : 'false');
         const res = await axiosInstance.post(`/products/${productId}/images`, fd, {
             headers: { 'Content-Type': 'multipart/form-data' }
         });
@@ -248,11 +279,22 @@ export default function ProductsManagement() {
                 productId = res.data.data.id;
             }
 
+            const primaryExistingImage = productImages.find(image => image.id && image.isPrimary);
+            if (primaryExistingImage?.id) {
+                await axiosInstance.put(`/products/${productId}/images/${primaryExistingImage.id}/primary`);
+            }
+
+            for (const image of productImages) {
+                if (image.imageFile) {
+                    await uploadProductImage(productId, image.imageFile, { isPrimary: image.isPrimary });
+                }
+            }
+
             const colorPayload = [];
             for (const color of colors) {
                 let imageUrl = color.imageUrl;
                 if (color.imageFile) {
-                    imageUrl = await uploadColorImage(productId, color.colorName, color.imageFile);
+                    imageUrl = await uploadProductImage(productId, color.imageFile, { colorName: color.colorName });
                 }
                 if (color.colorName && imageUrl) {
                     colorPayload.push({ colorName: color.colorName, imageUrl });
@@ -276,7 +318,8 @@ export default function ProductsManagement() {
             resetForm();
         } catch (error) {
             console.error(error);
-            alert('Failed to save product');
+            const message = (error as any)?.response?.data?.message || (error as Error)?.message || 'Failed to save product';
+            alert(message);
         } finally {
             setModalLoading(false);
         }
@@ -285,6 +328,7 @@ export default function ProductsManagement() {
     const resetForm = () => {
         setEditingProduct(null);
         setFormData({ name: '', categoryId: '', description: '', regularPrice: '', discountPrice: '', initialStock: '' });
+        setProductImages([]);
         setColors([]);
         setSizes([]);
         setSelectedCategoryId('');
@@ -303,6 +347,13 @@ export default function ProductsManagement() {
         });
         setSelectedCategoryId(product.category_id.toString());
         setCategoryType(getCategoryType(product.category_id.toString()));
+        setProductImages(product.images?.map((image: any) => ({
+            id: image.id,
+            imageUrl: image.image_url,
+            imagePreview: getFullImageUrl(image.image_url),
+            imageFile: null,
+            isPrimary: image.is_primary,
+        })) || []);
         setColors(product.colors?.map((c: any) => ({
             id: c.id,
             colorName: c.color_name,
@@ -479,6 +530,51 @@ export default function ProductsManagement() {
                                         <div className="mb-3"><label>INITIAL STOCK</label><input type="number" className="form-control rounded-0" value={formData.initialStock} onChange={e => setFormData({ ...formData, initialStock: e.target.value })} /></div>
                                         <div className="mb-3"><label>REGULAR PRICE (USD)</label><input type="number" step="0.01" className="form-control rounded-0" value={formData.regularPrice} onChange={e => setFormData({ ...formData, regularPrice: e.target.value })} /></div>
                                         <div className="mb-3"><label>DISCOUNT PRICE (Optional)</label><input type="number" step="0.01" className="form-control rounded-0" value={formData.discountPrice} onChange={e => setFormData({ ...formData, discountPrice: e.target.value })} /></div>
+                                        <div className="mb-3">
+                                            <label className="form-label">PRODUCT IMAGES</label>
+                                            <div className="border p-3">
+                                                <label className="btn btn-outline-dark rounded-0 mb-3">
+                                                    <FaCloudUploadAlt className="me-2" />
+                                                    Upload Images
+                                                    <input
+                                                        type="file"
+                                                        accept="image/*"
+                                                        multiple
+                                                        hidden
+                                                        onChange={e => {
+                                                            handleProductImages(e.target.files);
+                                                            e.target.value = '';
+                                                        }}
+                                                    />
+                                                </label>
+                                                {productImages.length > 0 && (
+                                                    <div className="d-flex flex-wrap gap-3">
+                                                        {productImages.map((image, idx) => (
+                                                            <div key={`${image.id || 'new'}-${idx}`} className="border p-2" style={{ width: '132px' }}>
+                                                                <div className="bg-light d-flex align-items-center justify-content-center mb-2" style={{ width: '112px', height: '112px' }}>
+                                                                    <img src={image.imagePreview || image.imageUrl || ''} alt="Product" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+                                                                </div>
+                                                                <div className="form-check small">
+                                                                    <input
+                                                                        className="form-check-input"
+                                                                        type="radio"
+                                                                        name="primaryProductImage"
+                                                                        checked={image.isPrimary}
+                                                                        onChange={() => setPrimaryProductImage(idx)}
+                                                                    />
+                                                                    <label className="form-check-label">Primary</label>
+                                                                </div>
+                                                                {image.imageFile && (
+                                                                    <button className="btn btn-sm btn-link text-danger p-0 mt-1" onClick={() => removeProductImage(idx)}>
+                                                                        Remove
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -490,7 +586,7 @@ export default function ProductsManagement() {
                                             <button className="btn btn-sm btn-danger" onClick={() => removeColorVariant(idx)}><FaTimes /> Remove</button>
                                         </div>
                                         {color.imagePreview ? (
-                                            <div><img src={color.imagePreview} style={{ maxHeight: '100px' }} /><button className="btn btn-sm btn-outline-secondary ms-2" onClick={() => { const upd = [...colors]; upd[idx].imagePreview = null; upd[idx].imageFile = null; setColors(upd); }}>Change</button></div>
+                                            <div><img src={color.imagePreview} alt={color.colorName || 'Color variant'} style={{ maxHeight: '100px' }} /><button className="btn btn-sm btn-outline-secondary ms-2" onClick={() => { const upd = [...colors]; upd[idx].imagePreview = null; upd[idx].imageFile = null; setColors(upd); }}>Change</button></div>
                                         ) : (
                                             <input type="file" accept="image/*" onChange={e => e.target.files?.[0] && handleColorImage(idx, e.target.files[0])} />
                                         )}

@@ -1,6 +1,7 @@
 const pool = require('../config/db');
 const { sendSuccess, sendError } = require('../utils/responseHandler');
 const { addProductColor, getProductColors, deleteProductColors, addProductSize, getProductSizes, deleteProductSizes } = require('../models/ProductVariant');
+const { uploadImageToCloudinary } = require('../services/cloudinaryService');
 
 const enrichProductWithVariants = async (product) => {
     try {
@@ -268,16 +269,46 @@ const uploadProductImage = async (req, res) => {
         const { id } = req.params;
         const { color } = req.body;
         if (!req.file) return sendError(res, 'No image file uploaded', 400);
-        const imageUrl = `/uploads/products/${req.file.filename}`;
         const is_primary = req.body.is_primary === 'true';
         const alt_text = req.body.alt_text || 'product image';
+        const upload = await uploadImageToCloudinary(req.file);
+
+        if (is_primary) {
+            await pool.query('UPDATE product_images SET is_primary = false WHERE product_id = $1', [id]);
+        }
+
         const result = await pool.query(
-            `INSERT INTO product_images (product_id, image_url, is_primary, alt_text, color)
-             VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-            [id, imageUrl, is_primary, alt_text, color || null]
+            `INSERT INTO product_images (product_id, image_url, is_primary, alt_text, color, cloudinary_public_id)
+             VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+            [id, upload.secureUrl, is_primary, alt_text, color || null, upload.publicId]
         );
         sendSuccess(res, result.rows[0], 'Image uploaded', 201);
     } catch (error) {
+        console.error(error);
+        sendError(res, error.message || 'Server error', 500);
+    }
+};
+
+const setPrimaryProductImage = async (req, res) => {
+    const { id, imageId } = req.params;
+
+    try {
+        await pool.query('BEGIN');
+        await pool.query('UPDATE product_images SET is_primary = false WHERE product_id = $1', [id]);
+        const result = await pool.query(
+            'UPDATE product_images SET is_primary = true WHERE id = $1 AND product_id = $2 RETURNING *',
+            [imageId, id]
+        );
+
+        if (result.rows.length === 0) {
+            await pool.query('ROLLBACK');
+            return sendError(res, 'Image not found', 404);
+        }
+
+        await pool.query('COMMIT');
+        sendSuccess(res, result.rows[0], 'Primary image updated');
+    } catch (error) {
+        await pool.query('ROLLBACK');
         console.error(error);
         sendError(res, 'Server error', 500);
     }
@@ -292,4 +323,5 @@ module.exports = {
     updateFullProduct,
     deleteProduct,
     uploadProductImage,
+    setPrimaryProductImage,
 };
