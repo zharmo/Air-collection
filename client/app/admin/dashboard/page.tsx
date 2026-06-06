@@ -1,193 +1,327 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import axiosInstance from '@/utils/axiosConfig';
+import { useEffect, useState } from "react";
+import axiosInstance from "@/utils/axiosConfig";
 import {
-    FaDollarSign, FaUsers, FaShoppingBag, FaBoxOpen,
-    FaArrowUp, FaArrowDown, FaExclamationTriangle,
-    FaCheckCircle, FaClock, FaTruck, FaChartLine,
-    FaCircle, FaInbox
-} from 'react-icons/fa';
+  FaDollarSign,
+  FaUsers,
+  FaShoppingBag,
+  FaBoxOpen,
+  FaArrowUp,
+  FaArrowDown,
+  FaExclamationTriangle,
+  FaCheckCircle,
+  FaClock,
+  FaTruck,
+  FaChartLine,
+  FaCircle,
+  FaInbox,
+} from "react-icons/fa";
 
 interface DashboardStats {
-    totalRevenue: number; todayRevenue: number; revenueChange: number;
-    totalCustomers: number; totalOrders: number; deliveredOrders: number;
-    activeOrders: number; todayOrders: number; pendingOrders: number;
-    totalProducts: number; lowStockProducts: number; outOfStockProducts: number;
+  totalRevenue: number;
+  todayRevenue: number;
+  revenueChange: number;
+  totalCustomers: number;
+  totalOrders: number;
+  deliveredOrders: number;
+  activeOrders: number;
+  todayOrders: number;
+  pendingOrders: number;
+  totalProducts: number;
+  lowStockProducts: number;
+  outOfStockProducts: number;
 }
 
 /* ── Tiny reusable sub-components ── */
 
-function SkeletonBlock({ w = '100%', h = 16, radius = 4, mb = 0 }: { w?: string | number; h?: number; radius?: number; mb?: number }) {
-    return (
-        <div style={{
-            width: w, height: h, borderRadius: radius,
-            background: 'linear-gradient(90deg,#f1f5f9 25%,#e8edf5 50%,#f1f5f9 75%)',
-            backgroundSize: '200% 100%',
-            animation: 'adShimmer 1.4s infinite',
-            marginBottom: mb,
-        }} />
-    );
+function SkeletonBlock({
+  w = "100%",
+  h = 16,
+  radius = 4,
+  mb = 0,
+}: {
+  w?: string | number;
+  h?: number;
+  radius?: number;
+  mb?: number;
+}) {
+  return (
+    <div
+      style={{
+        width: w,
+        height: h,
+        borderRadius: radius,
+        background:
+          "linear-gradient(90deg,#f1f5f9 25%,#e8edf5 50%,#f1f5f9 75%)",
+        backgroundSize: "200% 100%",
+        animation: "adShimmer 1.4s infinite",
+        marginBottom: mb,
+      }}
+    />
+  );
 }
 
-function TrendBadge({ value, suffix = '%' }: { value: number; suffix?: string }) {
-    const up = value >= 0;
-    return (
-        <span style={{
-            display: 'inline-flex', alignItems: 'center', gap: 4,
-            padding: '3px 9px', borderRadius: 20,
-            background: up ? 'rgba(16,185,129,.1)' : 'rgba(239,68,68,.1)',
-            color: up ? '#059669' : '#dc2626',
-            fontSize: 11, fontWeight: 700, letterSpacing: '.04em',
-        }}>
-            {up ? <FaArrowUp size={8} /> : <FaArrowDown size={8} />}
-            {Math.abs(value)}{suffix}
-        </span>
-    );
+function TrendBadge({
+  value,
+  suffix = "%",
+}: {
+  value: number;
+  suffix?: string;
+}) {
+  const up = value >= 0;
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 4,
+        padding: "3px 9px",
+        borderRadius: 20,
+        background: up ? "rgba(16,185,129,.1)" : "rgba(239,68,68,.1)",
+        color: up ? "#059669" : "#dc2626",
+        fontSize: 11,
+        fontWeight: 700,
+        letterSpacing: ".04em",
+      }}
+    >
+      {up ? <FaArrowUp size={8} /> : <FaArrowDown size={8} />}
+      {Math.abs(value)}
+      {suffix}
+    </span>
+  );
 }
 
 function StatPill({ label, color }: { label: string; color: string }) {
-    const colors: Record<string, { bg: string; text: string; dot: string }> = {
-        success: { bg: 'rgba(16,185,129,.09)', text: '#059669', dot: '#10b981' },
-        warning: { bg: 'rgba(245,158,11,.09)', text: '#d97706', dot: '#f59e0b' },
-        danger:  { bg: 'rgba(239,68,68,.09)',  text: '#dc2626', dot: '#ef4444' },
-        info:    { bg: 'rgba(99,102,241,.09)', text: '#4f46e5', dot: '#6366f1' },
-    };
-    const c = colors[color] || colors.info;
-    return (
-        <span style={{
-            display: 'inline-flex', alignItems: 'center', gap: 6,
-            padding: '4px 10px', borderRadius: 20,
-            background: c.bg, color: c.text,
-            fontSize: 11, fontWeight: 600, letterSpacing: '.06em',
-        }}>
-            <FaCircle size={5} style={{ color: c.dot, flexShrink: 0 }} />
-            {label}
-        </span>
-    );
+  const colors: Record<string, { bg: string; text: string; dot: string }> = {
+    success: { bg: "rgba(16,185,129,.09)", text: "#059669", dot: "#10b981" },
+    warning: { bg: "rgba(245,158,11,.09)", text: "#d97706", dot: "#f59e0b" },
+    danger: { bg: "rgba(239,68,68,.09)", text: "#dc2626", dot: "#ef4444" },
+    info: { bg: "rgba(99,102,241,.09)", text: "#4f46e5", dot: "#6366f1" },
+  };
+  const c = colors[color] || colors.info;
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        padding: "4px 10px",
+        borderRadius: 20,
+        background: c.bg,
+        color: c.text,
+        fontSize: 11,
+        fontWeight: 600,
+        letterSpacing: ".06em",
+      }}
+    >
+      <FaCircle size={5} style={{ color: c.dot, flexShrink: 0 }} />
+      {label}
+    </span>
+  );
 }
 
 /* ── Main component ── */
 export default function AdminDashboard() {
-    const [stats, setStats] = useState<DashboardStats>({
-        totalRevenue: 0, todayRevenue: 0, revenueChange: 0,
-        totalCustomers: 0, totalOrders: 0, deliveredOrders: 0,
-        activeOrders: 0, todayOrders: 0, pendingOrders: 0,
-        totalProducts: 0, lowStockProducts: 0, outOfStockProducts: 0,
-    });
-    const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<DashboardStats>({
+    totalRevenue: 0,
+    todayRevenue: 0,
+    revenueChange: 0,
+    totalCustomers: 0,
+    totalOrders: 0,
+    deliveredOrders: 0,
+    activeOrders: 0,
+    todayOrders: 0,
+    pendingOrders: 0,
+    totalProducts: 0,
+    lowStockProducts: 0,
+    outOfStockProducts: 0,
+  });
+  const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        const fetchDashboardData = async () => {
-            try {
-                const ordersRes = await axiosInstance.get('/orders');
-                const orders    = ordersRes.data.data || [];
-                const productsRes = await axiosInstance.get('/products');
-                const products    = productsRes.data.data || [];
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        const ordersRes = await axiosInstance.get("/orders");
+        const orders = ordersRes.data.data || [];
+        const productsRes = await axiosInstance.get("/products");
+        const products = productsRes.data.data || [];
 
-                let totalCustomers = 0;
-                try {
-                    const usersRes = await axiosInstance.get('/users');
-                    const users    = usersRes.data.data || [];
-                    totalCustomers = users.filter((u: any) => u.role === 'customer').length;
-                } catch {
-                    const userIds  = new Set(orders.filter((o: any) => o.user_id).map((o: any) => o.user_id));
-                    totalCustomers = userIds.size;
-                }
+        let totalCustomers = 0;
+        try {
+          const usersRes = await axiosInstance.get("/users");
+          const users = usersRes.data.data || [];
+          totalCustomers = users.filter(
+            (u: any) => u.role === "customer",
+          ).length;
+        } catch {
+          const userIds = new Set(
+            orders.filter((o: any) => o.user_id).map((o: any) => o.user_id),
+          );
+          totalCustomers = userIds.size;
+        }
 
-                const today = new Date().toISOString().split('T')[0];
-                let totalRevenue = 0, todayRevenue = 0, deliveredOrders = 0,
-                    activeOrders = 0, todayOrders = 0, pendingOrders = 0;
+        const today = new Date().toISOString().split("T")[0];
+        let totalRevenue = 0,
+          todayRevenue = 0,
+          deliveredOrders = 0,
+          activeOrders = 0,
+          todayOrders = 0,
+          pendingOrders = 0;
 
-                for (const order of orders) {
-                    const amount    = parseFloat(order.total_amount) || 0;
-                    const status    = order.status;
-                    const orderDate = order.created_at ? order.created_at.split('T')[0] : '';
-                    totalRevenue += amount;
-                    if (orderDate === today) { todayOrders++; todayRevenue += amount; }
-                    if (status === 'delivered')                          deliveredOrders++;
-                    if (status === 'processing' || status === 'shipped') activeOrders++;
-                    if (status === 'pending')                            pendingOrders++;
-                }
+        for (const order of orders) {
+          const amount = parseFloat(order.total_amount) || 0;
+          const status = order.status;
+          const orderDate = order.created_at
+            ? order.created_at.split("T")[0]
+            : "";
+          totalRevenue += amount;
+          if (orderDate === today) {
+            todayOrders++;
+            todayRevenue += amount;
+          }
+          if (status === "delivered") deliveredOrders++;
+          if (status === "processing" || status === "shipped") activeOrders++;
+          if (status === "pending") pendingOrders++;
+        }
 
-                setStats({
-                    totalRevenue, todayRevenue, revenueChange: 12.4,
-                    totalCustomers, totalOrders: orders.length,
-                    deliveredOrders, activeOrders, todayOrders, pendingOrders,
-                    totalProducts: products.length,
-                    lowStockProducts:  products.filter((p: any) => p.stock_quantity > 0 && p.stock_quantity <= 5).length,
-                    outOfStockProducts: products.filter((p: any) => p.stock_quantity === 0).length,
-                });
-            } catch (error) {
-                console.error('Failed to fetch dashboard data', error);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchDashboardData();
-    }, []);
+        setStats({
+          totalRevenue,
+          todayRevenue,
+          revenueChange: 12.4,
+          totalCustomers,
+          totalOrders: orders.length,
+          deliveredOrders,
+          activeOrders,
+          todayOrders,
+          pendingOrders,
+          totalProducts: products.length,
+          lowStockProducts: products.filter(
+            (p: any) => p.stock_quantity > 0 && p.stock_quantity <= 5,
+          ).length,
+          outOfStockProducts: products.filter(
+            (p: any) => p.stock_quantity === 0,
+          ).length,
+        });
+      } catch (error) {
+        console.error("Failed to fetch dashboard data", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchDashboardData();
+  }, []);
 
-    const fulfillmentRate = stats.totalOrders > 0
-        ? Math.round((stats.deliveredOrders / stats.totalOrders) * 100) : 0;
-    const pendingRate = stats.totalOrders > 0
-        ? Math.round((stats.pendingOrders / stats.totalOrders) * 100) : 0;
-    const activeRate = stats.totalOrders > 0
-        ? Math.round((stats.activeOrders / stats.totalOrders) * 100) : 0;
-    const stockHealthPct = stats.totalProducts > 0
-        ? Math.round(((stats.totalProducts - stats.outOfStockProducts - stats.lowStockProducts) / stats.totalProducts) * 100) : 100;
+  const fulfillmentRate =
+    stats.totalOrders > 0
+      ? Math.round((stats.deliveredOrders / stats.totalOrders) * 100)
+      : 0;
+  const pendingRate =
+    stats.totalOrders > 0
+      ? Math.round((stats.pendingOrders / stats.totalOrders) * 100)
+      : 0;
+  const activeRate =
+    stats.totalOrders > 0
+      ? Math.round((stats.activeOrders / stats.totalOrders) * 100)
+      : 0;
+  const stockHealthPct =
+    stats.totalProducts > 0
+      ? Math.round(
+          ((stats.totalProducts -
+            stats.outOfStockProducts -
+            stats.lowStockProducts) /
+            stats.totalProducts) *
+            100,
+        )
+      : 100;
 
-    const now = new Date();
-    const dateStr = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-
-    /* ── Skeleton ── */
-    if (loading) return (
-        <>
-            <style>{`@keyframes adShimmer { to { background-position: -200% 0; } }`}</style>
-            <div style={{ padding: '0 0 40px' }}>
-                {/* Header skeleton */}
-                <div style={{ marginBottom: 32 }}>
-                    <SkeletonBlock w={160} h={12} mb={12} />
-                    <SkeletonBlock w={240} h={28} mb={8} />
-                    <SkeletonBlock w={320} h={13} />
+  /* ── Skeleton ── */
+  if (loading)
+    return (
+      <>
+        <style>{`@keyframes adShimmer { to { background-position: -200% 0; } }`}</style>
+        <div style={{ padding: "0 0 40px" }}>
+          {/* Header skeleton */}
+          <div style={{ marginBottom: 32 }}>
+            <SkeletonBlock w={160} h={12} mb={12} />
+            <SkeletonBlock w={240} h={28} mb={8} />
+            <SkeletonBlock w={320} h={13} />
+          </div>
+          {/* KPI row skeleton */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(4,1fr)",
+              gap: 16,
+              marginBottom: 24,
+            }}
+          >
+            {[...Array(4)].map((_, i) => (
+              <div
+                key={i}
+                style={{
+                  background: "#fff",
+                  border: "1px solid rgba(0,0,0,.06)",
+                  borderRadius: 12,
+                  padding: 24,
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    marginBottom: 20,
+                  }}
+                >
+                  <SkeletonBlock w={40} h={40} radius={10} />
+                  <SkeletonBlock w={60} h={22} radius={20} />
                 </div>
-                {/* KPI row skeleton */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 24 }}>
-                    {[...Array(4)].map((_,i) => (
-                        <div key={i} style={{ background: '#fff', border: '1px solid rgba(0,0,0,.06)', borderRadius: 12, padding: 24 }}>
-                            <div style={{ display:'flex', justifyContent:'space-between', marginBottom:20 }}>
-                                <SkeletonBlock w={40} h={40} radius={10} />
-                                <SkeletonBlock w={60} h={22} radius={20} />
-                            </div>
-                            <SkeletonBlock w={100} h={32} mb={8} radius={6} />
-                            <SkeletonBlock w={130} h={11} radius={4} />
-                        </div>
-                    ))}
-                </div>
-                {/* Bottom cards skeleton */}
-                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
-                    {[...Array(2)].map((_,i) => (
-                        <div key={i} style={{ background:'#fff', border:'1px solid rgba(0,0,0,.06)', borderRadius:12, padding:28 }}>
-                            <SkeletonBlock w={120} h={13} mb={24} />
-                            {[...Array(3)].map((_,j) => (
-                                <div key={j} style={{ marginBottom:20 }}>
-                                    <div style={{ display:'flex', justifyContent:'space-between', marginBottom:8 }}>
-                                        <SkeletonBlock w={80} h={11} />
-                                        <SkeletonBlock w={40} h={11} />
-                                    </div>
-                                    <SkeletonBlock h={6} radius={3} />
-                                </div>
-                            ))}
-                        </div>
-                    ))}
-                </div>
-            </div>
-        </>
+                <SkeletonBlock w={100} h={32} mb={8} radius={6} />
+                <SkeletonBlock w={130} h={11} radius={4} />
+              </div>
+            ))}
+          </div>
+          {/* Bottom cards skeleton */}
+          <div
+            style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}
+          >
+            {[...Array(2)].map((_, i) => (
+              <div
+                key={i}
+                style={{
+                  background: "#fff",
+                  border: "1px solid rgba(0,0,0,.06)",
+                  borderRadius: 12,
+                  padding: 28,
+                }}
+              >
+                <SkeletonBlock w={120} h={13} mb={24} />
+                {[...Array(3)].map((_, j) => (
+                  <div key={j} style={{ marginBottom: 20 }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        marginBottom: 8,
+                      }}
+                    >
+                      <SkeletonBlock w={80} h={11} />
+                      <SkeletonBlock w={40} h={11} />
+                    </div>
+                    <SkeletonBlock h={6} radius={3} />
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      </>
     );
 
-    /* ── Dashboard ── */
-    return (
-        <>
-            <style>{`
+  /* ── Dashboard ── */
+  return (
+    <>
+      <style>{`
                 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
                 @keyframes adShimmer { to { background-position: -200% 0; } }
@@ -450,290 +584,536 @@ export default function AdminDashboard() {
                 }
             `}</style>
 
-            <div className="ad-root">
+      <div className="ad-root">
+        {/* ── Header ── */}
+        <div className="ad-header">
+          <div>
+            <h1 className="ad-header-title">Store Overview</h1>
+            <p className="ad-header-sub">
+              Real-time performance metrics and catalog health.
+            </p>
+          </div>
+          <div className="ad-live-pill">
+            <span className="ad-live-dot" />
+            Live Data
+          </div>
+        </div>
 
-                {/* ── Header ── */}
-                <div className="ad-header">
-                    <div>
-                        <p className="ad-header-eyebrow">{dateStr}</p>
-                        <h1 className="ad-header-title">Store Overview</h1>
-                        <p className="ad-header-sub">Real-time performance metrics and catalog health.</p>
-                    </div>
-                    <div className="ad-live-pill">
-                        <span className="ad-live-dot" />
-                        Live Data
-                    </div>
-                </div>
+        {/* ── Alert banners ── */}
+        {stats.outOfStockProducts > 0 && (
+          <div className="ad-alert ad-alert-danger">
+            <FaExclamationTriangle
+              className="ad-alert-icon"
+              size={14}
+              style={{ color: "#ef4444" }}
+            />
+            <span className="ad-alert-text" style={{ color: "#b91c1c" }}>
+              Out-of-stock products require immediate attention — customers
+              cannot purchase these items.
+            </span>
+            <span
+              className="ad-alert-count"
+              style={{ background: "rgba(239,68,68,.1)", color: "#dc2626" }}
+            >
+              {stats.outOfStockProducts} items
+            </span>
+          </div>
+        )}
+        {stats.lowStockProducts > 0 && (
+          <div className="ad-alert ad-alert-warn">
+            <FaExclamationTriangle
+              className="ad-alert-icon"
+              size={14}
+              style={{ color: "#f59e0b" }}
+            />
+            <span className="ad-alert-text" style={{ color: "#92400e" }}>
+              {stats.lowStockProducts} product
+              {stats.lowStockProducts > 1 ? "s are" : " is"} running low —
+              consider restocking soon.
+            </span>
+            <span
+              className="ad-alert-count"
+              style={{ background: "rgba(245,158,11,.1)", color: "#b45309" }}
+            >
+              Low stock
+            </span>
+          </div>
+        )}
 
-                {/* ── Alert banners ── */}
-                {stats.outOfStockProducts > 0 && (
-                    <div className="ad-alert ad-alert-danger">
-                        <FaExclamationTriangle className="ad-alert-icon" size={14} style={{ color:'#ef4444' }} />
-                        <span className="ad-alert-text" style={{ color:'#b91c1c' }}>
-                            Out-of-stock products require immediate attention — customers cannot purchase these items.
-                        </span>
-                        <span className="ad-alert-count" style={{ background:'rgba(239,68,68,.1)', color:'#dc2626' }}>
-                            {stats.outOfStockProducts} items
-                        </span>
-                    </div>
-                )}
-                {stats.lowStockProducts > 0 && (
-                    <div className="ad-alert ad-alert-warn">
-                        <FaExclamationTriangle className="ad-alert-icon" size={14} style={{ color:'#f59e0b' }} />
-                        <span className="ad-alert-text" style={{ color:'#92400e' }}>
-                            {stats.lowStockProducts} product{stats.lowStockProducts > 1 ? 's are' : ' is'} running low — consider restocking soon.
-                        </span>
-                        <span className="ad-alert-count" style={{ background:'rgba(245,158,11,.1)', color:'#b45309' }}>
-                            Low stock
-                        </span>
-                    </div>
-                )}
-
-                {/* ── KPI cards ── */}
-                <div className="ad-kpi-grid">
-
-                    {/* Revenue */}
-                    <div className="ad-card ad-kpi" style={{ animationDelay:'.05s' }}>
-                        <div className="ad-kpi-top">
-                            <div className="ad-kpi-icon" style={{ background:'rgba(99,102,241,.1)' }}>
-                                <FaDollarSign size={18} style={{ color:'var(--ad-indigo)' }} />
-                            </div>
-                            <TrendBadge value={stats.revenueChange} />
-                        </div>
-                        <div className="ad-kpi-value ad-mono">
-                            ${stats.totalRevenue.toLocaleString(undefined, { minimumFractionDigits:2, maximumFractionDigits:2 })}
-                        </div>
-                        <div className="ad-kpi-label">Total Revenue</div>
-                        <div className="ad-kpi-sub">vs last month</div>
-                    </div>
-
-                    {/* Customers */}
-                    <div className="ad-card ad-kpi" style={{ animationDelay:'.1s' }}>
-                        <div className="ad-kpi-top">
-                            <div className="ad-kpi-icon" style={{ background:'rgba(59,130,246,.1)' }}>
-                                <FaUsers size={17} style={{ color:'var(--ad-blue)' }} />
-                            </div>
-                            <StatPill label="Active" color="success" />
-                        </div>
-                        <div className="ad-kpi-value">{stats.totalCustomers.toLocaleString()}</div>
-                        <div className="ad-kpi-label">Total Customers</div>
-                        <div className="ad-kpi-sub">Registered accounts</div>
-                    </div>
-
-                    {/* Total Orders */}
-                    <div className="ad-card ad-kpi" style={{ animationDelay:'.15s' }}>
-                        <div className="ad-kpi-top">
-                            <div className="ad-kpi-icon" style={{ background:'rgba(16,185,129,.1)' }}>
-                                <FaShoppingBag size={16} style={{ color:'var(--ad-green)' }} />
-                            </div>
-                            {stats.pendingOrders > 0
-                                ? <StatPill label={`${stats.pendingOrders} pending`} color="warning" />
-                                : <StatPill label="All clear" color="success" />
-                            }
-                        </div>
-                        <div className="ad-kpi-value">{stats.totalOrders.toLocaleString()}</div>
-                        <div className="ad-kpi-label">Total Orders</div>
-                        <div className="ad-kpi-sub">{stats.todayOrders} new today</div>
-                    </div>
-
-                    {/* Products */}
-                    <div className="ad-card ad-kpi" style={{ animationDelay:'.2s' }}>
-                        <div className="ad-kpi-top">
-                            <div className="ad-kpi-icon" style={{ background:'rgba(245,158,11,.1)' }}>
-                                <FaBoxOpen size={16} style={{ color:'var(--ad-amber)' }} />
-                            </div>
-                            {stats.outOfStockProducts > 0
-                                ? <StatPill label="Action needed" color="danger" />
-                                : <StatPill label="Healthy" color="success" />
-                            }
-                        </div>
-                        <div className="ad-kpi-value">{stats.totalProducts.toLocaleString()}</div>
-                        <div className="ad-kpi-label">Total Products</div>
-                        <div className="ad-kpi-sub">{stats.outOfStockProducts} out of stock</div>
-                    </div>
-                </div>
-
-                {/* ── Today + Revenue card (full width) ── */}
-                <div className="ad-card ad-today-card" style={{ marginBottom:16 }}>
-                    <div>
-                        <div style={{ fontSize:11, fontWeight:600, letterSpacing:'.14em', textTransform:'uppercase', color:'var(--ad-faint)', marginBottom:4 }}>
-                            Today's Revenue
-                        </div>
-                        <div style={{ display:'flex', alignItems:'baseline', gap:12 }}>
-                            <span style={{ fontSize:32, fontWeight:700, letterSpacing:'-.025em', color:'var(--ad-ink)', fontFamily:'JetBrains Mono, monospace' }}>
-                                ${stats.todayRevenue.toLocaleString(undefined, { minimumFractionDigits:2, maximumFractionDigits:2 })}
-                            </span>
-                            <span style={{ fontSize:13, color:'var(--ad-soft)' }}>{stats.todayOrders} order{stats.todayOrders !== 1 ? 's' : ''} placed today</span>
-                        </div>
-                    </div>
-                    <div style={{ display:'flex', alignItems:'center', gap:28, flexWrap:'wrap' }}>
-                        {[
-                            { icon: FaCheckCircle, label:'Delivered',  val: stats.deliveredOrders, color:'var(--ad-green)' },
-                            { icon: FaTruck,        label:'In Transit', val: stats.activeOrders,   color:'var(--ad-blue)'   },
-                            { icon: FaClock,        label:'Pending',    val: stats.pendingOrders,  color:'var(--ad-amber)'  },
-                        ].map(({ icon: Icon, label, val, color }) => (
-                            <div key={label} style={{ textAlign:'center' }}>
-                                <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:2 }}>
-                                    <Icon size={12} style={{ color }} />
-                                    <span style={{ fontSize:11, fontWeight:500, color:'var(--ad-soft)', letterSpacing:'.06em', textTransform:'uppercase' }}>{label}</span>
-                                </div>
-                                <div style={{ fontSize:22, fontWeight:700, color:'var(--ad-ink)', letterSpacing:'-.02em', fontFamily:'JetBrains Mono, monospace' }}>
-                                    {val}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-                {/* ── Bottom 2-col grid ── */}
-                <div className="ad-bottom-grid">
-
-                    {/* Orders Fulfillment */}
-                    <div className="ad-card" style={{ padding:28 }}>
-                        <p className="ad-section-title">
-                            <FaChartLine size={10} /> Orders Fulfillment
-                        </p>
-
-                        {/* Fulfillment donut */}
-                        <div className="ad-ring-wrap">
-                            <div className="ad-ring">
-                                <svg width={80} height={80} viewBox="0 0 80 80">
-                                    <circle cx={40} cy={40} r={30} fill="none" stroke="var(--ad-muted)" strokeWidth={8} />
-                                    <circle cx={40} cy={40} r={30} fill="none"
-                                        stroke="var(--ad-green)" strokeWidth={8}
-                                        strokeDasharray={`${(fulfillmentRate / 100) * 188.5} 188.5`}
-                                        strokeLinecap="round"
-                                        transform="rotate(-90 40 40)"
-                                        style={{ transition:'stroke-dasharray .8s cubic-bezier(.16,1,.3,1)' }}
-                                    />
-                                </svg>
-                                <div className="ad-ring-pct">{fulfillmentRate}%</div>
-                            </div>
-                            <div className="ad-ring-legend">
-                                {[
-                                    { label:'Delivered', val: stats.deliveredOrders, color:'var(--ad-green)'  },
-                                    { label:'Active',    val: stats.activeOrders,    color:'var(--ad-blue)'   },
-                                    { label:'Pending',   val: stats.pendingOrders,   color:'var(--ad-amber)'  },
-                                ].map(({ label, val, color }) => (
-                                    <div key={label} className="ad-ring-item">
-                                        <div className="ad-ring-dot-label">
-                                            <div className="ad-ring-dot" style={{ background:color }} />
-                                            {label}
-                                        </div>
-                                        <span className="ad-ring-num">{val}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Progress rows */}
-                        {[
-                            { label:'Fulfillment Rate', pct: fulfillmentRate, color:'var(--ad-green)',  icon: FaCheckCircle, iconColor:'var(--ad-green)' },
-                            { label:'Active / Transit', pct: activeRate,      color:'var(--ad-blue)',   icon: FaTruck,        iconColor:'var(--ad-blue)'  },
-                            { label:'Pending Review',   pct: pendingRate,     color:'var(--ad-amber)',  icon: FaClock,        iconColor:'var(--ad-amber)' },
-                        ].map(({ label, pct, color, icon: Icon, iconColor }) => (
-                            <div key={label} className="ad-stat-row">
-                                <div className="ad-stat-header">
-                                    <div className="ad-stat-name">
-                                        <Icon size={10} style={{ color: iconColor }} />
-                                        {label}
-                                    </div>
-                                    <span className="ad-stat-val">{pct}%</span>
-                                </div>
-                                <div className="ad-bar-track">
-                                    <div className="ad-bar-fill" style={{ width:`${pct}%`, background: color }} />
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-
-                    {/* Inventory Status */}
-                    <div className="ad-card" style={{ padding:28 }}>
-                        <p className="ad-section-title">
-                            <FaBoxOpen size={10} /> Inventory Status
-                        </p>
-
-                        {/* Big number */}
-                        <div className="ad-big-metric">
-                            <span className="ad-big-num">{stats.totalProducts}</span>
-                            <span className="ad-big-label">total SKUs</span>
-                        </div>
-
-                        {/* Segmented health bar */}
-                        <div className="ad-inv-bar">
-                            {/* Healthy */}
-                            <div className="ad-inv-seg" style={{
-                                flex: stats.totalProducts - stats.outOfStockProducts - stats.lowStockProducts,
-                                background:'var(--ad-green)', opacity:.85,
-                            }} />
-                            {/* Low stock */}
-                            <div className="ad-inv-seg" style={{
-                                flex: stats.lowStockProducts,
-                                background:'var(--ad-amber)',
-                            }} />
-                            {/* Out of stock */}
-                            <div className="ad-inv-seg" style={{
-                                flex: stats.outOfStockProducts,
-                                background:'var(--ad-red)',
-                            }} />
-                        </div>
-
-                        {/* Legend */}
-                        <div style={{ display:'flex', gap:16, marginBottom:28, flexWrap:'wrap' }}>
-                            {[
-                                { dot:'var(--ad-green)', label:'Healthy',      count: stats.totalProducts - stats.outOfStockProducts - stats.lowStockProducts },
-                                { dot:'var(--ad-amber)', label:'Low Stock',     count: stats.lowStockProducts },
-                                { dot:'var(--ad-red)',   label:'Out of Stock',  count: stats.outOfStockProducts },
-                            ].map(({ dot, label, count }) => (
-                                <div key={label} style={{ display:'flex', alignItems:'center', gap:6 }}>
-                                    <div style={{ width:8, height:8, borderRadius:2, background:dot, flexShrink:0 }} />
-                                    <span style={{ fontSize:11, color:'var(--ad-soft)', fontWeight:500 }}>{label}</span>
-                                    <span style={{ fontSize:11, fontWeight:700, color:'var(--ad-ink)', fontFamily:'JetBrains Mono, monospace' }}>{count}</span>
-                                </div>
-                            ))}
-                        </div>
-
-                        {/* Progress rows */}
-                        {[
-                            {
-                                label:'Stock Health',
-                                pct: stockHealthPct,
-                                color: stockHealthPct > 75 ? 'var(--ad-green)' : stockHealthPct > 40 ? 'var(--ad-amber)' : 'var(--ad-red)',
-                                icon: FaCheckCircle,
-                                iconColor: 'var(--ad-green)',
-                            },
-                            {
-                                label:'Low Stock Alert',
-                                pct: stats.totalProducts > 0 ? Math.round((stats.lowStockProducts / stats.totalProducts) * 100) : 0,
-                                color:'var(--ad-amber)',
-                                icon: FaExclamationTriangle,
-                                iconColor:'var(--ad-amber)',
-                            },
-                            {
-                                label:'Out of Stock',
-                                pct: stats.totalProducts > 0 ? Math.round((stats.outOfStockProducts / stats.totalProducts) * 100) : 0,
-                                color:'var(--ad-red)',
-                                icon: FaInbox,
-                                iconColor:'var(--ad-red)',
-                            },
-                        ].map(({ label, pct, color, icon: Icon, iconColor }) => (
-                            <div key={label} className="ad-stat-row">
-                                <div className="ad-stat-header">
-                                    <div className="ad-stat-name">
-                                        <Icon size={10} style={{ color: iconColor }} />
-                                        {label}
-                                    </div>
-                                    <span className="ad-stat-val">{pct}%</span>
-                                </div>
-                                <div className="ad-bar-track">
-                                    <div className="ad-bar-fill" style={{ width:`${pct}%`, background: color }} />
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
+        {/* ── KPI cards ── */}
+        <div className="ad-kpi-grid">
+          {/* Revenue */}
+          <div className="ad-card ad-kpi" style={{ animationDelay: ".05s" }}>
+            <div className="ad-kpi-top">
+              <div
+                className="ad-kpi-icon"
+                style={{ background: "rgba(99,102,241,.1)" }}
+              >
+                <FaDollarSign size={18} style={{ color: "var(--ad-indigo)" }} />
+              </div>
+              <TrendBadge value={stats.revenueChange} />
             </div>
-        </>
-    );
+            <div className="ad-kpi-value ad-mono">
+              $
+              {stats.totalRevenue.toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
+            </div>
+            <div className="ad-kpi-label">Total Revenue</div>
+            <div className="ad-kpi-sub">vs last month</div>
+          </div>
+
+          {/* Customers */}
+          <div className="ad-card ad-kpi" style={{ animationDelay: ".1s" }}>
+            <div className="ad-kpi-top">
+              <div
+                className="ad-kpi-icon"
+                style={{ background: "rgba(59,130,246,.1)" }}
+              >
+                <FaUsers size={17} style={{ color: "var(--ad-blue)" }} />
+              </div>
+              <StatPill label="Active" color="success" />
+            </div>
+            <div className="ad-kpi-value">
+              {stats.totalCustomers.toLocaleString()}
+            </div>
+            <div className="ad-kpi-label">Total Customers</div>
+            <div className="ad-kpi-sub">Registered accounts</div>
+          </div>
+
+          {/* Total Orders */}
+          <div className="ad-card ad-kpi" style={{ animationDelay: ".15s" }}>
+            <div className="ad-kpi-top">
+              <div
+                className="ad-kpi-icon"
+                style={{ background: "rgba(16,185,129,.1)" }}
+              >
+                <FaShoppingBag size={16} style={{ color: "var(--ad-green)" }} />
+              </div>
+              {stats.pendingOrders > 0 ? (
+                <StatPill
+                  label={`${stats.pendingOrders} pending`}
+                  color="warning"
+                />
+              ) : (
+                <StatPill label="All clear" color="success" />
+              )}
+            </div>
+            <div className="ad-kpi-value">
+              {stats.totalOrders.toLocaleString()}
+            </div>
+            <div className="ad-kpi-label">Total Orders</div>
+            <div className="ad-kpi-sub">{stats.todayOrders} new today</div>
+          </div>
+
+          {/* Products */}
+          <div className="ad-card ad-kpi" style={{ animationDelay: ".2s" }}>
+            <div className="ad-kpi-top">
+              <div
+                className="ad-kpi-icon"
+                style={{ background: "rgba(245,158,11,.1)" }}
+              >
+                <FaBoxOpen size={16} style={{ color: "var(--ad-amber)" }} />
+              </div>
+              {stats.outOfStockProducts > 0 ? (
+                <StatPill label="Action needed" color="danger" />
+              ) : (
+                <StatPill label="Healthy" color="success" />
+              )}
+            </div>
+            <div className="ad-kpi-value">
+              {stats.totalProducts.toLocaleString()}
+            </div>
+            <div className="ad-kpi-label">Total Products</div>
+            <div className="ad-kpi-sub">
+              {stats.outOfStockProducts} out of stock
+            </div>
+          </div>
+        </div>
+
+        {/* ── Today + Revenue card (full width) ── */}
+        <div className="ad-card ad-today-card" style={{ marginBottom: 16 }}>
+          <div>
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                letterSpacing: ".14em",
+                textTransform: "uppercase",
+                color: "var(--ad-faint)",
+                marginBottom: 4,
+              }}
+            >
+              Today's Revenue
+            </div>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
+              <span
+                style={{
+                  fontSize: 32,
+                  fontWeight: 700,
+                  letterSpacing: "-.025em",
+                  color: "var(--ad-ink)",
+                  fontFamily: "JetBrains Mono, monospace",
+                }}
+              >
+                $
+                {stats.todayRevenue.toLocaleString(undefined, {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
+              </span>
+              <span style={{ fontSize: 13, color: "var(--ad-soft)" }}>
+                {stats.todayOrders} order{stats.todayOrders !== 1 ? "s" : ""}{" "}
+                placed today
+              </span>
+            </div>
+          </div>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 28,
+              flexWrap: "wrap",
+            }}
+          >
+            {[
+              {
+                icon: FaCheckCircle,
+                label: "Delivered",
+                val: stats.deliveredOrders,
+                color: "var(--ad-green)",
+              },
+              {
+                icon: FaTruck,
+                label: "In Transit",
+                val: stats.activeOrders,
+                color: "var(--ad-blue)",
+              },
+              {
+                icon: FaClock,
+                label: "Pending",
+                val: stats.pendingOrders,
+                color: "var(--ad-amber)",
+              },
+            ].map(({ icon: Icon, label, val, color }) => (
+              <div key={label} style={{ textAlign: "center" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    marginBottom: 2,
+                  }}
+                >
+                  <Icon size={12} style={{ color }} />
+                  <span
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 500,
+                      color: "var(--ad-soft)",
+                      letterSpacing: ".06em",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    {label}
+                  </span>
+                </div>
+                <div
+                  style={{
+                    fontSize: 22,
+                    fontWeight: 700,
+                    color: "var(--ad-ink)",
+                    letterSpacing: "-.02em",
+                    fontFamily: "JetBrains Mono, monospace",
+                  }}
+                >
+                  {val}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ── Bottom 2-col grid ── */}
+        <div className="ad-bottom-grid">
+          {/* Orders Fulfillment */}
+          <div className="ad-card" style={{ padding: 28 }}>
+            <p className="ad-section-title">
+              <FaChartLine size={10} /> Orders Fulfillment
+            </p>
+
+            {/* Fulfillment donut */}
+            <div className="ad-ring-wrap">
+              <div className="ad-ring">
+                <svg width={80} height={80} viewBox="0 0 80 80">
+                  <circle
+                    cx={40}
+                    cy={40}
+                    r={30}
+                    fill="none"
+                    stroke="var(--ad-muted)"
+                    strokeWidth={8}
+                  />
+                  <circle
+                    cx={40}
+                    cy={40}
+                    r={30}
+                    fill="none"
+                    stroke="var(--ad-green)"
+                    strokeWidth={8}
+                    strokeDasharray={`${(fulfillmentRate / 100) * 188.5} 188.5`}
+                    strokeLinecap="round"
+                    transform="rotate(-90 40 40)"
+                    style={{
+                      transition:
+                        "stroke-dasharray .8s cubic-bezier(.16,1,.3,1)",
+                    }}
+                  />
+                </svg>
+                <div className="ad-ring-pct">{fulfillmentRate}%</div>
+              </div>
+              <div className="ad-ring-legend">
+                {[
+                  {
+                    label: "Delivered",
+                    val: stats.deliveredOrders,
+                    color: "var(--ad-green)",
+                  },
+                  {
+                    label: "Active",
+                    val: stats.activeOrders,
+                    color: "var(--ad-blue)",
+                  },
+                  {
+                    label: "Pending",
+                    val: stats.pendingOrders,
+                    color: "var(--ad-amber)",
+                  },
+                ].map(({ label, val, color }) => (
+                  <div key={label} className="ad-ring-item">
+                    <div className="ad-ring-dot-label">
+                      <div
+                        className="ad-ring-dot"
+                        style={{ background: color }}
+                      />
+                      {label}
+                    </div>
+                    <span className="ad-ring-num">{val}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Progress rows */}
+            {[
+              {
+                label: "Fulfillment Rate",
+                pct: fulfillmentRate,
+                color: "var(--ad-green)",
+                icon: FaCheckCircle,
+                iconColor: "var(--ad-green)",
+              },
+              {
+                label: "Active / Transit",
+                pct: activeRate,
+                color: "var(--ad-blue)",
+                icon: FaTruck,
+                iconColor: "var(--ad-blue)",
+              },
+              {
+                label: "Pending Review",
+                pct: pendingRate,
+                color: "var(--ad-amber)",
+                icon: FaClock,
+                iconColor: "var(--ad-amber)",
+              },
+            ].map(({ label, pct, color, icon: Icon, iconColor }) => (
+              <div key={label} className="ad-stat-row">
+                <div className="ad-stat-header">
+                  <div className="ad-stat-name">
+                    <Icon size={10} style={{ color: iconColor }} />
+                    {label}
+                  </div>
+                  <span className="ad-stat-val">{pct}%</span>
+                </div>
+                <div className="ad-bar-track">
+                  <div
+                    className="ad-bar-fill"
+                    style={{ width: `${pct}%`, background: color }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Inventory Status */}
+          <div className="ad-card" style={{ padding: 28 }}>
+            <p className="ad-section-title">
+              <FaBoxOpen size={10} /> Inventory Status
+            </p>
+
+            {/* Big number */}
+            <div className="ad-big-metric">
+              <span className="ad-big-num">{stats.totalProducts}</span>
+              <span className="ad-big-label">total SKUs</span>
+            </div>
+
+            {/* Segmented health bar */}
+            <div className="ad-inv-bar">
+              {/* Healthy */}
+              <div
+                className="ad-inv-seg"
+                style={{
+                  flex:
+                    stats.totalProducts -
+                    stats.outOfStockProducts -
+                    stats.lowStockProducts,
+                  background: "var(--ad-green)",
+                  opacity: 0.85,
+                }}
+              />
+              {/* Low stock */}
+              <div
+                className="ad-inv-seg"
+                style={{
+                  flex: stats.lowStockProducts,
+                  background: "var(--ad-amber)",
+                }}
+              />
+              {/* Out of stock */}
+              <div
+                className="ad-inv-seg"
+                style={{
+                  flex: stats.outOfStockProducts,
+                  background: "var(--ad-red)",
+                }}
+              />
+            </div>
+
+            {/* Legend */}
+            <div
+              style={{
+                display: "flex",
+                gap: 16,
+                marginBottom: 28,
+                flexWrap: "wrap",
+              }}
+            >
+              {[
+                {
+                  dot: "var(--ad-green)",
+                  label: "Healthy",
+                  count:
+                    stats.totalProducts -
+                    stats.outOfStockProducts -
+                    stats.lowStockProducts,
+                },
+                {
+                  dot: "var(--ad-amber)",
+                  label: "Low Stock",
+                  count: stats.lowStockProducts,
+                },
+                {
+                  dot: "var(--ad-red)",
+                  label: "Out of Stock",
+                  count: stats.outOfStockProducts,
+                },
+              ].map(({ dot, label, count }) => (
+                <div
+                  key={label}
+                  style={{ display: "flex", alignItems: "center", gap: 6 }}
+                >
+                  <div
+                    style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: 2,
+                      background: dot,
+                      flexShrink: 0,
+                    }}
+                  />
+                  <span
+                    style={{
+                      fontSize: 11,
+                      color: "var(--ad-soft)",
+                      fontWeight: 500,
+                    }}
+                  >
+                    {label}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: "var(--ad-ink)",
+                      fontFamily: "JetBrains Mono, monospace",
+                    }}
+                  >
+                    {count}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {/* Progress rows */}
+            {[
+              {
+                label: "Stock Health",
+                pct: stockHealthPct,
+                color:
+                  stockHealthPct > 75
+                    ? "var(--ad-green)"
+                    : stockHealthPct > 40
+                      ? "var(--ad-amber)"
+                      : "var(--ad-red)",
+                icon: FaCheckCircle,
+                iconColor: "var(--ad-green)",
+              },
+              {
+                label: "Low Stock Alert",
+                pct:
+                  stats.totalProducts > 0
+                    ? Math.round(
+                        (stats.lowStockProducts / stats.totalProducts) * 100,
+                      )
+                    : 0,
+                color: "var(--ad-amber)",
+                icon: FaExclamationTriangle,
+                iconColor: "var(--ad-amber)",
+              },
+              {
+                label: "Out of Stock",
+                pct:
+                  stats.totalProducts > 0
+                    ? Math.round(
+                        (stats.outOfStockProducts / stats.totalProducts) * 100,
+                      )
+                    : 0,
+                color: "var(--ad-red)",
+                icon: FaInbox,
+                iconColor: "var(--ad-red)",
+              },
+            ].map(({ label, pct, color, icon: Icon, iconColor }) => (
+              <div key={label} className="ad-stat-row">
+                <div className="ad-stat-header">
+                  <div className="ad-stat-name">
+                    <Icon size={10} style={{ color: iconColor }} />
+                    {label}
+                  </div>
+                  <span className="ad-stat-val">{pct}%</span>
+                </div>
+                <div className="ad-bar-track">
+                  <div
+                    className="ad-bar-fill"
+                    style={{ width: `${pct}%`, background: color }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </>
+  );
 }

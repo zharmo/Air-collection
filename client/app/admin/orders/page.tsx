@@ -795,9 +795,13 @@ const css = (dark: boolean) => `
     font-family: 'Geist', 'SF Pro Display', system-ui, sans-serif;
     background: var(--bg);
     min-height: 100vh;
-    padding: 24px 20px 48px;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+    padding: 0 0 48px;
     transition: background 0.25s;
   }
+  .ao-shell * { box-sizing: border-box; }
 
   /* ── Top bar ── */
   .ao-topbar {
@@ -1004,7 +1008,7 @@ const css = (dark: boolean) => `
   .ao-chip-clear:hover { border-color: #ef4444; color: #ef4444; }
 
   /* ── Layout ── */
-  .ao-layout { display: flex; gap: 20px; align-items: flex-start; }
+  .ao-layout { display: flex; gap: 20px; align-items: flex-start; min-width: 0; }
 
   /* ── Filter sidebar ── */
   .ao-filter-sidebar {
@@ -1036,14 +1040,16 @@ const css = (dark: boolean) => `
   .ao-fs-reset:hover { background: #fef2f2; }
 
   /* ── Table ── */
-  .ao-table-wrap { flex: 1; min-width: 0; }
+  .ao-table-wrap { flex: 1; min-width: 0; width: 100%; max-width: 100%; }
   .ao-table-scroll {
     background: var(--surface); border: 1px solid var(--border);
-    border-radius: 14px; overflow-x: auto;
+    border-radius: 14px; overflow-x: auto; overflow-y: hidden;
     box-shadow: 0 2px 16px rgba(0,0,0,0.055);
+    max-width: 100%;
+    -webkit-overflow-scrolling: touch;
   }
   .ao-table {
-    width: 100%; border-collapse: collapse; font-size: 0.83rem;
+    width: 100%; min-width: 1120px; border-collapse: collapse; font-size: 0.83rem;
   }
   .ao-table thead tr {
     border-bottom: 1px solid var(--border);
@@ -1125,12 +1131,17 @@ const css = (dark: boolean) => `
   /* ── Mobile ── */
   @media (max-width: 992px) {
     .ao-filter-sidebar { width: 100%; }
-    .ao-layout { flex-direction: column; }
+    .ao-layout { flex-direction: column; width: 100%; }
   }
   @media (max-width: 640px) {
-    .ao-shell { padding: 16px 12px 32px; }
+    .ao-shell { padding: 0 0 32px; }
     .ao-topbar { flex-direction: column; }
     .ao-ai-grid { grid-template-columns: 1fr 1fr; }
+    .ao-toolbar { width: 100%; }
+    .ao-search-wrap { flex-basis: 100%; min-width: 0; }
+    .ao-toolbar-right { width: 100%; }
+    .ao-filter-btn { width: 100%; justify-content: center; }
+    .ao-table-scroll { border-radius: 12px; }
   }
   @media (max-width: 420px) {
     .ao-ai-grid { grid-template-columns: 1fr; }

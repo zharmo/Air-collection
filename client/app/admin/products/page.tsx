@@ -1,210 +1,922 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from "react";
 import {
-    FaSearch, FaPlus, FaEdit, FaTrash, FaTimes, FaCloudUploadAlt,
-    FaBoxOpen, FaChevronDown, FaStar, FaCheck, FaExclamationTriangle,
-    FaImage, FaPalette, FaRuler, FaTag, FaLayerGroup
-} from 'react-icons/fa';
-import axiosInstance from '@/utils/axiosConfig';
+  FaSearch,
+  FaPlus,
+  FaEdit,
+  FaTrash,
+  FaTimes,
+  FaCloudUploadAlt,
+  FaBoxOpen,
+  FaChevronDown,
+  FaStar,
+  FaCheck,
+  FaImage,
+  FaPalette,
+  FaRuler,
+  FaTag,
+  FaLayerGroup,
+} from "react-icons/fa";
+import axiosInstance from "@/utils/axiosConfig";
 
 /* ── Types (unchanged) ── */
-interface Category { id: number; name: string; slug: string; }
-interface ColorVariant { id?: number; colorName: string; imageFile: File | null; imagePreview: string | null; imageUrl?: string; }
-interface SizeVariant  { id?: number; colorName: string; sizeName: string; sizeType: string; measurements: any; stock: number; isAvailable: boolean; }
-interface ProductImageUpload { id?: number; imageFile: File | null; imagePreview: string | null; imageUrl?: string; isPrimary: boolean; }
+interface Category {
+  id: number;
+  name: string;
+  slug: string;
+}
+interface ColorVariant {
+  id?: number;
+  colorName: string;
+  color_name?: string;
+  imageFile: File | null;
+  imagePreview: string | null;
+  imageUrl?: string;
+  image_url?: string;
+}
+interface SizeVariant {
+  id?: number;
+  colorName: string;
+  sizeName: string;
+  sizeType: string;
+  measurements: any;
+  stock: number;
+  isAvailable: boolean;
+}
+interface ProductImageUpload {
+  id?: number;
+  imageFile: File | null;
+  imagePreview: string | null;
+  imageUrl?: string;
+  isPrimary: boolean;
+}
 interface Product {
-    id: number; name: string; sku: string; price: number; compare_price?: number;
-    stock_quantity: number; category_name: string; category_id: number;
-    images: { id?: number; image_url: string; is_primary: boolean }[];
-    colors?: ColorVariant[]; sizes?: SizeVariant[]; is_active: boolean;
+  id: number;
+  name: string;
+  sku: string;
+  price: number;
+  compare_price?: number;
+  stock_quantity: number;
+  category_name: string;
+  category_id: number;
+  images: { id?: number; image_url: string; is_primary: boolean }[];
+  colors?: ColorVariant[];
+  sizes?: SizeVariant[];
+  is_active: boolean;
 }
 
 /* ── Skeleton block ── */
-function Skel({ w = '100%', h = 14, r = 6 }: { w?: string | number; h?: number; r?: number }) {
-    return <div style={{ width: w, height: h, borderRadius: r, background: 'linear-gradient(90deg,#f1f5f9 25%,#e8edf5 50%,#f1f5f9 75%)', backgroundSize: '200% 100%', animation: 'pmShimmer 1.4s infinite' }} />;
+function Skel({
+  w = "100%",
+  h = 14,
+  r = 6,
+}: {
+  w?: string | number;
+  h?: number;
+  r?: number;
+}) {
+  return (
+    <div
+      style={{
+        width: w,
+        height: h,
+        borderRadius: r,
+        background:
+          "linear-gradient(90deg,#f1f5f9 25%,#e8edf5 50%,#f1f5f9 75%)",
+        backgroundSize: "200% 100%",
+        animation: "pmShimmer 1.4s infinite",
+      }}
+    />
+  );
 }
 
 /* ── Stock badge ── */
 function StockBadge({ qty }: { qty: number }) {
-    if (qty === 0) return <span style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'3px 10px', borderRadius:20, background:'rgba(239,68,68,.1)', color:'#dc2626', fontSize:11, fontWeight:700, letterSpacing:'.06em' }}><span style={{ width:6, height:6, borderRadius:'50%', background:'#ef4444', display:'inline-block' }} />Out of Stock</span>;
-    if (qty <= 5) return <span style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'3px 10px', borderRadius:20, background:'rgba(245,158,11,.1)', color:'#d97706', fontSize:11, fontWeight:700, letterSpacing:'.06em' }}><span style={{ width:6, height:6, borderRadius:'50%', background:'#f59e0b', display:'inline-block' }} />{qty} Low Stock</span>;
-    return <span style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'3px 10px', borderRadius:20, background:'rgba(16,185,129,.1)', color:'#059669', fontSize:11, fontWeight:700, letterSpacing:'.06em' }}><span style={{ width:6, height:6, borderRadius:'50%', background:'#10b981', display:'inline-block' }} />{qty} In Stock</span>;
+  if (qty === 0)
+    return (
+      <span
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 5,
+          padding: "3px 10px",
+          borderRadius: 20,
+          background: "rgba(239,68,68,.1)",
+          color: "#dc2626",
+          fontSize: 11,
+          fontWeight: 700,
+          letterSpacing: ".06em",
+        }}
+      >
+        <span
+          style={{
+            width: 6,
+            height: 6,
+            borderRadius: "50%",
+            background: "#ef4444",
+            display: "inline-block",
+          }}
+        />
+        Out of Stock
+      </span>
+    );
+  if (qty <= 5)
+    return (
+      <span
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 5,
+          padding: "3px 10px",
+          borderRadius: 20,
+          background: "rgba(245,158,11,.1)",
+          color: "#d97706",
+          fontSize: 11,
+          fontWeight: 700,
+          letterSpacing: ".06em",
+        }}
+      >
+        <span
+          style={{
+            width: 6,
+            height: 6,
+            borderRadius: "50%",
+            background: "#f59e0b",
+            display: "inline-block",
+          }}
+        />
+        {qty} Low Stock
+      </span>
+    );
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 5,
+        padding: "3px 10px",
+        borderRadius: 20,
+        background: "rgba(16,185,129,.1)",
+        color: "#059669",
+        fontSize: 11,
+        fontWeight: 700,
+        letterSpacing: ".06em",
+      }}
+    >
+      <span
+        style={{
+          width: 6,
+          height: 6,
+          borderRadius: "50%",
+          background: "#10b981",
+          display: "inline-block",
+        }}
+      />
+      {qty} In Stock
+    </span>
+  );
 }
 
 /* ── Form field ── */
-function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
-    return (
-        <div style={{ marginBottom: 20 }}>
-            <label style={{ display:'block', fontFamily:'Inter,sans-serif', fontSize:11, fontWeight:600, letterSpacing:'.12em', textTransform:'uppercase', color:'#64748b', marginBottom:6 }}>{label}</label>
-            {children}
-            {hint && <p style={{ fontFamily:'Inter,sans-serif', fontSize:11, color:'#94a3b8', marginTop:5, margin:'5px 0 0' }}>{hint}</p>}
-        </div>
-    );
+function Field({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div style={{ marginBottom: 20 }}>
+      <label
+        style={{
+          display: "block",
+          fontFamily: "Inter,sans-serif",
+          fontSize: 11,
+          fontWeight: 600,
+          letterSpacing: ".12em",
+          textTransform: "uppercase",
+          color: "#64748b",
+          marginBottom: 6,
+        }}
+      >
+        {label}
+      </label>
+      {children}
+      {hint && (
+        <p
+          style={{
+            fontFamily: "Inter,sans-serif",
+            fontSize: 11,
+            color: "#94a3b8",
+            marginTop: 5,
+            margin: "5px 0 0",
+          }}
+        >
+          {hint}
+        </p>
+      )}
+    </div>
+  );
 }
 
 /* ── Section card ── */
-function FormSection({ icon: Icon, title, children }: { icon: any; title: string; children: React.ReactNode }) {
-    return (
-        <div style={{ background:'#fff', border:'1px solid rgba(0,0,0,.07)', borderRadius:12, padding:'24px 28px', marginBottom:16 }}>
-            <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:22, paddingBottom:16, borderBottom:'1px solid rgba(0,0,0,.06)' }}>
-                <div style={{ width:32, height:32, borderRadius:8, background:'rgba(99,102,241,.1)', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                    <Icon size={14} style={{ color:'#6366f1' }} />
-                </div>
-                <span style={{ fontFamily:'Inter,sans-serif', fontSize:13, fontWeight:600, color:'#0f172a', letterSpacing:'-.01em' }}>{title}</span>
-            </div>
-            {children}
+function FormSection({
+  icon: Icon,
+  title,
+  children,
+}: {
+  icon: any;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      style={{
+        background: "#fff",
+        border: "1px solid rgba(0,0,0,.07)",
+        borderRadius: 12,
+        padding: "24px 28px",
+        marginBottom: 16,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          marginBottom: 22,
+          paddingBottom: 16,
+          borderBottom: "1px solid rgba(0,0,0,.06)",
+        }}
+      >
+        <div
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: 8,
+            background: "rgba(99,102,241,.1)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <Icon size={14} style={{ color: "#6366f1" }} />
         </div>
-    );
+        <span
+          style={{
+            fontFamily: "Inter,sans-serif",
+            fontSize: 13,
+            fontWeight: 600,
+            color: "#0f172a",
+            letterSpacing: "-.01em",
+          }}
+        >
+          {title}
+        </span>
+      </div>
+      {children}
+    </div>
+  );
 }
 
 export default function ProductsManagement() {
-    /* ── All state (unchanged) ── */
-    const [products, setProducts]                   = useState<Product[]>([]);
-    const [filteredProducts, setFilteredProducts]   = useState<Product[]>([]);
-    const [searchTerm, setSearchTerm]               = useState('');
-    const [filterType, setFilterType]               = useState<'all'|'instock'|'outofstock'>('all');
-    const [selectedCategory, setSelectedCategory]   = useState<string>('all');
-    const [categories, setCategories]               = useState<Category[]>([]);
-    const [loading, setLoading]                     = useState(true);
-    const [showCount, setShowCount]                 = useState(4);
-    const [showModal, setShowModal]                 = useState(false);
-    const [editingProduct, setEditingProduct]       = useState<Product | null>(null);
-    const [modalLoading, setModalLoading]           = useState(false);
-    const [formData, setFormData]                   = useState({ name:'', categoryId:'', description:'', regularPrice:'', discountPrice:'', initialStock:'' });
-    const [colors, setColors]                       = useState<ColorVariant[]>([]);
-    const [productImages, setProductImages]         = useState<ProductImageUpload[]>([]);
-    const [sizes, setSizes]                         = useState<SizeVariant[]>([]);
-    const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
-    const [categoryType, setCategoryType]           = useState<string>('');
-    const [showCatMenu, setShowCatMenu]             = useState(false);
-    const [imgDragOver, setImgDragOver]             = useState(false);
-    const catMenuRef = useRef<HTMLDivElement>(null);
-    const fileInputRef = useRef<HTMLInputElement>(null);
+  /* ── All state (unchanged) ── */
+  const [products, setProducts] = useState<Product[]>([]);
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterType, setFilterType] = useState<
+    "all" | "instock" | "outofstock"
+  >("all");
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showCount, setShowCount] = useState(4);
+  const [showModal, setShowModal] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [modalLoading, setModalLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    name: "",
+    categoryId: "",
+    description: "",
+    regularPrice: "",
+    discountPrice: "",
+    initialStock: "",
+  });
+  const [colors, setColors] = useState<ColorVariant[]>([]);
+  const [productImages, setProductImages] = useState<ProductImageUpload[]>([]);
+  const [sizes, setSizes] = useState<SizeVariant[]>([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
+  const [categoryType, setCategoryType] = useState<string>("");
+  const [showCatMenu, setShowCatMenu] = useState(false);
+  const [imgDragOver, setImgDragOver] = useState(false);
+  const catMenuRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api','') || 'http://localhost:5000';
+  const backendUrl =
+    process.env.NEXT_PUBLIC_API_URL?.replace("/api", "") ||
+    "http://localhost:5000";
 
-    useEffect(() => { fetchProducts(); fetchCategories(); }, []);
-    useEffect(() => { filterProducts(); }, [searchTerm, filterType, selectedCategory, products]);
-    useEffect(() => {
-        const h = (e: MouseEvent) => { if (catMenuRef.current && !catMenuRef.current.contains(e.target as Node)) setShowCatMenu(false); };
-        document.addEventListener('mousedown', h);
-        return () => document.removeEventListener('mousedown', h);
-    }, []);
-    useEffect(() => { document.body.style.overflow = showModal ? 'hidden' : ''; return () => { document.body.style.overflow = ''; }; }, [showModal]);
-
-    /* ── All handlers (logic unchanged) ── */
-    const fetchProducts = async () => { try { const r = await axiosInstance.get('/products'); setProducts(r.data.data); } catch(e){console.error(e);} finally{setLoading(false);} };
-    const fetchCategories = async () => { try { const r = await axiosInstance.get('/categories'); setCategories(r.data.data); } catch(e){console.error(e);} };
-    const filterProducts = () => {
-        let f = [...products];
-        if (searchTerm) f = f.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()) || (p.sku&&p.sku.toLowerCase().includes(searchTerm.toLowerCase())));
-        if (filterType==='instock')    f = f.filter(p => p.stock_quantity > 0);
-        if (filterType==='outofstock') f = f.filter(p => p.stock_quantity === 0);
-        if (selectedCategory!=='all')  f = f.filter(p => p.category_name === selectedCategory);
-        setFilteredProducts(f); setShowCount(4);
+  useEffect(() => {
+    fetchProducts();
+    fetchCategories();
+  }, []);
+  useEffect(() => {
+    filterProducts();
+  }, [searchTerm, filterType, selectedCategory, products]);
+  useEffect(() => {
+    const h = (e: MouseEvent) => {
+      if (catMenuRef.current && !catMenuRef.current.contains(e.target as Node))
+        setShowCatMenu(false);
     };
-    const getPrimaryImage = (p: Product) => { const img = p.images?.find(i=>i.is_primary); const path = img?.image_url || p.images?.[0]?.image_url; if(!path) return '/images/placeholders/placeholder.jpg'; return path.startsWith('/uploads') ? `${backendUrl}${path}` : path; };
-    const getFullImageUrl = (url: string) => { if(!url) return '/images/placeholders/placeholder.jpg'; return url.startsWith('/uploads') ? `${backendUrl}${url}` : url; };
-    const handleDelete = async (id: number) => { if(confirm('Delete this product?')){ await axiosInstance.delete(`/products/${id}`); fetchProducts(); } };
-    const loadMore = () => setShowCount(p => p+4);
-    const displayedProducts = filteredProducts.slice(0, showCount);
-    const totalProducts = filteredProducts.length;
-    const getCategoryType = (catId: string) => { const cat = categories.find(c=>c.id.toString()===catId); if(!cat) return 'upper'; const n = cat.name.toLowerCase(); if(n.includes('baggy')||n.includes('formal')||n.includes('pant')) return 'pants'; if(n.includes('footwear')||n.includes('sandal')||n.includes('clog')) return 'footwear'; return 'upper'; };
-    const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => { const v=e.target.value; setSelectedCategoryId(v); setFormData({...formData, categoryId:v}); setCategoryType(getCategoryType(v)); };
-    const addColorVariant    = () => setColors([...colors,{colorName:'',imageFile:null,imagePreview:null}]);
-    const removeColorVariant = (i: number) => setColors(colors.filter((_,j)=>j!==i));
-    const updateColorName    = (i: number, n: string) => { const u=[...colors]; u[i].colorName=n; setColors(u); };
-    const handleColorImage   = (i: number, f: File) => { const u=[...colors]; u[i].imageFile=f; u[i].imagePreview=URL.createObjectURL(f); setColors(u); };
-    const handleProductImages = (files: FileList|null) => { if(!files?.length) return; const hasPrimary=productImages.some(img=>img.isPrimary); const uploads=Array.from(files).map((f,i)=>({imageFile:f,imagePreview:URL.createObjectURL(f),isPrimary:!hasPrimary&&productImages.length===0&&i===0})); setProductImages([...productImages,...uploads]); };
-    const removeProductImage = (i: number) => { const u=productImages.filter((_,j)=>j!==i); if(productImages[i]?.isPrimary&&u.length>0) u[0]={...u[0],isPrimary:true}; setProductImages(u); };
-    const setPrimaryProductImage = (i: number) => setProductImages(productImages.map((img,j)=>({...img,isPrimary:j===i})));
-    const addSizeVariant = () => { const s:SizeVariant={colorName:'',sizeName:'',sizeType:categoryType,measurements:{},stock:0,isAvailable:true}; if(categoryType==='pants')s.measurements={waist:'',length:''}; else if(categoryType!=='footwear')s.measurements={chest:'',length:''}; setSizes([...sizes,s]); };
-    const removeSizeVariant = (i: number) => setSizes(sizes.filter((_,j)=>j!==i));
-    const updateSizeField = (i: number, field: string, value: any) => { const u=[...sizes]; if(field==='colorName')u[i].colorName=value; else if(field==='sizeName')u[i].sizeName=value; else if(field==='stock')u[i].stock=parseInt(value)||0; else if(field==='isAvailable')u[i].isAvailable=value; else if(field.startsWith('measurements.')){const k=field.split('.')[1];u[i].measurements={...u[i].measurements,[k]:value};} setSizes(u); };
-    const uploadProductImage = async (productId: number, file: File, opts:{colorName?:string;isPrimary?:boolean}={}) => { const fd=new FormData(); fd.append('image',file); if(opts.colorName)fd.append('color',opts.colorName); fd.append('is_primary',opts.isPrimary?'true':'false'); const r=await axiosInstance.post(`/products/${productId}/images`,fd,{headers:{'Content-Type':'multipart/form-data'}}); return r.data.data.image_url; };
-    const handleSaveProduct = async () => {
-        setModalLoading(true);
-        try {
-            let productId: number;
-            const payload={name:formData.name,slug:formData.name.toLowerCase().replace(/[^a-z0-9]+/g,'-'),description:formData.description,price:parseFloat(formData.regularPrice),compare_price:formData.discountPrice?parseFloat(formData.discountPrice):null,stock_quantity:parseInt(formData.initialStock)||0,category_id:parseInt(formData.categoryId),is_featured:false};
-            if(editingProduct){ await axiosInstance.put(`/products/${editingProduct.id}`,payload); productId=editingProduct.id; }
-            else { const r=await axiosInstance.post('/products',payload); productId=r.data.data.id; }
-            const primaryExisting=productImages.find(img=>img.id&&img.isPrimary);
-            if(primaryExisting?.id) await axiosInstance.put(`/products/${productId}/images/${primaryExisting.id}/primary`);
-            for(const img of productImages) if(img.imageFile) await uploadProductImage(productId,img.imageFile,{isPrimary:img.isPrimary});
-            const colorPayload=[];
-            for(const c of colors){ let url=c.imageUrl; if(c.imageFile)url=await uploadProductImage(productId,c.imageFile,{colorName:c.colorName}); if(c.colorName&&url)colorPayload.push({colorName:c.colorName,imageUrl:url}); }
-            const sizesPayload=sizes.map(s=>({colorName:s.colorName||'',sizeName:s.sizeName,sizeType:categoryType,measurements:s.measurements,stock:s.stock,isAvailable:s.isAvailable}));
-            await axiosInstance.put(`/products/${productId}/full`,{...payload,colors:colorPayload,sizes:sizesPayload});
-            await fetchProducts(); setShowModal(false); resetForm();
-        } catch(e){ console.error(e); alert((e as any)?.response?.data?.message||(e as Error)?.message||'Failed to save product'); }
-        finally { setModalLoading(false); }
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
+  useEffect(() => {
+    document.body.style.overflow = showModal ? "hidden" : "";
+    return () => {
+      document.body.style.overflow = "";
     };
-    const resetForm = () => { setEditingProduct(null); setFormData({name:'',categoryId:'',description:'',regularPrice:'',discountPrice:'',initialStock:''}); setProductImages([]); setColors([]); setSizes([]); setSelectedCategoryId(''); setCategoryType(''); };
-    const handleEdit = (p: Product) => {
-        setEditingProduct(p);
-        setFormData({name:p.name,categoryId:p.category_id.toString(),description:(p as any).description||'',regularPrice:p.price.toString(),discountPrice:p.compare_price?.toString()||'',initialStock:p.stock_quantity.toString()});
-        setSelectedCategoryId(p.category_id.toString()); setCategoryType(getCategoryType(p.category_id.toString()));
-        setProductImages(p.images?.map((img:any)=>({id:img.id,imageUrl:img.image_url,imagePreview:getFullImageUrl(img.image_url),imageFile:null,isPrimary:img.is_primary}))||[]);
-        setColors(p.colors?.map((c:any)=>({id:c.id,colorName:c.color_name,imageUrl:c.image_url,imagePreview:c.image_url,imageFile:null}))||[]);
-        setSizes(p.sizes?.map((s:any)=>({id:s.id,colorName:(s.color_id?p.colors?.find((c:any)=>c.id===s.color_id)?.color_name:'')||'',sizeName:s.size_name,sizeType:s.size_type,measurements:s.measurements,stock:s.stock,isAvailable:s.is_available}))||[]);
-        setShowModal(true);
+  }, [showModal]);
+
+  /* ── All handlers (logic unchanged) ── */
+  const fetchProducts = async () => {
+    try {
+      const r = await axiosInstance.get("/products");
+      setProducts(r.data.data);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const fetchCategories = async () => {
+    try {
+      const r = await axiosInstance.get("/categories");
+      setCategories(r.data.data);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+  const filterProducts = () => {
+    let f = [...products];
+    if (searchTerm)
+      f = f.filter(
+        (p) =>
+          p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (p.sku && p.sku.toLowerCase().includes(searchTerm.toLowerCase())),
+      );
+    if (filterType === "instock") f = f.filter((p) => p.stock_quantity > 0);
+    if (filterType === "outofstock")
+      f = f.filter((p) => p.stock_quantity === 0);
+    if (selectedCategory !== "all")
+      f = f.filter((p) => p.category_name === selectedCategory);
+    setFilteredProducts(f);
+    setShowCount(4);
+  };
+  const getPrimaryImage = (p: Product) => {
+    const img = p.images?.find((i) => i.is_primary);
+    const path = img?.image_url || p.images?.[0]?.image_url;
+    if (!path) return "/images/placeholders/placeholder.jpg";
+    return path.startsWith("/uploads") ? `${backendUrl}${path}` : path;
+  };
+  const getFullImageUrl = (url: string) => {
+    if (!url) return "/images/placeholders/placeholder.jpg";
+    return url.startsWith("/uploads") ? `${backendUrl}${url}` : url;
+  };
+  const handleDelete = async (id: number) => {
+    if (confirm("Delete this product?")) {
+      await axiosInstance.delete(`/products/${id}`);
+      fetchProducts();
+    }
+  };
+  const loadMore = () => setShowCount((p) => p + 4);
+  const displayedProducts = filteredProducts.slice(0, showCount);
+  const totalProducts = filteredProducts.length;
+  const getCategoryType = (catId: string) => {
+    const cat = categories.find((c) => c.id.toString() === catId);
+    if (!cat) return "upper";
+    const n = cat.name.toLowerCase();
+    if (n.includes("baggy") || n.includes("formal") || n.includes("pant"))
+      return "pants";
+    if (n.includes("footwear") || n.includes("sandal") || n.includes("clog"))
+      return "footwear";
+    return "upper";
+  };
+  const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const v = e.target.value;
+    setSelectedCategoryId(v);
+    setFormData({ ...formData, categoryId: v });
+    setCategoryType(getCategoryType(v));
+  };
+  const addColorVariant = () =>
+    setColors([
+      ...colors,
+      { colorName: "", imageFile: null, imagePreview: null },
+    ]);
+  const removeColorVariant = (i: number) =>
+    setColors(colors.filter((_, j) => j !== i));
+  const updateColorName = (i: number, n: string) => {
+    const u = [...colors];
+    u[i].colorName = n;
+    setColors(u);
+  };
+  const handleColorImage = (i: number, f: File) => {
+    const u = [...colors];
+    u[i].imageFile = f;
+    u[i].imagePreview = URL.createObjectURL(f);
+    setColors(u);
+  };
+  const handleProductImages = (files: FileList | null) => {
+    if (!files?.length) return;
+    const hasPrimary = productImages.some((img) => img.isPrimary);
+    const uploads = Array.from(files).map((f, i) => ({
+      imageFile: f,
+      imagePreview: URL.createObjectURL(f),
+      isPrimary: !hasPrimary && productImages.length === 0 && i === 0,
+    }));
+    setProductImages([...productImages, ...uploads]);
+  };
+  const removeProductImage = (i: number) => {
+    const u = productImages.filter((_, j) => j !== i);
+    if (productImages[i]?.isPrimary && u.length > 0)
+      u[0] = { ...u[0], isPrimary: true };
+    setProductImages(u);
+  };
+  const setPrimaryProductImage = (i: number) =>
+    setProductImages(
+      productImages.map((img, j) => ({ ...img, isPrimary: j === i })),
+    );
+  const addSizeVariant = () => {
+    const s: SizeVariant = {
+      colorName: "",
+      sizeName: "",
+      sizeType: categoryType,
+      measurements: {},
+      stock: 0,
+      isAvailable: true,
     };
+    if (categoryType === "pants") s.measurements = { waist: "", length: "" };
+    else if (categoryType !== "footwear")
+      s.measurements = { chest: "", length: "" };
+    setSizes([...sizes, s]);
+  };
+  const removeSizeVariant = (i: number) =>
+    setSizes(sizes.filter((_, j) => j !== i));
+  const updateSizeField = (i: number, field: string, value: any) => {
+    const u = [...sizes];
+    if (field === "colorName") u[i].colorName = value;
+    else if (field === "sizeName") u[i].sizeName = value;
+    else if (field === "stock") u[i].stock = parseInt(value) || 0;
+    else if (field === "isAvailable") u[i].isAvailable = value;
+    else if (field.startsWith("measurements.")) {
+      const k = field.split(".")[1];
+      u[i].measurements = { ...u[i].measurements, [k]: value };
+    }
+    setSizes(u);
+  };
+  const uploadProductImage = async (
+    productId: number,
+    file: File,
+    opts: { colorName?: string; isPrimary?: boolean } = {},
+  ) => {
+    const fd = new FormData();
+    fd.append("image", file);
+    if (opts.colorName) fd.append("color", opts.colorName);
+    fd.append("is_primary", opts.isPrimary ? "true" : "false");
+    const r = await axiosInstance.post(`/products/${productId}/images`, fd, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return r.data.data.image_url;
+  };
+  const handleSaveProduct = async () => {
+    setModalLoading(true);
+    try {
+      let productId: number;
+      const payload = {
+        name: formData.name,
+        slug: formData.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+        description: formData.description,
+        price: parseFloat(formData.regularPrice),
+        compare_price: formData.discountPrice
+          ? parseFloat(formData.discountPrice)
+          : null,
+        stock_quantity: parseInt(formData.initialStock) || 0,
+        category_id: parseInt(formData.categoryId),
+        is_featured: false,
+      };
+      if (editingProduct) {
+        await axiosInstance.put(`/products/${editingProduct.id}`, payload);
+        productId = editingProduct.id;
+      } else {
+        const r = await axiosInstance.post("/products", payload);
+        productId = r.data.data.id;
+      }
+      const primaryExisting = productImages.find(
+        (img) => img.id && img.isPrimary,
+      );
+      if (primaryExisting?.id)
+        await axiosInstance.put(
+          `/products/${productId}/images/${primaryExisting.id}/primary`,
+        );
+      for (const img of productImages)
+        if (img.imageFile)
+          await uploadProductImage(productId, img.imageFile, {
+            isPrimary: img.isPrimary,
+          });
+      const colorPayload = [];
+      for (const c of colors) {
+        let url = c.imageUrl;
+        if (c.imageFile)
+          url = await uploadProductImage(productId, c.imageFile, {
+            colorName: c.colorName,
+          });
+        if (c.colorName && url)
+          colorPayload.push({ colorName: c.colorName, imageUrl: url });
+      }
+      const sizesPayload = sizes.map((s) => ({
+        colorName: s.colorName || "",
+        sizeName: s.sizeName,
+        sizeType: categoryType,
+        measurements: s.measurements,
+        stock: s.stock,
+        isAvailable: s.isAvailable,
+      }));
+      await axiosInstance.put(`/products/${productId}/full`, {
+        ...payload,
+        colors: colorPayload,
+        sizes: sizesPayload,
+      });
+      await fetchProducts();
+      setShowModal(false);
+      resetForm();
+    } catch (e) {
+      console.error(e);
+      alert(
+        (e as any)?.response?.data?.message ||
+          (e as Error)?.message ||
+          "Failed to save product",
+      );
+    } finally {
+      setModalLoading(false);
+    }
+  };
+  const resetForm = () => {
+    setEditingProduct(null);
+    setFormData({
+      name: "",
+      categoryId: "",
+      description: "",
+      regularPrice: "",
+      discountPrice: "",
+      initialStock: "",
+    });
+    setProductImages([]);
+    setColors([]);
+    setSizes([]);
+    setSelectedCategoryId("");
+    setCategoryType("");
+  };
+  const handleEdit = (p: Product) => {
+    setEditingProduct(p);
+    setFormData({
+      name: p.name,
+      categoryId: p.category_id.toString(),
+      description: (p as any).description || "",
+      regularPrice: p.price.toString(),
+      discountPrice: p.compare_price?.toString() || "",
+      initialStock: p.stock_quantity.toString(),
+    });
+    setSelectedCategoryId(p.category_id.toString());
+    setCategoryType(getCategoryType(p.category_id.toString()));
+    setProductImages(
+      p.images?.map((img: any) => ({
+        id: img.id,
+        imageUrl: img.image_url,
+        imagePreview: getFullImageUrl(img.image_url),
+        imageFile: null,
+        isPrimary: img.is_primary,
+      })) || [],
+    );
+    setColors(
+      p.colors?.map((c: any) => ({
+        id: c.id,
+        colorName: c.color_name,
+        imageUrl: c.image_url,
+        imagePreview: c.image_url,
+        imageFile: null,
+      })) || [],
+    );
+    setSizes(
+      p.sizes?.map((s: any) => ({
+        id: s.id,
+        colorName:
+          (s.color_id
+            ? p.colors?.find((c: any) => c.id === s.color_id)?.color_name
+            : "") || "",
+        sizeName: s.size_name,
+        sizeType: s.size_type,
+        measurements: s.measurements,
+        stock: s.stock,
+        isAvailable: s.is_available,
+      })) || [],
+    );
+    setShowModal(true);
+  };
 
-    /* ── Size rows renderer (logic unchanged, UI improved) ── */
-    const renderSizeRows = () => {
-        const inputStyle = { width:'100%', height:36, padding:'0 10px', fontFamily:'Inter,sans-serif', fontSize:12, color:'#0f172a', background:'#f8fafc', border:'1px solid rgba(0,0,0,.1)', borderRadius:6, outline:'none' };
-        const selectStyle = { ...inputStyle, cursor:'pointer' };
-        const colorOpts = <><option value="">All Colors</option>{colors.map(c=><option key={c.colorName} value={c.colorName}>{c.colorName}</option>)}</>;
-
-        if (categoryType === 'pants') return sizes.map((s,i) => (
-            <div key={i} style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr 80px auto 36px', gap:8, alignItems:'center', padding:'12px 0', borderBottom:'1px solid rgba(0,0,0,.06)' }}>
-                <select style={selectStyle} value={s.colorName} onChange={e=>updateSizeField(i,'colorName',e.target.value)}>{colorOpts}</select>
-                <input style={inputStyle} placeholder="S / M / L / XL" value={s.sizeName} onChange={e=>updateSizeField(i,'sizeName',e.target.value)} />
-                <input style={inputStyle} placeholder='Waist (")' value={s.measurements?.waist||''} onChange={e=>updateSizeField(i,'measurements.waist',e.target.value)} />
-                <input style={inputStyle} placeholder='Length (")' value={s.measurements?.length||''} onChange={e=>updateSizeField(i,'measurements.length',e.target.value)} />
-                <input style={inputStyle} type="number" placeholder="Qty" value={s.stock} onChange={e=>updateSizeField(i,'stock',e.target.value)} />
-                <label style={{ display:'flex', alignItems:'center', gap:6, cursor:'pointer', fontFamily:'Inter,sans-serif', fontSize:12, color:'#64748b', whiteSpace:'nowrap' }}>
-                    <input type="checkbox" checked={s.isAvailable} onChange={e=>updateSizeField(i,'isAvailable',e.target.checked)} style={{ accentColor:'#6366f1' }} /> Available
-                </label>
-                <button onClick={()=>removeSizeVariant(i)} style={{ width:36, height:36, border:'1px solid rgba(239,68,68,.3)', borderRadius:6, background:'rgba(239,68,68,.06)', color:'#dc2626', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}><FaTimes size={11} /></button>
-            </div>
-        ));
-        if (categoryType === 'footwear') return sizes.map((s,i) => (
-            <div key={i} style={{ display:'grid', gridTemplateColumns:'1fr 1fr 80px auto 36px', gap:8, alignItems:'center', padding:'12px 0', borderBottom:'1px solid rgba(0,0,0,.06)' }}>
-                <select style={selectStyle} value={s.colorName} onChange={e=>updateSizeField(i,'colorName',e.target.value)}>{colorOpts}</select>
-                <input style={inputStyle} placeholder="39 / 40 / 41" value={s.sizeName} onChange={e=>updateSizeField(i,'sizeName',e.target.value)} />
-                <input style={inputStyle} type="number" placeholder="Qty" value={s.stock} onChange={e=>updateSizeField(i,'stock',e.target.value)} />
-                <label style={{ display:'flex', alignItems:'center', gap:6, cursor:'pointer', fontFamily:'Inter,sans-serif', fontSize:12, color:'#64748b', whiteSpace:'nowrap' }}>
-                    <input type="checkbox" checked={s.isAvailable} onChange={e=>updateSizeField(i,'isAvailable',e.target.checked)} style={{ accentColor:'#6366f1' }} /> Available
-                </label>
-                <button onClick={()=>removeSizeVariant(i)} style={{ width:36, height:36, border:'1px solid rgba(239,68,68,.3)', borderRadius:6, background:'rgba(239,68,68,.06)', color:'#dc2626', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}><FaTimes size={11} /></button>
-            </div>
-        ));
-        return sizes.map((s,i) => (
-            <div key={i} style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr 80px auto 36px', gap:8, alignItems:'center', padding:'12px 0', borderBottom:'1px solid rgba(0,0,0,.06)' }}>
-                <select style={selectStyle} value={s.colorName} onChange={e=>updateSizeField(i,'colorName',e.target.value)}>{colorOpts}</select>
-                <input style={inputStyle} placeholder="XS / S / M / L / XL" value={s.sizeName} onChange={e=>updateSizeField(i,'sizeName',e.target.value)} />
-                <input style={inputStyle} placeholder='Chest (")' value={s.measurements?.chest||''} onChange={e=>updateSizeField(i,'measurements.chest',e.target.value)} />
-                <input style={inputStyle} placeholder='Length (")' value={s.measurements?.length||''} onChange={e=>updateSizeField(i,'measurements.length',e.target.value)} />
-                <input style={inputStyle} type="number" placeholder="Qty" value={s.stock} onChange={e=>updateSizeField(i,'stock',e.target.value)} />
-                <label style={{ display:'flex', alignItems:'center', gap:6, cursor:'pointer', fontFamily:'Inter,sans-serif', fontSize:12, color:'#64748b', whiteSpace:'nowrap' }}>
-                    <input type="checkbox" checked={s.isAvailable} onChange={e=>updateSizeField(i,'isAvailable',e.target.checked)} style={{ accentColor:'#6366f1' }} /> Available
-                </label>
-                <button onClick={()=>removeSizeVariant(i)} style={{ width:36, height:36, border:'1px solid rgba(239,68,68,.3)', borderRadius:6, background:'rgba(239,68,68,.06)', color:'#dc2626', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}><FaTimes size={11} /></button>
-            </div>
-        ));
+  /* ── Size rows renderer (logic unchanged, UI improved) ── */
+  const renderSizeRows = () => {
+    const inputStyle = {
+      width: "100%",
+      height: 36,
+      padding: "0 10px",
+      fontFamily: "Inter,sans-serif",
+      fontSize: 12,
+      color: "#0f172a",
+      background: "#f8fafc",
+      border: "1px solid rgba(0,0,0,.1)",
+      borderRadius: 6,
+      outline: "none",
     };
+    const selectStyle = { ...inputStyle, cursor: "pointer" };
+    const colorOpts = (
+      <>
+        <option value="">All Colors</option>
+        {colors.map((c) => (
+          <option key={c.colorName} value={c.colorName}>
+            {c.colorName}
+          </option>
+        ))}
+      </>
+    );
 
-    const inStock    = products.filter(p=>p.stock_quantity>0).length;
-    const outOfStock = products.filter(p=>p.stock_quantity===0).length;
-    const lowStock   = products.filter(p=>p.stock_quantity>0&&p.stock_quantity<=5).length;
+    if (categoryType === "pants")
+      return sizes.map((s, i) => (
+        <div
+          key={i}
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr 1fr 1fr 80px auto 36px",
+            gap: 8,
+            alignItems: "center",
+            padding: "12px 0",
+            borderBottom: "1px solid rgba(0,0,0,.06)",
+          }}
+        >
+          <select
+            style={selectStyle}
+            value={s.colorName}
+            onChange={(e) => updateSizeField(i, "colorName", e.target.value)}
+          >
+            {colorOpts}
+          </select>
+          <input
+            style={inputStyle}
+            placeholder="S / M / L / XL"
+            value={s.sizeName}
+            onChange={(e) => updateSizeField(i, "sizeName", e.target.value)}
+          />
+          <input
+            style={inputStyle}
+            placeholder='Waist (")'
+            value={s.measurements?.waist || ""}
+            onChange={(e) =>
+              updateSizeField(i, "measurements.waist", e.target.value)
+            }
+          />
+          <input
+            style={inputStyle}
+            placeholder='Length (")'
+            value={s.measurements?.length || ""}
+            onChange={(e) =>
+              updateSizeField(i, "measurements.length", e.target.value)
+            }
+          />
+          <input
+            style={inputStyle}
+            type="number"
+            placeholder="Qty"
+            value={s.stock}
+            onChange={(e) => updateSizeField(i, "stock", e.target.value)}
+          />
+          <label
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              cursor: "pointer",
+              fontFamily: "Inter,sans-serif",
+              fontSize: 12,
+              color: "#64748b",
+              whiteSpace: "nowrap",
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={s.isAvailable}
+              onChange={(e) =>
+                updateSizeField(i, "isAvailable", e.target.checked)
+              }
+              style={{ accentColor: "#6366f1" }}
+            />{" "}
+            Available
+          </label>
+          <button
+            onClick={() => removeSizeVariant(i)}
+            style={{
+              width: 36,
+              height: 36,
+              border: "1px solid rgba(239,68,68,.3)",
+              borderRadius: 6,
+              background: "rgba(239,68,68,.06)",
+              color: "#dc2626",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <FaTimes size={11} />
+          </button>
+        </div>
+      ));
+    if (categoryType === "footwear")
+      return sizes.map((s, i) => (
+        <div
+          key={i}
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr 80px auto 36px",
+            gap: 8,
+            alignItems: "center",
+            padding: "12px 0",
+            borderBottom: "1px solid rgba(0,0,0,.06)",
+          }}
+        >
+          <select
+            style={selectStyle}
+            value={s.colorName}
+            onChange={(e) => updateSizeField(i, "colorName", e.target.value)}
+          >
+            {colorOpts}
+          </select>
+          <input
+            style={inputStyle}
+            placeholder="39 / 40 / 41"
+            value={s.sizeName}
+            onChange={(e) => updateSizeField(i, "sizeName", e.target.value)}
+          />
+          <input
+            style={inputStyle}
+            type="number"
+            placeholder="Qty"
+            value={s.stock}
+            onChange={(e) => updateSizeField(i, "stock", e.target.value)}
+          />
+          <label
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              cursor: "pointer",
+              fontFamily: "Inter,sans-serif",
+              fontSize: 12,
+              color: "#64748b",
+              whiteSpace: "nowrap",
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={s.isAvailable}
+              onChange={(e) =>
+                updateSizeField(i, "isAvailable", e.target.checked)
+              }
+              style={{ accentColor: "#6366f1" }}
+            />{" "}
+            Available
+          </label>
+          <button
+            onClick={() => removeSizeVariant(i)}
+            style={{
+              width: 36,
+              height: 36,
+              border: "1px solid rgba(239,68,68,.3)",
+              borderRadius: 6,
+              background: "rgba(239,68,68,.06)",
+              color: "#dc2626",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <FaTimes size={11} />
+          </button>
+        </div>
+      ));
+    return sizes.map((s, i) => (
+      <div
+        key={i}
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr 1fr 1fr 80px auto 36px",
+          gap: 8,
+          alignItems: "center",
+          padding: "12px 0",
+          borderBottom: "1px solid rgba(0,0,0,.06)",
+        }}
+      >
+        <select
+          style={selectStyle}
+          value={s.colorName}
+          onChange={(e) => updateSizeField(i, "colorName", e.target.value)}
+        >
+          {colorOpts}
+        </select>
+        <input
+          style={inputStyle}
+          placeholder="XS / S / M / L / XL"
+          value={s.sizeName}
+          onChange={(e) => updateSizeField(i, "sizeName", e.target.value)}
+        />
+        <input
+          style={inputStyle}
+          placeholder='Chest (")'
+          value={s.measurements?.chest || ""}
+          onChange={(e) =>
+            updateSizeField(i, "measurements.chest", e.target.value)
+          }
+        />
+        <input
+          style={inputStyle}
+          placeholder='Length (")'
+          value={s.measurements?.length || ""}
+          onChange={(e) =>
+            updateSizeField(i, "measurements.length", e.target.value)
+          }
+        />
+        <input
+          style={inputStyle}
+          type="number"
+          placeholder="Qty"
+          value={s.stock}
+          onChange={(e) => updateSizeField(i, "stock", e.target.value)}
+        />
+        <label
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            cursor: "pointer",
+            fontFamily: "Inter,sans-serif",
+            fontSize: 12,
+            color: "#64748b",
+            whiteSpace: "nowrap",
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={s.isAvailable}
+            onChange={(e) =>
+              updateSizeField(i, "isAvailable", e.target.checked)
+            }
+            style={{ accentColor: "#6366f1" }}
+          />{" "}
+          Available
+        </label>
+        <button
+          onClick={() => removeSizeVariant(i)}
+          style={{
+            width: 36,
+            height: 36,
+            border: "1px solid rgba(239,68,68,.3)",
+            borderRadius: 6,
+            background: "rgba(239,68,68,.06)",
+            color: "#dc2626",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <FaTimes size={11} />
+        </button>
+      </div>
+    ));
+  };
 
-    /* ───────── RENDER ───────── */
-    return (
-        <>
-            <style>{`
+  const inStock = products.filter((p) => p.stock_quantity > 0).length;
+  const outOfStock = products.filter((p) => p.stock_quantity === 0).length;
+  const lowStock = products.filter(
+    (p) => p.stock_quantity > 0 && p.stock_quantity <= 5,
+  ).length;
+
+  /* ───────── RENDER ───────── */
+  return (
+    <>
+      <style>{`
                 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
                 @keyframes pmShimmer { to { background-position: -200% 0; } }
                 @keyframes pmFadeUp  { from { opacity:0; transform:translateY(8px) } to { opacity:1; transform:translateY(0) } }
@@ -311,354 +1023,1220 @@ export default function ProductsManagement() {
                 @media (max-width:480px)  { .pm-product-img-wrap { width:90px; } }
             `}</style>
 
-            <div className="pm-root">
+      <div className="pm-root">
+        {/* ── Page header ── */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "flex-start",
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: 16,
+            marginBottom: 28,
+            animation: "pmFadeUp .35s ease",
+          }}
+        >
+          <div>
+            <h1
+              style={{
+                fontFamily: "Inter,sans-serif",
+                fontSize: 22,
+                fontWeight: 700,
+                letterSpacing: "-.02em",
+                color: "var(--pm-ink)",
+                margin: 0,
+              }}
+            >
+              Product Management
+            </h1>
+          </div>
+          {/* Summary chips */}
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {[
+              {
+                label: "Total",
+                val: products.length,
+                bg: "rgba(99,102,241,.08)",
+                color: "#6366f1",
+              },
+              {
+                label: "In Stock",
+                val: inStock,
+                bg: "rgba(16,185,129,.08)",
+                color: "#059669",
+              },
+              {
+                label: "Low",
+                val: lowStock,
+                bg: "rgba(245,158,11,.08)",
+                color: "#d97706",
+              },
+              {
+                label: "Out",
+                val: outOfStock,
+                bg: "rgba(239,68,68,.08)",
+                color: "#dc2626",
+              },
+            ].map((s) => (
+              <div
+                key={s.label}
+                style={{
+                  padding: "8px 16px",
+                  borderRadius: 20,
+                  background: s.bg,
+                }}
+              >
+                <span
+                  style={{
+                    fontFamily: "JetBrains Mono,monospace",
+                    fontSize: 15,
+                    fontWeight: 700,
+                    color: s.color,
+                  }}
+                >
+                  {s.val}
+                </span>
+                <span
+                  style={{
+                    fontFamily: "Inter,sans-serif",
+                    fontSize: 10,
+                    fontWeight: 600,
+                    letterSpacing: ".1em",
+                    textTransform: "uppercase",
+                    color: s.color,
+                    marginLeft: 6,
+                    opacity: 0.7,
+                  }}
+                >
+                  {s.label}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
 
-                {/* ── Page header ── */}
-                <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', flexWrap:'wrap', gap:16, marginBottom:28, animation:'pmFadeUp .35s ease' }}>
-                    <div>
-                        <p style={{ fontFamily:'Inter,sans-serif', fontSize:11, fontWeight:500, letterSpacing:'.16em', textTransform:'uppercase', color:'#94a3b8', marginBottom:5 }}>Catalog</p>
-                        <h1 style={{ fontFamily:'Inter,sans-serif', fontSize:22, fontWeight:700, letterSpacing:'-.02em', color:'var(--pm-ink)', margin:0 }}>Product Management</h1>
-                    </div>
-                    {/* Summary chips */}
-                    <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-                        {[
-                            { label:'Total', val:products.length, bg:'rgba(99,102,241,.08)', color:'#6366f1' },
-                            { label:'In Stock', val:inStock,    bg:'rgba(16,185,129,.08)', color:'#059669' },
-                            { label:'Low',      val:lowStock,   bg:'rgba(245,158,11,.08)', color:'#d97706' },
-                            { label:'Out',      val:outOfStock, bg:'rgba(239,68,68,.08)', color:'#dc2626' },
-                        ].map(s => (
-                            <div key={s.label} style={{ padding:'8px 16px', borderRadius:20, background:s.bg }}>
-                                <span style={{ fontFamily:'JetBrains Mono,monospace', fontSize:15, fontWeight:700, color:s.color }}>{s.val}</span>
-                                <span style={{ fontFamily:'Inter,sans-serif', fontSize:10, fontWeight:600, letterSpacing:'.1em', textTransform:'uppercase', color:s.color, marginLeft:6, opacity:.7 }}>{s.label}</span>
-                            </div>
-                        ))}
-                    </div>
+        {/* ── Toolbar ── */}
+        <div
+          style={{
+            background: "#fff",
+            border: "1px solid rgba(0,0,0,.07)",
+            borderRadius: 12,
+            padding: "14px 18px",
+            marginBottom: 20,
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            flexWrap: "wrap",
+            boxShadow: "0 1px 3px rgba(0,0,0,.04)",
+          }}
+        >
+          {/* Search */}
+          <div style={{ position: "relative", flex: 1, minWidth: 200 }}>
+            <FaSearch
+              style={{
+                position: "absolute",
+                left: 12,
+                top: "50%",
+                transform: "translateY(-50%)",
+                color: "#94a3b8",
+                fontSize: 12,
+              }}
+            />
+            <input
+              type="text"
+              className="pm-input"
+              style={{ paddingLeft: 36, background: "#f8fafc" }}
+              placeholder="Search by name or SKU…"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm("")}
+                style={{
+                  position: "absolute",
+                  right: 10,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  color: "#94a3b8",
+                  display: "flex",
+                  alignItems: "center",
+                }}
+              >
+                <FaTimes size={11} />
+              </button>
+            )}
+          </div>
+
+          {/* Stock filter */}
+          <div style={{ display: "flex", gap: 6 }}>
+            {(["all", "instock", "outofstock"] as const).map((f) => (
+              <button
+                key={f}
+                className={`pm-chip${filterType === f ? " active" : ""}`}
+                onClick={() => setFilterType(f)}
+              >
+                {f === "all"
+                  ? "All"
+                  : f === "instock"
+                    ? "In Stock"
+                    : "Out of Stock"}
+              </button>
+            ))}
+          </div>
+
+          {/* Category dropdown */}
+          <div ref={catMenuRef} style={{ position: "relative" }}>
+            <button
+              className="pm-chip"
+              style={
+                showCatMenu ? { borderColor: "#6366f1", color: "#6366f1" } : {}
+              }
+              onClick={() => setShowCatMenu((s) => !s)}
+            >
+              <FaLayerGroup size={10} />
+              {selectedCategory === "all" ? "All Categories" : selectedCategory}
+              <FaChevronDown
+                size={8}
+                style={{
+                  transition: "transform .2s",
+                  transform: showCatMenu ? "rotate(180deg)" : "none",
+                }}
+              />
+            </button>
+            {showCatMenu && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: "calc(100% + 8px)",
+                  right: 0,
+                  background: "#fff",
+                  border: "1px solid rgba(0,0,0,.09)",
+                  borderRadius: 10,
+                  minWidth: 190,
+                  boxShadow: "0 8px 32px rgba(0,0,0,.12)",
+                  zIndex: 200,
+                  padding: "6px 0",
+                  animation: "pmFadeUp .18s ease",
+                }}
+              >
+                {["all", ...categories.map((c) => c.name)].map((n) => (
+                  <button
+                    key={n}
+                    onClick={() => {
+                      setSelectedCategory(n === "all" ? "all" : n);
+                      setShowCatMenu(false);
+                    }}
+                    style={{
+                      width: "100%",
+                      background:
+                        selectedCategory === (n === "all" ? "all" : n)
+                          ? "rgba(99,102,241,.07)"
+                          : "none",
+                      border: "none",
+                      padding: "10px 16px",
+                      textAlign: "left",
+                      fontFamily: "Inter,sans-serif",
+                      fontSize: 12,
+                      fontWeight:
+                        selectedCategory === (n === "all" ? "all" : n)
+                          ? 600
+                          : 400,
+                      color:
+                        selectedCategory === (n === "all" ? "all" : n)
+                          ? "#6366f1"
+                          : "#64748b",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                    }}
+                  >
+                    {n === "all" ? "All Categories" : n}
+                    {selectedCategory === (n === "all" ? "all" : n) && (
+                      <FaCheck size={10} style={{ color: "#6366f1" }} />
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ── Loading skeletons ── */}
+        {loading ? (
+          <div className="pm-product-grid">
+            {[...Array(4)].map((_, i) => (
+              <div
+                key={i}
+                style={{
+                  background: "#fff",
+                  border: "1px solid rgba(0,0,0,.07)",
+                  borderRadius: 12,
+                  overflow: "hidden",
+                  display: "flex",
+                }}
+              >
+                <div
+                  style={{ width: 110, background: "#f7f6f3", flexShrink: 0 }}
+                />
+                <div
+                  style={{
+                    flex: 1,
+                    padding: 16,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 10,
+                  }}
+                >
+                  <Skel w="65%" h={13} />
+                  <Skel w="45%" h={10} />
+                  <Skel w="50%" h={13} />
+                  <Skel w="80px" h={22} r={20} />
                 </div>
+              </div>
+            ))}
+          </div>
+        ) : displayedProducts.length === 0 ? (
+          /* ── Empty state ── */
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "80px 24px",
+              gap: 16,
+              textAlign: "center",
+            }}
+          >
+            <div
+              style={{
+                width: 72,
+                height: 72,
+                borderRadius: "50%",
+                background: "rgba(99,102,241,.08)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                marginBottom: 8,
+              }}
+            >
+              <FaBoxOpen size={28} style={{ color: "#6366f1" }} />
+            </div>
+            <h3
+              style={{
+                fontFamily: "Inter,sans-serif",
+                fontSize: 18,
+                fontWeight: 600,
+                color: "var(--pm-ink)",
+                margin: 0,
+              }}
+            >
+              No products found
+            </h3>
+            <p
+              style={{
+                fontFamily: "Inter,sans-serif",
+                fontSize: 13,
+                color: "#64748b",
+                margin: 0,
+                maxWidth: 280,
+              }}
+            >
+              Try adjusting your search or filters, or add a new product to get
+              started.
+            </p>
+            <button
+              className="pm-btn pm-btn-primary"
+              onClick={() => {
+                resetForm();
+                setShowModal(true);
+              }}
+            >
+              <FaPlus size={10} /> Add Product
+            </button>
+          </div>
+        ) : (
+          <>
+            <p
+              style={{
+                fontFamily: "Inter,sans-serif",
+                fontSize: 12,
+                color: "#94a3b8",
+                marginBottom: 14,
+              }}
+            >
+              Showing{" "}
+              <span style={{ color: "var(--pm-ink)", fontWeight: 600 }}>
+                {displayedProducts.length}
+              </span>{" "}
+              of {totalProducts} products
+            </p>
 
-                {/* ── Toolbar ── */}
-                <div style={{ background:'#fff', border:'1px solid rgba(0,0,0,.07)', borderRadius:12, padding:'14px 18px', marginBottom:20, display:'flex', alignItems:'center', gap:12, flexWrap:'wrap', boxShadow:'0 1px 3px rgba(0,0,0,.04)' }}>
-                    {/* Search */}
-                    <div style={{ position:'relative', flex:1, minWidth:200 }}>
-                        <FaSearch style={{ position:'absolute', left:12, top:'50%', transform:'translateY(-50%)', color:'#94a3b8', fontSize:12 }} />
-                        <input
-                            type="text"
-                            className="pm-input"
-                            style={{ paddingLeft:36, background:'#f8fafc' }}
-                            placeholder="Search by name or SKU…"
-                            value={searchTerm}
-                            onChange={e=>setSearchTerm(e.target.value)}
-                        />
-                        {searchTerm && <button onClick={()=>setSearchTerm('')} style={{ position:'absolute', right:10, top:'50%', transform:'translateY(-50%)', background:'none', border:'none', cursor:'pointer', color:'#94a3b8', display:'flex', alignItems:'center' }}><FaTimes size={11} /></button>}
-                    </div>
+            {/* ── Product grid ── */}
+            <div className="pm-product-grid">
+              {displayedProducts.map((p, idx) => (
+                <div
+                  key={p.id}
+                  className="pm-product-card"
+                  style={{ animationDelay: `${idx * 0.04}s` }}
+                >
+                  {/* Image */}
+                  <div className="pm-product-img-wrap">
+                    <img src={getPrimaryImage(p)} alt={p.name} />
+                    {p.stock_quantity === 0 && (
+                      <div
+                        style={{
+                          position: "absolute",
+                          inset: 0,
+                          background: "rgba(0,0,0,.38)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontFamily: "Inter,sans-serif",
+                            fontSize: 9,
+                            fontWeight: 700,
+                            letterSpacing: ".12em",
+                            textTransform: "uppercase",
+                            color: "rgba(255,255,255,.9)",
+                          }}
+                        >
+                          Sold Out
+                        </span>
+                      </div>
+                    )}
+                  </div>
 
-                    {/* Stock filter */}
-                    <div style={{ display:'flex', gap:6 }}>
-                        {(['all','instock','outofstock'] as const).map(f => (
-                            <button key={f} className={`pm-chip${filterType===f?' active':''}`} onClick={()=>setFilterType(f)}>
-                                {f==='all'?'All':f==='instock'?'In Stock':'Out of Stock'}
-                            </button>
-                        ))}
-                    </div>
-
-                    {/* Category dropdown */}
-                    <div ref={catMenuRef} style={{ position:'relative' }}>
-                        <button className="pm-chip" style={showCatMenu?{borderColor:'#6366f1',color:'#6366f1'}:{}} onClick={()=>setShowCatMenu(s=>!s)}>
-                            <FaLayerGroup size={10} />
-                            {selectedCategory==='all' ? 'All Categories' : selectedCategory}
-                            <FaChevronDown size={8} style={{ transition:'transform .2s', transform:showCatMenu?'rotate(180deg)':'none' }} />
+                  {/* Body */}
+                  <div
+                    style={{
+                      flex: 1,
+                      padding: "14px 16px",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 5,
+                      minWidth: 0,
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "flex-start",
+                        justifyContent: "space-between",
+                        gap: 8,
+                      }}
+                    >
+                      <h3
+                        style={{
+                          fontFamily: "Inter,sans-serif",
+                          fontSize: 14,
+                          fontWeight: 600,
+                          color: "var(--pm-ink)",
+                          margin: 0,
+                          lineHeight: 1.35,
+                          flex: 1,
+                          minWidth: 0,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {p.name}
+                      </h3>
+                      <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                        <button
+                          className="pm-action-btn edit"
+                          onClick={() => handleEdit(p)}
+                          title="Edit"
+                        >
+                          <FaEdit size={13} />
                         </button>
-                        {showCatMenu && (
-                            <div style={{ position:'absolute', top:'calc(100% + 8px)', right:0, background:'#fff', border:'1px solid rgba(0,0,0,.09)', borderRadius:10, minWidth:190, boxShadow:'0 8px 32px rgba(0,0,0,.12)', zIndex:200, padding:'6px 0', animation:'pmFadeUp .18s ease' }}>
-                                {['all',...categories.map(c=>c.name)].map(n => (
-                                    <button key={n} onClick={()=>{setSelectedCategory(n==='all'?'all':n);setShowCatMenu(false);}} style={{ width:'100%', background:selectedCategory===(n==='all'?'all':n)?'rgba(99,102,241,.07)':'none', border:'none', padding:'10px 16px', textAlign:'left', fontFamily:'Inter,sans-serif', fontSize:12, fontWeight:selectedCategory===(n==='all'?'all':n)?600:400, color:selectedCategory===(n==='all'?'all':n)?'#6366f1':'#64748b', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-                                        {n==='all'?'All Categories':n}
-                                        {selectedCategory===(n==='all'?'all':n) && <FaCheck size={10} style={{ color:'#6366f1' }} />}
-                                    </button>
-                                ))}
-                            </div>
-                        )}
+                        <button
+                          className="pm-action-btn del"
+                          onClick={() => handleDelete(p.id)}
+                          title="Delete"
+                        >
+                          <FaTrash size={12} />
+                        </button>
+                      </div>
                     </div>
+
+                    <p
+                      style={{
+                        fontFamily: "Inter,sans-serif",
+                        fontSize: 11,
+                        color: "#94a3b8",
+                        margin: 0,
+                      }}
+                    >
+                      {p.sku ? (
+                        <span className="pm-mono" style={{ fontSize: 11 }}>
+                          SKU: {p.sku}
+                        </span>
+                      ) : (
+                        "No SKU"
+                      )}{" "}
+                      &nbsp;·&nbsp; {p.category_name}
+                    </p>
+
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "baseline",
+                        gap: 8,
+                        marginTop: 2,
+                      }}
+                    >
+                      <span
+                        className="pm-mono"
+                        style={{
+                          fontSize: 16,
+                          fontWeight: 700,
+                          color: "var(--pm-ink)",
+                        }}
+                      >
+                        ${p.price}
+                      </span>
+                      {p.compare_price && (
+                        <span
+                          style={{
+                            fontFamily: "Inter,sans-serif",
+                            fontSize: 12,
+                            color: "#94a3b8",
+                            textDecoration: "line-through",
+                          }}
+                        >
+                          ${p.compare_price}
+                        </span>
+                      )}
+                      {p.compare_price && (
+                        <span
+                          style={{
+                            fontFamily: "Inter,sans-serif",
+                            fontSize: 10,
+                            fontWeight: 700,
+                            color: "#059669",
+                            background: "rgba(16,185,129,.1)",
+                            padding: "2px 7px",
+                            borderRadius: 10,
+                          }}
+                        >
+                          −
+                          {Math.round(
+                            ((p.compare_price - p.price) / p.compare_price) *
+                              100,
+                          )}
+                          %
+                        </span>
+                      )}
+                    </div>
+
+                    <div style={{ marginTop: 4 }}>
+                      <StockBadge qty={p.stock_quantity} />
+                    </div>
+                  </div>
                 </div>
-
-                {/* ── Loading skeletons ── */}
-                {loading ? (
-                    <div className="pm-product-grid">
-                        {[...Array(4)].map((_,i) => (
-                            <div key={i} style={{ background:'#fff', border:'1px solid rgba(0,0,0,.07)', borderRadius:12, overflow:'hidden', display:'flex' }}>
-                                <div style={{ width:110, background:'#f7f6f3', flexShrink:0 }} />
-                                <div style={{ flex:1, padding:16, display:'flex', flexDirection:'column', gap:10 }}>
-                                    <Skel w="65%" h={13} /><Skel w="45%" h={10} /><Skel w="50%" h={13} /><Skel w="80px" h={22} r={20} />
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                ) : displayedProducts.length === 0 ? (
-                    /* ── Empty state ── */
-                    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'80px 24px', gap:16, textAlign:'center' }}>
-                        <div style={{ width:72, height:72, borderRadius:'50%', background:'rgba(99,102,241,.08)', display:'flex', alignItems:'center', justifyContent:'center', marginBottom:8 }}>
-                            <FaBoxOpen size={28} style={{ color:'#6366f1' }} />
-                        </div>
-                        <h3 style={{ fontFamily:'Inter,sans-serif', fontSize:18, fontWeight:600, color:'var(--pm-ink)', margin:0 }}>No products found</h3>
-                        <p style={{ fontFamily:'Inter,sans-serif', fontSize:13, color:'#64748b', margin:0, maxWidth:280 }}>Try adjusting your search or filters, or add a new product to get started.</p>
-                        <button className="pm-btn pm-btn-primary" onClick={()=>{resetForm();setShowModal(true);}}>
-                            <FaPlus size={10} /> Add Product
-                        </button>
-                    </div>
-                ) : (
-                    <>
-                        <p style={{ fontFamily:'Inter,sans-serif', fontSize:12, color:'#94a3b8', marginBottom:14 }}>
-                            Showing <span style={{ color:'var(--pm-ink)', fontWeight:600 }}>{displayedProducts.length}</span> of {totalProducts} products
-                        </p>
-
-                        {/* ── Product grid ── */}
-                        <div className="pm-product-grid">
-                            {displayedProducts.map((p, idx) => (
-                                <div key={p.id} className="pm-product-card" style={{ animationDelay:`${idx*.04}s` }}>
-                                    {/* Image */}
-                                    <div className="pm-product-img-wrap">
-                                        <img src={getPrimaryImage(p)} alt={p.name} />
-                                        {p.stock_quantity === 0 && (
-                                            <div style={{ position:'absolute', inset:0, background:'rgba(0,0,0,.38)', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                                                <span style={{ fontFamily:'Inter,sans-serif', fontSize:9, fontWeight:700, letterSpacing:'.12em', textTransform:'uppercase', color:'rgba(255,255,255,.9)' }}>Sold Out</span>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* Body */}
-                                    <div style={{ flex:1, padding:'14px 16px', display:'flex', flexDirection:'column', gap:5, minWidth:0 }}>
-                                        <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:8 }}>
-                                            <h3 style={{ fontFamily:'Inter,sans-serif', fontSize:14, fontWeight:600, color:'var(--pm-ink)', margin:0, lineHeight:1.35, flex:1, minWidth:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.name}</h3>
-                                            <div style={{ display:'flex', gap:6, flexShrink:0 }}>
-                                                <button className="pm-action-btn edit" onClick={()=>handleEdit(p)} title="Edit"><FaEdit size={13} /></button>
-                                                <button className="pm-action-btn del" onClick={()=>handleDelete(p.id)} title="Delete"><FaTrash size={12} /></button>
-                                            </div>
-                                        </div>
-
-                                        <p style={{ fontFamily:'Inter,sans-serif', fontSize:11, color:'#94a3b8', margin:0 }}>
-                                            {p.sku ? <span className="pm-mono" style={{ fontSize:11 }}>SKU: {p.sku}</span> : 'No SKU'} &nbsp;·&nbsp; {p.category_name}
-                                        </p>
-
-                                        <div style={{ display:'flex', alignItems:'baseline', gap:8, marginTop:2 }}>
-                                            <span className="pm-mono" style={{ fontSize:16, fontWeight:700, color:'var(--pm-ink)' }}>${p.price}</span>
-                                            {p.compare_price && <span style={{ fontFamily:'Inter,sans-serif', fontSize:12, color:'#94a3b8', textDecoration:'line-through' }}>${p.compare_price}</span>}
-                                            {p.compare_price && <span style={{ fontFamily:'Inter,sans-serif', fontSize:10, fontWeight:700, color:'#059669', background:'rgba(16,185,129,.1)', padding:'2px 7px', borderRadius:10 }}>−{Math.round(((p.compare_price-p.price)/p.compare_price)*100)}%</span>}
-                                        </div>
-
-                                        <div style={{ marginTop:4 }}>
-                                            <StockBadge qty={p.stock_quantity} />
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-
-                        {/* Load more */}
-                        {displayedProducts.length < totalProducts && (
-                            <div style={{ textAlign:'center', marginTop:28 }}>
-                                <button className="pm-btn pm-btn-ghost" onClick={loadMore}>
-                                    Load More <span style={{ fontFamily:'JetBrains Mono,monospace', fontSize:11, opacity:.6 }}>({totalProducts - displayedProducts.length} remaining)</span>
-                                </button>
-                            </div>
-                        )}
-                    </>
-                )}
+              ))}
             </div>
 
-            {/* ── FAB ── */}
-            <button className="pm-fab" onClick={()=>{resetForm();setShowModal(true);}} title="Add Product">
-                <FaPlus size={20} />
-            </button>
+            {/* Load more */}
+            {displayedProducts.length < totalProducts && (
+              <div style={{ textAlign: "center", marginTop: 28 }}>
+                <button className="pm-btn pm-btn-ghost" onClick={loadMore}>
+                  Load More{" "}
+                  <span
+                    style={{
+                      fontFamily: "JetBrains Mono,monospace",
+                      fontSize: 11,
+                      opacity: 0.6,
+                    }}
+                  >
+                    ({totalProducts - displayedProducts.length} remaining)
+                  </span>
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
 
-            {/* ══════════════════════════════════════
+      {/* ── FAB ── */}
+      <button
+        className="pm-fab"
+        onClick={() => {
+          resetForm();
+          setShowModal(true);
+        }}
+        title="Add Product"
+      >
+        <FaPlus size={20} />
+      </button>
+
+      {/* ══════════════════════════════════════
                 MODAL
             ══════════════════════════════════════ */}
-            {showModal && (
-                <div className="pm-modal-overlay" onClick={e=>{if(e.target===e.currentTarget)setShowModal(false);}}>
-                    <div className="pm-modal">
-
-                        {/* Modal head */}
-                        <div className="pm-modal-head">
-                            <div>
-                                <div style={{ fontFamily:'Inter,sans-serif', fontSize:10, fontWeight:600, letterSpacing:'.14em', textTransform:'uppercase', color:'#94a3b8', marginBottom:3 }}>
-                                    {editingProduct ? 'Edit Product' : 'New Product'}
-                                </div>
-                                <h2 style={{ fontFamily:'Inter,sans-serif', fontSize:17, fontWeight:700, color:'var(--pm-ink)', margin:0, letterSpacing:'-.01em' }}>
-                                    {editingProduct ? editingProduct.name : 'Add to Collection'}
-                                </h2>
-                            </div>
-                            <button onClick={()=>setShowModal(false)} style={{ width:36, height:36, borderRadius:8, border:'1px solid rgba(0,0,0,.1)', background:'#fff', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'#64748b', transition:'all .18s' }}>
-                                <FaTimes size={14} />
-                            </button>
-                        </div>
-
-                        {/* Modal body */}
-                        <div className="pm-modal-body">
-                            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginBottom:0 }}>
-
-                                {/* ── Col 1: Basic Info ── */}
-                                <div>
-                                    <FormSection icon={FaTag} title="Basic Information">
-                                        <Field label="Product Name">
-                                            <input className="pm-input" type="text" placeholder="e.g. Classic Linen Shirt" value={formData.name} onChange={e=>setFormData({...formData,name:e.target.value})} />
-                                        </Field>
-                                        <Field label="Category">
-                                            <select className="pm-select" value={formData.categoryId} onChange={handleCategoryChange}>
-                                                <option value="">Select a category…</option>
-                                                {categories.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
-                                            </select>
-                                        </Field>
-                                        <Field label="Description">
-                                            <textarea className="pm-textarea" placeholder="Describe the product, materials, fit, and feel…" value={formData.description} onChange={e=>setFormData({...formData,description:e.target.value})} />
-                                        </Field>
-                                    </FormSection>
-                                </div>
-
-                                {/* ── Col 2: Pricing & Images ── */}
-                                <div>
-                                    <FormSection icon={FaTag} title="Pricing & Inventory">
-                                        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-                                            <Field label="Regular Price (USD)">
-                                                <div style={{ position:'relative' }}>
-                                                    <span style={{ position:'absolute', left:12, top:'50%', transform:'translateY(-50%)', color:'#94a3b8', fontSize:13, fontWeight:500 }}>$</span>
-                                                    <input className="pm-input pm-mono" type="number" step="0.01" placeholder="0.00" style={{ paddingLeft:26 }} value={formData.regularPrice} onChange={e=>setFormData({...formData,regularPrice:e.target.value})} />
-                                                </div>
-                                            </Field>
-                                            <Field label="Compare Price" hint="Strike-through price shown to buyers">
-                                                <div style={{ position:'relative' }}>
-                                                    <span style={{ position:'absolute', left:12, top:'50%', transform:'translateY(-50%)', color:'#94a3b8', fontSize:13, fontWeight:500 }}>$</span>
-                                                    <input className="pm-input pm-mono" type="number" step="0.01" placeholder="0.00" style={{ paddingLeft:26 }} value={formData.discountPrice} onChange={e=>setFormData({...formData,discountPrice:e.target.value})} />
-                                                </div>
-                                            </Field>
-                                        </div>
-                                        <Field label="Initial Stock Quantity">
-                                            <input className="pm-input pm-mono" type="number" placeholder="0" value={formData.initialStock} onChange={e=>setFormData({...formData,initialStock:e.target.value})} />
-                                        </Field>
-                                    </FormSection>
-
-                                    {/* ── Product Images ── */}
-                                    <FormSection icon={FaImage} title="Product Images">
-                                        {/* Upload zone */}
-                                        <div
-                                            className={`pm-upload-zone${imgDragOver?' drag-over':''}`}
-                                            style={{ marginBottom:16 }}
-                                            onDragOver={e=>{e.preventDefault();setImgDragOver(true);}}
-                                            onDragLeave={()=>setImgDragOver(false)}
-                                            onDrop={e=>{e.preventDefault();setImgDragOver(false);handleProductImages(e.dataTransfer.files);}}
-                                            onClick={()=>fileInputRef.current?.click()}
-                                        >
-                                            <FaCloudUploadAlt size={24} style={{ color:'#94a3b8', marginBottom:8 }} />
-                                            <p style={{ fontFamily:'Inter,sans-serif', fontSize:13, fontWeight:500, color:'#64748b', margin:'0 0 3px' }}>Drop images here or <span style={{ color:'#6366f1', fontWeight:600 }}>browse</span></p>
-                                            <p style={{ fontFamily:'Inter,sans-serif', fontSize:11, color:'#94a3b8', margin:0 }}>PNG, JPG up to 10MB</p>
-                                            <input ref={fileInputRef} type="file" accept="image/*" multiple hidden onChange={e=>{handleProductImages(e.target.files);e.target.value='';}} />
-                                        </div>
-
-                                        {/* Thumbnails */}
-                                        {productImages.length > 0 && (
-                                            <div style={{ display:'flex', flexWrap:'wrap', gap:10 }}>
-                                                {productImages.map((img, idx) => (
-                                                    <div key={`${img.id||'n'}-${idx}`} className={`pm-img-thumb${img.isPrimary?' primary-img':''}`}>
-                                                        <img src={img.imagePreview||img.imageUrl||''} alt="Product" />
-                                                        <div className="pm-img-thumb-actions">
-                                                            {!img.isPrimary && (
-                                                                <button onClick={()=>setPrimaryProductImage(idx)} style={{ background:'rgba(99,102,241,.9)', border:'none', borderRadius:5, color:'#fff', fontSize:9, fontWeight:700, letterSpacing:'.08em', padding:'4px 8px', cursor:'pointer' }}>Set Primary</button>
-                                                            )}
-                                                            {img.isPrimary && <span style={{ background:'rgba(16,185,129,.9)', borderRadius:5, color:'#fff', fontSize:9, fontWeight:700, letterSpacing:'.08em', padding:'4px 8px', display:'flex', alignItems:'center', gap:4 }}><FaStar size={8} /> Primary</span>}
-                                                            {img.imageFile && <button onClick={()=>removeProductImage(idx)} style={{ background:'rgba(239,68,68,.85)', border:'none', borderRadius:5, color:'#fff', fontSize:9, fontWeight:700, letterSpacing:'.08em', padding:'4px 8px', cursor:'pointer' }}>Remove</button>}
-                                                        </div>
-                                                        {img.isPrimary && <div style={{ position:'absolute', top:4, right:4, width:16, height:16, borderRadius:'50%', background:'#6366f1', display:'flex', alignItems:'center', justifyContent:'center' }}><FaStar size={8} style={{ color:'#fff' }} /></div>}
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </FormSection>
-                                </div>
-                            </div>
-
-                            {/* ── Color Variants ── */}
-                            <FormSection icon={FaPalette} title="Color Variants">
-                                {colors.length === 0 && (
-                                    <div style={{ textAlign:'center', padding:'20px 0', color:'#94a3b8', fontFamily:'Inter,sans-serif', fontSize:13 }}>
-                                        No color variants added yet. Click below to add one.
-                                    </div>
-                                )}
-                                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(200px, 1fr))', gap:12, marginBottom:14 }}>
-                                    {colors.map((c, idx) => (
-                                        <div key={idx} className="pm-color-card">
-                                            <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:8 }}>
-                                                <button onClick={()=>removeColorVariant(idx)} style={{ background:'none', border:'none', cursor:'pointer', color:'#94a3b8', display:'flex', alignItems:'center', transition:'color .15s' }} onMouseEnter={e=>(e.currentTarget.style.color='#ef4444')} onMouseLeave={e=>(e.currentTarget.style.color='#94a3b8')}>
-                                                    <FaTimes size={12} />
-                                                </button>
-                                            </div>
-                                            <Field label="Color Name">
-                                                <input className="pm-input" type="text" placeholder="e.g. Midnight Black" value={c.colorName} onChange={e=>updateColorName(idx,e.target.value)} />
-                                            </Field>
-                                            {c.imagePreview ? (
-                                                <div style={{ position:'relative', border:'1px solid rgba(0,0,0,.07)', borderRadius:8, overflow:'hidden', height:80, background:'#f7f6f3', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                                                    <img src={c.imagePreview} alt={c.colorName} style={{ maxHeight:'100%', maxWidth:'100%', objectFit:'contain', padding:8 }} />
-                                                    <button onClick={()=>{const u=[...colors];u[idx].imagePreview=null;u[idx].imageFile=null;setColors(u);}} style={{ position:'absolute', top:4, right:4, width:22, height:22, borderRadius:'50%', background:'rgba(239,68,68,.85)', border:'none', color:'#fff', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                                                        <FaTimes size={9} />
-                                                    </button>
-                                                </div>
-                                            ) : (
-                                                <label style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', height:80, border:'2px dashed rgba(0,0,0,.1)', borderRadius:8, cursor:'pointer', gap:6, transition:'all .18s' }} onMouseEnter={e=>{(e.currentTarget.style.borderColor='#6366f1');(e.currentTarget.style.background='rgba(99,102,241,.03)');}} onMouseLeave={e=>{(e.currentTarget.style.borderColor='rgba(0,0,0,.1)');(e.currentTarget.style.background='none');}}>
-                                                    <FaImage size={16} style={{ color:'#94a3b8' }} />
-                                                    <span style={{ fontFamily:'Inter,sans-serif', fontSize:10, fontWeight:500, color:'#94a3b8' }}>Upload image</span>
-                                                    <input type="file" accept="image/*" hidden onChange={e=>e.target.files?.[0]&&handleColorImage(idx,e.target.files[0])} />
-                                                </label>
-                                            )}
-                                        </div>
-                                    ))}
-                                </div>
-                                <button className="pm-btn pm-btn-outline pm-btn-sm" onClick={addColorVariant}>
-                                    <FaPlus size={9} /> Add Color Variant
-                                </button>
-                            </FormSection>
-
-                            {/* ── Size Variants ── */}
-                            {selectedCategoryId && (
-                                <FormSection icon={FaRuler} title="Size Variants">
-                                    {/* Column headers */}
-                                    {sizes.length > 0 && (
-                                        <div style={{ display:'grid', gridTemplateColumns: categoryType==='footwear' ? '1fr 1fr 80px auto 36px' : '1fr 1fr 1fr 1fr 80px auto 36px', gap:8, marginBottom:4 }}>
-                                            {['Color', 'Size', ...(categoryType==='footwear'?[]:(categoryType==='pants'?['Waist','Length']:['Chest','Length'])), 'Stock', 'Status', ''].map((h,i) => (
-                                                <div key={i} style={{ fontFamily:'Inter,sans-serif', fontSize:9, fontWeight:700, letterSpacing:'.14em', textTransform:'uppercase', color:'#94a3b8', padding:'0 0 8px' }}>{h}</div>
-                                            ))}
-                                        </div>
-                                    )}
-                                    {sizes.length === 0 && (
-                                        <div style={{ textAlign:'center', padding:'20px 0', color:'#94a3b8', fontFamily:'Inter,sans-serif', fontSize:13 }}>
-                                            No sizes added. Click below to add a size variant.
-                                        </div>
-                                    )}
-                                    {renderSizeRows()}
-                                    <div style={{ marginTop:14 }}>
-                                        <button className="pm-btn pm-btn-outline pm-btn-sm" onClick={addSizeVariant}>
-                                            <FaPlus size={9} /> Add Size
-                                        </button>
-                                    </div>
-                                </FormSection>
-                            )}
-
-                            <div style={{ height:8 }} />
-                        </div>
-
-                        {/* Modal footer */}
-                        <div className="pm-modal-foot">
-                            <p style={{ fontFamily:'Inter,sans-serif', fontSize:12, color:'#94a3b8', flex:1, margin:0 }}>
-                                {editingProduct ? `Editing: ${editingProduct.name}` : 'All fields marked with * are required.'}
-                            </p>
-                            <button className="pm-btn pm-btn-ghost" onClick={()=>setShowModal(false)}>Cancel</button>
-                            <button className="pm-btn pm-btn-primary" onClick={handleSaveProduct} disabled={modalLoading}>
-                                {modalLoading ? (
-                                    <><span style={{ width:14, height:14, border:'2px solid rgba(255,255,255,.35)', borderTopColor:'#fff', borderRadius:'50%', animation:'pmShimmer .7s linear infinite', display:'inline-block' }} />&nbsp;Saving…</>
-                                ) : (
-                                    <><FaCheck size={10} /> {editingProduct ? 'Update Product' : 'Publish Product'}</>
-                                )}
-                            </button>
-                        </div>
-                    </div>
+      {showModal && (
+        <div
+          className="pm-modal-overlay"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowModal(false);
+          }}
+        >
+          <div className="pm-modal">
+            {/* Modal head */}
+            <div className="pm-modal-head">
+              <div>
+                <div
+                  style={{
+                    fontFamily: "Inter,sans-serif",
+                    fontSize: 10,
+                    fontWeight: 600,
+                    letterSpacing: ".14em",
+                    textTransform: "uppercase",
+                    color: "#94a3b8",
+                    marginBottom: 3,
+                  }}
+                >
+                  {editingProduct ? "Edit Product" : "New Product"}
                 </div>
-            )}
-        </>
-    );
+                <h2
+                  style={{
+                    fontFamily: "Inter,sans-serif",
+                    fontSize: 17,
+                    fontWeight: 700,
+                    color: "var(--pm-ink)",
+                    margin: 0,
+                    letterSpacing: "-.01em",
+                  }}
+                >
+                  {editingProduct ? editingProduct.name : "Add to Collection"}
+                </h2>
+              </div>
+              <button
+                onClick={() => setShowModal(false)}
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 8,
+                  border: "1px solid rgba(0,0,0,.1)",
+                  background: "#fff",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                  color: "#64748b",
+                  transition: "all .18s",
+                }}
+              >
+                <FaTimes size={14} />
+              </button>
+            </div>
+
+            {/* Modal body */}
+            <div className="pm-modal-body">
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: 16,
+                  marginBottom: 0,
+                }}
+              >
+                {/* ── Col 1: Basic Info ── */}
+                <div>
+                  <FormSection icon={FaTag} title="Basic Information">
+                    <Field label="Product Name">
+                      <input
+                        className="pm-input"
+                        type="text"
+                        placeholder="e.g. Classic Linen Shirt"
+                        value={formData.name}
+                        onChange={(e) =>
+                          setFormData({ ...formData, name: e.target.value })
+                        }
+                      />
+                    </Field>
+                    <Field label="Category">
+                      <select
+                        className="pm-select"
+                        value={formData.categoryId}
+                        onChange={handleCategoryChange}
+                      >
+                        <option value="">Select a category…</option>
+                        {categories.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                    <Field label="Description">
+                      <textarea
+                        className="pm-textarea"
+                        placeholder="Describe the product, materials, fit, and feel…"
+                        value={formData.description}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            description: e.target.value,
+                          })
+                        }
+                      />
+                    </Field>
+                  </FormSection>
+                </div>
+
+                {/* ── Col 2: Pricing & Images ── */}
+                <div>
+                  <FormSection icon={FaTag} title="Pricing & Inventory">
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "1fr 1fr",
+                        gap: 12,
+                      }}
+                    >
+                      <Field label="Regular Price (USD)">
+                        <div style={{ position: "relative" }}>
+                          <span
+                            style={{
+                              position: "absolute",
+                              left: 12,
+                              top: "50%",
+                              transform: "translateY(-50%)",
+                              color: "#94a3b8",
+                              fontSize: 13,
+                              fontWeight: 500,
+                            }}
+                          >
+                            $
+                          </span>
+                          <input
+                            className="pm-input pm-mono"
+                            type="number"
+                            step="0.01"
+                            placeholder="0.00"
+                            style={{ paddingLeft: 26 }}
+                            value={formData.regularPrice}
+                            onChange={(e) =>
+                              setFormData({
+                                ...formData,
+                                regularPrice: e.target.value,
+                              })
+                            }
+                          />
+                        </div>
+                      </Field>
+                      <Field
+                        label="Compare Price"
+                        hint="Strike-through price shown to buyers"
+                      >
+                        <div style={{ position: "relative" }}>
+                          <span
+                            style={{
+                              position: "absolute",
+                              left: 12,
+                              top: "50%",
+                              transform: "translateY(-50%)",
+                              color: "#94a3b8",
+                              fontSize: 13,
+                              fontWeight: 500,
+                            }}
+                          >
+                            $
+                          </span>
+                          <input
+                            className="pm-input pm-mono"
+                            type="number"
+                            step="0.01"
+                            placeholder="0.00"
+                            style={{ paddingLeft: 26 }}
+                            value={formData.discountPrice}
+                            onChange={(e) =>
+                              setFormData({
+                                ...formData,
+                                discountPrice: e.target.value,
+                              })
+                            }
+                          />
+                        </div>
+                      </Field>
+                    </div>
+                    <Field label="Initial Stock Quantity">
+                      <input
+                        className="pm-input pm-mono"
+                        type="number"
+                        placeholder="0"
+                        value={formData.initialStock}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            initialStock: e.target.value,
+                          })
+                        }
+                      />
+                    </Field>
+                  </FormSection>
+
+                  {/* ── Product Images ── */}
+                  <FormSection icon={FaImage} title="Product Images">
+                    {/* Upload zone */}
+                    <div
+                      className={`pm-upload-zone${imgDragOver ? " drag-over" : ""}`}
+                      style={{ marginBottom: 16 }}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        setImgDragOver(true);
+                      }}
+                      onDragLeave={() => setImgDragOver(false)}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        setImgDragOver(false);
+                        handleProductImages(e.dataTransfer.files);
+                      }}
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <FaCloudUploadAlt
+                        size={24}
+                        style={{ color: "#94a3b8", marginBottom: 8 }}
+                      />
+                      <p
+                        style={{
+                          fontFamily: "Inter,sans-serif",
+                          fontSize: 13,
+                          fontWeight: 500,
+                          color: "#64748b",
+                          margin: "0 0 3px",
+                        }}
+                      >
+                        Drop images here or{" "}
+                        <span style={{ color: "#6366f1", fontWeight: 600 }}>
+                          browse
+                        </span>
+                      </p>
+                      <p
+                        style={{
+                          fontFamily: "Inter,sans-serif",
+                          fontSize: 11,
+                          color: "#94a3b8",
+                          margin: 0,
+                        }}
+                      >
+                        PNG, JPG up to 10MB
+                      </p>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        hidden
+                        onChange={(e) => {
+                          handleProductImages(e.target.files);
+                          e.target.value = "";
+                        }}
+                      />
+                    </div>
+
+                    {/* Thumbnails */}
+                    {productImages.length > 0 && (
+                      <div
+                        style={{ display: "flex", flexWrap: "wrap", gap: 10 }}
+                      >
+                        {productImages.map((img, idx) => (
+                          <div
+                            key={`${img.id || "n"}-${idx}`}
+                            className={`pm-img-thumb${img.isPrimary ? " primary-img" : ""}`}
+                          >
+                            <img
+                              src={img.imagePreview || img.imageUrl || ""}
+                              alt="Product"
+                            />
+                            <div className="pm-img-thumb-actions">
+                              {!img.isPrimary && (
+                                <button
+                                  onClick={() => setPrimaryProductImage(idx)}
+                                  style={{
+                                    background: "rgba(99,102,241,.9)",
+                                    border: "none",
+                                    borderRadius: 5,
+                                    color: "#fff",
+                                    fontSize: 9,
+                                    fontWeight: 700,
+                                    letterSpacing: ".08em",
+                                    padding: "4px 8px",
+                                    cursor: "pointer",
+                                  }}
+                                >
+                                  Set Primary
+                                </button>
+                              )}
+                              {img.isPrimary && (
+                                <span
+                                  style={{
+                                    background: "rgba(16,185,129,.9)",
+                                    borderRadius: 5,
+                                    color: "#fff",
+                                    fontSize: 9,
+                                    fontWeight: 700,
+                                    letterSpacing: ".08em",
+                                    padding: "4px 8px",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 4,
+                                  }}
+                                >
+                                  <FaStar size={8} /> Primary
+                                </span>
+                              )}
+                              {img.imageFile && (
+                                <button
+                                  onClick={() => removeProductImage(idx)}
+                                  style={{
+                                    background: "rgba(239,68,68,.85)",
+                                    border: "none",
+                                    borderRadius: 5,
+                                    color: "#fff",
+                                    fontSize: 9,
+                                    fontWeight: 700,
+                                    letterSpacing: ".08em",
+                                    padding: "4px 8px",
+                                    cursor: "pointer",
+                                  }}
+                                >
+                                  Remove
+                                </button>
+                              )}
+                            </div>
+                            {img.isPrimary && (
+                              <div
+                                style={{
+                                  position: "absolute",
+                                  top: 4,
+                                  right: 4,
+                                  width: 16,
+                                  height: 16,
+                                  borderRadius: "50%",
+                                  background: "#6366f1",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                }}
+                              >
+                                <FaStar size={8} style={{ color: "#fff" }} />
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </FormSection>
+                </div>
+              </div>
+
+              {/* ── Color Variants ── */}
+              <FormSection icon={FaPalette} title="Color Variants">
+                {colors.length === 0 && (
+                  <div
+                    style={{
+                      textAlign: "center",
+                      padding: "20px 0",
+                      color: "#94a3b8",
+                      fontFamily: "Inter,sans-serif",
+                      fontSize: 13,
+                    }}
+                  >
+                    No color variants added yet. Click below to add one.
+                  </div>
+                )}
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns:
+                      "repeat(auto-fill, minmax(200px, 1fr))",
+                    gap: 12,
+                    marginBottom: 14,
+                  }}
+                >
+                  {colors.map((c, idx) => (
+                    <div key={idx} className="pm-color-card">
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "flex-end",
+                          marginBottom: 8,
+                        }}
+                      >
+                        <button
+                          onClick={() => removeColorVariant(idx)}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            cursor: "pointer",
+                            color: "#94a3b8",
+                            display: "flex",
+                            alignItems: "center",
+                            transition: "color .15s",
+                          }}
+                          onMouseEnter={(e) =>
+                            (e.currentTarget.style.color = "#ef4444")
+                          }
+                          onMouseLeave={(e) =>
+                            (e.currentTarget.style.color = "#94a3b8")
+                          }
+                        >
+                          <FaTimes size={12} />
+                        </button>
+                      </div>
+                      <Field label="Color Name">
+                        <input
+                          className="pm-input"
+                          type="text"
+                          placeholder="e.g. Midnight Black"
+                          value={c.colorName}
+                          onChange={(e) => updateColorName(idx, e.target.value)}
+                        />
+                      </Field>
+                      {c.imagePreview ? (
+                        <div
+                          style={{
+                            position: "relative",
+                            border: "1px solid rgba(0,0,0,.07)",
+                            borderRadius: 8,
+                            overflow: "hidden",
+                            height: 80,
+                            background: "#f7f6f3",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
+                          <img
+                            src={c.imagePreview}
+                            alt={c.colorName}
+                            style={{
+                              maxHeight: "100%",
+                              maxWidth: "100%",
+                              objectFit: "contain",
+                              padding: 8,
+                            }}
+                          />
+                          <button
+                            onClick={() => {
+                              const u = [...colors];
+                              u[idx].imagePreview = null;
+                              u[idx].imageFile = null;
+                              setColors(u);
+                            }}
+                            style={{
+                              position: "absolute",
+                              top: 4,
+                              right: 4,
+                              width: 22,
+                              height: 22,
+                              borderRadius: "50%",
+                              background: "rgba(239,68,68,.85)",
+                              border: "none",
+                              color: "#fff",
+                              cursor: "pointer",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                            }}
+                          >
+                            <FaTimes size={9} />
+                          </button>
+                        </div>
+                      ) : (
+                        <label
+                          style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            height: 80,
+                            border: "2px dashed rgba(0,0,0,.1)",
+                            borderRadius: 8,
+                            cursor: "pointer",
+                            gap: 6,
+                            transition: "all .18s",
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.borderColor = "#6366f1";
+                            e.currentTarget.style.background =
+                              "rgba(99,102,241,.03)";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.borderColor =
+                              "rgba(0,0,0,.1)";
+                            e.currentTarget.style.background = "none";
+                          }}
+                        >
+                          <FaImage size={16} style={{ color: "#94a3b8" }} />
+                          <span
+                            style={{
+                              fontFamily: "Inter,sans-serif",
+                              fontSize: 10,
+                              fontWeight: 500,
+                              color: "#94a3b8",
+                            }}
+                          >
+                            Upload image
+                          </span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            hidden
+                            onChange={(e) =>
+                              e.target.files?.[0] &&
+                              handleColorImage(idx, e.target.files[0])
+                            }
+                          />
+                        </label>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <button
+                  className="pm-btn pm-btn-outline pm-btn-sm"
+                  onClick={addColorVariant}
+                >
+                  <FaPlus size={9} /> Add Color Variant
+                </button>
+              </FormSection>
+
+              {/* ── Size Variants ── */}
+              {selectedCategoryId && (
+                <FormSection icon={FaRuler} title="Size Variants">
+                  {/* Column headers */}
+                  {sizes.length > 0 && (
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns:
+                          categoryType === "footwear"
+                            ? "1fr 1fr 80px auto 36px"
+                            : "1fr 1fr 1fr 1fr 80px auto 36px",
+                        gap: 8,
+                        marginBottom: 4,
+                      }}
+                    >
+                      {[
+                        "Color",
+                        "Size",
+                        ...(categoryType === "footwear"
+                          ? []
+                          : categoryType === "pants"
+                            ? ["Waist", "Length"]
+                            : ["Chest", "Length"]),
+                        "Stock",
+                        "Status",
+                        "",
+                      ].map((h, i) => (
+                        <div
+                          key={i}
+                          style={{
+                            fontFamily: "Inter,sans-serif",
+                            fontSize: 9,
+                            fontWeight: 700,
+                            letterSpacing: ".14em",
+                            textTransform: "uppercase",
+                            color: "#94a3b8",
+                            padding: "0 0 8px",
+                          }}
+                        >
+                          {h}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {sizes.length === 0 && (
+                    <div
+                      style={{
+                        textAlign: "center",
+                        padding: "20px 0",
+                        color: "#94a3b8",
+                        fontFamily: "Inter,sans-serif",
+                        fontSize: 13,
+                      }}
+                    >
+                      No sizes added. Click below to add a size variant.
+                    </div>
+                  )}
+                  {renderSizeRows()}
+                  <div style={{ marginTop: 14 }}>
+                    <button
+                      className="pm-btn pm-btn-outline pm-btn-sm"
+                      onClick={addSizeVariant}
+                    >
+                      <FaPlus size={9} /> Add Size
+                    </button>
+                  </div>
+                </FormSection>
+              )}
+
+              <div style={{ height: 8 }} />
+            </div>
+
+            {/* Modal footer */}
+            <div className="pm-modal-foot">
+              <p
+                style={{
+                  fontFamily: "Inter,sans-serif",
+                  fontSize: 12,
+                  color: "#94a3b8",
+                  flex: 1,
+                  margin: 0,
+                }}
+              >
+                {editingProduct
+                  ? `Editing: ${editingProduct.name}`
+                  : "All fields marked with * are required."}
+              </p>
+              <button
+                className="pm-btn pm-btn-ghost"
+                onClick={() => setShowModal(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="pm-btn pm-btn-primary"
+                onClick={handleSaveProduct}
+                disabled={modalLoading}
+              >
+                {modalLoading ? (
+                  <>
+                    <span
+                      style={{
+                        width: 14,
+                        height: 14,
+                        border: "2px solid rgba(255,255,255,.35)",
+                        borderTopColor: "#fff",
+                        borderRadius: "50%",
+                        animation: "pmShimmer .7s linear infinite",
+                        display: "inline-block",
+                      }}
+                    />
+                    &nbsp;Saving…
+                  </>
+                ) : (
+                  <>
+                    <FaCheck size={10} />{" "}
+                    {editingProduct ? "Update Product" : "Publish Product"}
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
 }

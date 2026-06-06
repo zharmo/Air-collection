@@ -6,6 +6,9 @@ const {
   deleteCategory,
 } = require('../models/Category');
 const { sendSuccess, sendError } = require('../utils/responseHandler');
+const { uploadImageToCloudinary } = require('../services/cloudinaryService');
+
+const CATEGORY_IMAGE_FOLDER = process.env.CLOUDINARY_CATEGORY_FOLDER || 'air-collection/categories';
 
 // @desc    Get all categories
 // @route   GET /api/categories
@@ -42,7 +45,14 @@ const createCategoryHandler = async (req, res) => {
     if (!name || !slug) {
       return sendError(res, 'Name and slug are required', 400);
     }
-    const newCategory = await createCategory(name, slug, description, image, parent_id);
+
+    let categoryImage = image || null;
+    if (req.file) {
+      const upload = await uploadImageToCloudinary(req.file, CATEGORY_IMAGE_FOLDER);
+      categoryImage = upload.secureUrl;
+    }
+
+    const newCategory = await createCategory(name, slug, description, categoryImage, parent_id || null);
     sendSuccess(res, newCategory, 'Category created', 201);
   } catch (error) {
     console.error(error);
@@ -62,10 +72,20 @@ const updateCategoryHandler = async (req, res) => {
       return sendError(res, 'Category not found', 404);
     }
     const { name, slug, description, image, parent_id, is_active } = req.body;
-    const updated = await updateCategory(req.params.id, { name, slug, description, image, parent_id, is_active });
+
+    let categoryImage = image;
+    if (req.file) {
+      const upload = await uploadImageToCloudinary(req.file, CATEGORY_IMAGE_FOLDER);
+      categoryImage = upload.secureUrl;
+    }
+
+    const updated = await updateCategory(req.params.id, { name, slug, description, image: categoryImage, parent_id, is_active });
     sendSuccess(res, updated, 'Category updated');
   } catch (error) {
     console.error(error);
+    if (error.code === '23505') {
+      return sendError(res, 'Category name or slug already exists', 400);
+    }
     sendError(res, 'Server error', 500);
   }
 };
