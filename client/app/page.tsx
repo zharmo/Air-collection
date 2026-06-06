@@ -62,8 +62,14 @@ export default function HomePage() {
         }
     };
 
+    // FIXED: Convert price to number to ensure it appears in cart
     const handleAddToCart = (product: Product) => {
-        addToCart(product.id, 1);
+        const imageUrl = getPrimaryImage(product);
+        addToCart(product.id, 1, {
+            name: product.name,
+            price: Number(product.price),   // ensure numeric value
+            image: imageUrl,
+        });
     };
 
     const getPrimaryImage = (product: Product) => {
