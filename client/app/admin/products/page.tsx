@@ -1,617 +1,664 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { FaSearch, FaPlus, FaEdit, FaTrash, FaTimes, FaCloudUploadAlt } from 'react-icons/fa';
+import { useState, useEffect, useRef } from 'react';
+import {
+    FaSearch, FaPlus, FaEdit, FaTrash, FaTimes, FaCloudUploadAlt,
+    FaBoxOpen, FaChevronDown, FaStar, FaCheck, FaExclamationTriangle,
+    FaImage, FaPalette, FaRuler, FaTag, FaLayerGroup
+} from 'react-icons/fa';
 import axiosInstance from '@/utils/axiosConfig';
 
-interface Category {
-    id: number;
-    name: string;
-    slug: string;
-}
-
-interface ColorVariant {
-    id?: number;
-    colorName: string;
-    imageFile: File | null;
-    imagePreview: string | null;
-    imageUrl?: string;
-}
-
-interface SizeVariant {
-    id?: number;
-    colorName: string;
-    sizeName: string;
-    sizeType: string;
-    measurements: any;
-    stock: number;
-    isAvailable: boolean;
-}
-
-interface ProductImageUpload {
-    id?: number;
-    imageFile: File | null;
-    imagePreview: string | null;
-    imageUrl?: string;
-    isPrimary: boolean;
-}
-
+/* ── Types (unchanged) ── */
+interface Category { id: number; name: string; slug: string; }
+interface ColorVariant { id?: number; colorName: string; imageFile: File | null; imagePreview: string | null; imageUrl?: string; }
+interface SizeVariant  { id?: number; colorName: string; sizeName: string; sizeType: string; measurements: any; stock: number; isAvailable: boolean; }
+interface ProductImageUpload { id?: number; imageFile: File | null; imagePreview: string | null; imageUrl?: string; isPrimary: boolean; }
 interface Product {
-    id: number;
-    name: string;
-    sku: string;
-    price: number;
-    compare_price?: number;
-    stock_quantity: number;
-    category_name: string;
-    category_id: number;
+    id: number; name: string; sku: string; price: number; compare_price?: number;
+    stock_quantity: number; category_name: string; category_id: number;
     images: { id?: number; image_url: string; is_primary: boolean }[];
-    colors?: ColorVariant[];
-    sizes?: SizeVariant[];
-    is_active: boolean;
+    colors?: ColorVariant[]; sizes?: SizeVariant[]; is_active: boolean;
+}
+
+/* ── Skeleton block ── */
+function Skel({ w = '100%', h = 14, r = 6 }: { w?: string | number; h?: number; r?: number }) {
+    return <div style={{ width: w, height: h, borderRadius: r, background: 'linear-gradient(90deg,#f1f5f9 25%,#e8edf5 50%,#f1f5f9 75%)', backgroundSize: '200% 100%', animation: 'pmShimmer 1.4s infinite' }} />;
+}
+
+/* ── Stock badge ── */
+function StockBadge({ qty }: { qty: number }) {
+    if (qty === 0) return <span style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'3px 10px', borderRadius:20, background:'rgba(239,68,68,.1)', color:'#dc2626', fontSize:11, fontWeight:700, letterSpacing:'.06em' }}><span style={{ width:6, height:6, borderRadius:'50%', background:'#ef4444', display:'inline-block' }} />Out of Stock</span>;
+    if (qty <= 5) return <span style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'3px 10px', borderRadius:20, background:'rgba(245,158,11,.1)', color:'#d97706', fontSize:11, fontWeight:700, letterSpacing:'.06em' }}><span style={{ width:6, height:6, borderRadius:'50%', background:'#f59e0b', display:'inline-block' }} />{qty} Low Stock</span>;
+    return <span style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'3px 10px', borderRadius:20, background:'rgba(16,185,129,.1)', color:'#059669', fontSize:11, fontWeight:700, letterSpacing:'.06em' }}><span style={{ width:6, height:6, borderRadius:'50%', background:'#10b981', display:'inline-block' }} />{qty} In Stock</span>;
+}
+
+/* ── Form field ── */
+function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+    return (
+        <div style={{ marginBottom: 20 }}>
+            <label style={{ display:'block', fontFamily:'Inter,sans-serif', fontSize:11, fontWeight:600, letterSpacing:'.12em', textTransform:'uppercase', color:'#64748b', marginBottom:6 }}>{label}</label>
+            {children}
+            {hint && <p style={{ fontFamily:'Inter,sans-serif', fontSize:11, color:'#94a3b8', marginTop:5, margin:'5px 0 0' }}>{hint}</p>}
+        </div>
+    );
+}
+
+/* ── Section card ── */
+function FormSection({ icon: Icon, title, children }: { icon: any; title: string; children: React.ReactNode }) {
+    return (
+        <div style={{ background:'#fff', border:'1px solid rgba(0,0,0,.07)', borderRadius:12, padding:'24px 28px', marginBottom:16 }}>
+            <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:22, paddingBottom:16, borderBottom:'1px solid rgba(0,0,0,.06)' }}>
+                <div style={{ width:32, height:32, borderRadius:8, background:'rgba(99,102,241,.1)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                    <Icon size={14} style={{ color:'#6366f1' }} />
+                </div>
+                <span style={{ fontFamily:'Inter,sans-serif', fontSize:13, fontWeight:600, color:'#0f172a', letterSpacing:'-.01em' }}>{title}</span>
+            </div>
+            {children}
+        </div>
+    );
 }
 
 export default function ProductsManagement() {
-    const [products, setProducts] = useState<Product[]>([]);
-    const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [filterType, setFilterType] = useState<'all' | 'instock' | 'outofstock'>('all');
-    const [selectedCategory, setSelectedCategory] = useState<string>('all');
-    const [categories, setCategories] = useState<Category[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [showCount, setShowCount] = useState(4);
-
-    const [showModal, setShowModal] = useState(false);
-    const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-    const [modalLoading, setModalLoading] = useState(false);
-
-    const [formData, setFormData] = useState({
-        name: '',
-        categoryId: '',
-        description: '',
-        regularPrice: '',
-        discountPrice: '',
-        initialStock: '',
-    });
-    const [colors, setColors] = useState<ColorVariant[]>([]);
-    const [productImages, setProductImages] = useState<ProductImageUpload[]>([]);
-    const [sizes, setSizes] = useState<SizeVariant[]>([]);
+    /* ── All state (unchanged) ── */
+    const [products, setProducts]                   = useState<Product[]>([]);
+    const [filteredProducts, setFilteredProducts]   = useState<Product[]>([]);
+    const [searchTerm, setSearchTerm]               = useState('');
+    const [filterType, setFilterType]               = useState<'all'|'instock'|'outofstock'>('all');
+    const [selectedCategory, setSelectedCategory]   = useState<string>('all');
+    const [categories, setCategories]               = useState<Category[]>([]);
+    const [loading, setLoading]                     = useState(true);
+    const [showCount, setShowCount]                 = useState(4);
+    const [showModal, setShowModal]                 = useState(false);
+    const [editingProduct, setEditingProduct]       = useState<Product | null>(null);
+    const [modalLoading, setModalLoading]           = useState(false);
+    const [formData, setFormData]                   = useState({ name:'', categoryId:'', description:'', regularPrice:'', discountPrice:'', initialStock:'' });
+    const [colors, setColors]                       = useState<ColorVariant[]>([]);
+    const [productImages, setProductImages]         = useState<ProductImageUpload[]>([]);
+    const [sizes, setSizes]                         = useState<SizeVariant[]>([]);
     const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
-    const [categoryType, setCategoryType] = useState<string>('');
+    const [categoryType, setCategoryType]           = useState<string>('');
+    const [showCatMenu, setShowCatMenu]             = useState(false);
+    const [imgDragOver, setImgDragOver]             = useState(false);
+    const catMenuRef = useRef<HTMLDivElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000';
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api','') || 'http://localhost:5000';
 
+    useEffect(() => { fetchProducts(); fetchCategories(); }, []);
+    useEffect(() => { filterProducts(); }, [searchTerm, filterType, selectedCategory, products]);
     useEffect(() => {
-        fetchProducts();
-        fetchCategories();
+        const h = (e: MouseEvent) => { if (catMenuRef.current && !catMenuRef.current.contains(e.target as Node)) setShowCatMenu(false); };
+        document.addEventListener('mousedown', h);
+        return () => document.removeEventListener('mousedown', h);
     }, []);
+    useEffect(() => { document.body.style.overflow = showModal ? 'hidden' : ''; return () => { document.body.style.overflow = ''; }; }, [showModal]);
 
-    useEffect(() => {
-        filterProducts();
-    }, [searchTerm, filterType, selectedCategory, products]);
-
-    const fetchProducts = async () => {
-        try {
-            const res = await axiosInstance.get('/products');
-            setProducts(res.data.data);
-        } catch (error) {
-            console.error(error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const fetchCategories = async () => {
-        try {
-            const res = await axiosInstance.get('/categories');
-            setCategories(res.data.data);
-        } catch (error) {
-            console.error(error);
-        }
-    };
-
+    /* ── All handlers (logic unchanged) ── */
+    const fetchProducts = async () => { try { const r = await axiosInstance.get('/products'); setProducts(r.data.data); } catch(e){console.error(e);} finally{setLoading(false);} };
+    const fetchCategories = async () => { try { const r = await axiosInstance.get('/categories'); setCategories(r.data.data); } catch(e){console.error(e);} };
     const filterProducts = () => {
-        let filtered = [...products];
-        if (searchTerm) {
-            filtered = filtered.filter(p =>
-                p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                (p.sku && p.sku.toLowerCase().includes(searchTerm.toLowerCase()))
-            );
-        }
-        if (filterType === 'instock') {
-            filtered = filtered.filter(p => p.stock_quantity > 0);
-        } else if (filterType === 'outofstock') {
-            filtered = filtered.filter(p => p.stock_quantity === 0);
-        }
-        if (selectedCategory !== 'all') {
-            filtered = filtered.filter(p => p.category_name === selectedCategory);
-        }
-        setFilteredProducts(filtered);
-        setShowCount(4);
+        let f = [...products];
+        if (searchTerm) f = f.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()) || (p.sku&&p.sku.toLowerCase().includes(searchTerm.toLowerCase())));
+        if (filterType==='instock')    f = f.filter(p => p.stock_quantity > 0);
+        if (filterType==='outofstock') f = f.filter(p => p.stock_quantity === 0);
+        if (selectedCategory!=='all')  f = f.filter(p => p.category_name === selectedCategory);
+        setFilteredProducts(f); setShowCount(4);
     };
-
-    const getPrimaryImage = (product: Product) => {
-        const primary = product.images?.find(img => img.is_primary);
-        const imagePath = primary?.image_url || product.images?.[0]?.image_url;
-        if (!imagePath) return '/images/placeholders/placeholder.jpg';
-        if (imagePath.startsWith('/uploads')) return `${backendUrl}${imagePath}`;
-        return imagePath;
-    };
-
-    const getFullImageUrl = (url: string) => {
-        if (!url) return '/images/placeholders/placeholder.jpg';
-        if (url.startsWith('/uploads')) return `${backendUrl}${url}`;
-        return url;
-    };
-
-    const handleDelete = async (id: number) => {
-        if (confirm('Delete this product?')) {
-            await axiosInstance.delete(`/products/${id}`);
-            fetchProducts();
-        }
-    };
-
-    const loadMore = () => setShowCount(prev => prev + 4);
+    const getPrimaryImage = (p: Product) => { const img = p.images?.find(i=>i.is_primary); const path = img?.image_url || p.images?.[0]?.image_url; if(!path) return '/images/placeholders/placeholder.jpg'; return path.startsWith('/uploads') ? `${backendUrl}${path}` : path; };
+    const getFullImageUrl = (url: string) => { if(!url) return '/images/placeholders/placeholder.jpg'; return url.startsWith('/uploads') ? `${backendUrl}${url}` : url; };
+    const handleDelete = async (id: number) => { if(confirm('Delete this product?')){ await axiosInstance.delete(`/products/${id}`); fetchProducts(); } };
+    const loadMore = () => setShowCount(p => p+4);
     const displayedProducts = filteredProducts.slice(0, showCount);
     const totalProducts = filteredProducts.length;
-
-    const getCategoryType = (catId: string): string => {
-        const cat = categories.find(c => c.id.toString() === catId);
-        if (!cat) return 'upper';
-        const name = cat.name.toLowerCase();
-        if (name.includes('baggy') || name.includes('formal') || name.includes('pant')) return 'pants';
-        if (name.includes('footwear') || name.includes('sandal') || name.includes('clog')) return 'footwear';
-        return 'upper';
-    };
-
-    const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        const catId = e.target.value;
-        setSelectedCategoryId(catId);
-        setFormData({ ...formData, categoryId: catId });
-        setCategoryType(getCategoryType(catId));
-    };
-
-    const addColorVariant = () => {
-        setColors([...colors, { colorName: '', imageFile: null, imagePreview: null }]);
-    };
-    const removeColorVariant = (idx: number) => {
-        setColors(colors.filter((_, i) => i !== idx));
-    };
-    const updateColorName = (idx: number, name: string) => {
-        const updated = [...colors];
-        updated[idx].colorName = name;
-        setColors(updated);
-    };
-    const handleColorImage = (idx: number, file: File) => {
-        const updated = [...colors];
-        updated[idx].imageFile = file;
-        updated[idx].imagePreview = URL.createObjectURL(file);
-        setColors(updated);
-    };
-
-    const handleProductImages = (files: FileList | null) => {
-        if (!files?.length) return;
-        const hasPrimary = productImages.some(image => image.isPrimary);
-        const uploads = Array.from(files).map((file, idx) => ({
-            imageFile: file,
-            imagePreview: URL.createObjectURL(file),
-            isPrimary: !hasPrimary && productImages.length === 0 && idx === 0,
-        }));
-        setProductImages([...productImages, ...uploads]);
-    };
-
-    const removeProductImage = (idx: number) => {
-        const updated = productImages.filter((_, i) => i !== idx);
-        if (productImages[idx]?.isPrimary && updated.length > 0) {
-            updated[0] = { ...updated[0], isPrimary: true };
-        }
-        setProductImages(updated);
-    };
-
-    const setPrimaryProductImage = (idx: number) => {
-        setProductImages(productImages.map((image, i) => ({ ...image, isPrimary: i === idx })));
-    };
-
-    const addSizeVariant = () => {
-        const newSize: SizeVariant = {
-            colorName: '',
-            sizeName: '',
-            sizeType: categoryType,
-            measurements: {},
-            stock: 0,
-            isAvailable: true,
-        };
-        if (categoryType === 'pants') {
-            newSize.measurements = { waist: '', length: '' };
-        } else if (categoryType === 'footwear') {
-            newSize.measurements = {};
-        } else {
-            newSize.measurements = { chest: '', length: '' };
-        }
-        setSizes([...sizes, newSize]);
-    };
-    const removeSizeVariant = (idx: number) => {
-        setSizes(sizes.filter((_, i) => i !== idx));
-    };
-    const updateSizeField = (idx: number, field: string, value: any) => {
-        const updated = [...sizes];
-        if (field === 'colorName') updated[idx].colorName = value;
-        else if (field === 'sizeName') updated[idx].sizeName = value;
-        else if (field === 'stock') updated[idx].stock = parseInt(value) || 0;
-        else if (field === 'isAvailable') updated[idx].isAvailable = value;
-        else if (field.startsWith('measurements.')) {
-            const key = field.split('.')[1];
-            updated[idx].measurements = { ...updated[idx].measurements, [key]: value };
-        }
-        setSizes(updated);
-    };
-
-    const uploadProductImage = async (productId: number, file: File, options: { colorName?: string; isPrimary?: boolean } = {}): Promise<string> => {
-        const fd = new FormData();
-        fd.append('image', file);
-        if (options.colorName) fd.append('color', options.colorName);
-        fd.append('is_primary', options.isPrimary ? 'true' : 'false');
-        const res = await axiosInstance.post(`/products/${productId}/images`, fd, {
-            headers: { 'Content-Type': 'multipart/form-data' }
-        });
-        return res.data.data.image_url;
-    };
-
+    const getCategoryType = (catId: string) => { const cat = categories.find(c=>c.id.toString()===catId); if(!cat) return 'upper'; const n = cat.name.toLowerCase(); if(n.includes('baggy')||n.includes('formal')||n.includes('pant')) return 'pants'; if(n.includes('footwear')||n.includes('sandal')||n.includes('clog')) return 'footwear'; return 'upper'; };
+    const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => { const v=e.target.value; setSelectedCategoryId(v); setFormData({...formData, categoryId:v}); setCategoryType(getCategoryType(v)); };
+    const addColorVariant    = () => setColors([...colors,{colorName:'',imageFile:null,imagePreview:null}]);
+    const removeColorVariant = (i: number) => setColors(colors.filter((_,j)=>j!==i));
+    const updateColorName    = (i: number, n: string) => { const u=[...colors]; u[i].colorName=n; setColors(u); };
+    const handleColorImage   = (i: number, f: File) => { const u=[...colors]; u[i].imageFile=f; u[i].imagePreview=URL.createObjectURL(f); setColors(u); };
+    const handleProductImages = (files: FileList|null) => { if(!files?.length) return; const hasPrimary=productImages.some(img=>img.isPrimary); const uploads=Array.from(files).map((f,i)=>({imageFile:f,imagePreview:URL.createObjectURL(f),isPrimary:!hasPrimary&&productImages.length===0&&i===0})); setProductImages([...productImages,...uploads]); };
+    const removeProductImage = (i: number) => { const u=productImages.filter((_,j)=>j!==i); if(productImages[i]?.isPrimary&&u.length>0) u[0]={...u[0],isPrimary:true}; setProductImages(u); };
+    const setPrimaryProductImage = (i: number) => setProductImages(productImages.map((img,j)=>({...img,isPrimary:j===i})));
+    const addSizeVariant = () => { const s:SizeVariant={colorName:'',sizeName:'',sizeType:categoryType,measurements:{},stock:0,isAvailable:true}; if(categoryType==='pants')s.measurements={waist:'',length:''}; else if(categoryType!=='footwear')s.measurements={chest:'',length:''}; setSizes([...sizes,s]); };
+    const removeSizeVariant = (i: number) => setSizes(sizes.filter((_,j)=>j!==i));
+    const updateSizeField = (i: number, field: string, value: any) => { const u=[...sizes]; if(field==='colorName')u[i].colorName=value; else if(field==='sizeName')u[i].sizeName=value; else if(field==='stock')u[i].stock=parseInt(value)||0; else if(field==='isAvailable')u[i].isAvailable=value; else if(field.startsWith('measurements.')){const k=field.split('.')[1];u[i].measurements={...u[i].measurements,[k]:value};} setSizes(u); };
+    const uploadProductImage = async (productId: number, file: File, opts:{colorName?:string;isPrimary?:boolean}={}) => { const fd=new FormData(); fd.append('image',file); if(opts.colorName)fd.append('color',opts.colorName); fd.append('is_primary',opts.isPrimary?'true':'false'); const r=await axiosInstance.post(`/products/${productId}/images`,fd,{headers:{'Content-Type':'multipart/form-data'}}); return r.data.data.image_url; };
     const handleSaveProduct = async () => {
         setModalLoading(true);
         try {
             let productId: number;
-            const productPayload = {
-                name: formData.name,
-                slug: formData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-                description: formData.description,
-                price: parseFloat(formData.regularPrice),
-                compare_price: formData.discountPrice ? parseFloat(formData.discountPrice) : null,
-                stock_quantity: parseInt(formData.initialStock) || 0,
-                category_id: parseInt(formData.categoryId),
-                is_featured: false,
-            };
-            if (editingProduct) {
-                await axiosInstance.put(`/products/${editingProduct.id}`, productPayload);
-                productId = editingProduct.id;
-            } else {
-                const res = await axiosInstance.post('/products', productPayload);
-                productId = res.data.data.id;
-            }
-
-            const primaryExistingImage = productImages.find(image => image.id && image.isPrimary);
-            if (primaryExistingImage?.id) {
-                await axiosInstance.put(`/products/${productId}/images/${primaryExistingImage.id}/primary`);
-            }
-
-            for (const image of productImages) {
-                if (image.imageFile) {
-                    await uploadProductImage(productId, image.imageFile, { isPrimary: image.isPrimary });
-                }
-            }
-
-            const colorPayload = [];
-            for (const color of colors) {
-                let imageUrl = color.imageUrl;
-                if (color.imageFile) {
-                    imageUrl = await uploadProductImage(productId, color.imageFile, { colorName: color.colorName });
-                }
-                if (color.colorName && imageUrl) {
-                    colorPayload.push({ colorName: color.colorName, imageUrl });
-                }
-            }
-
-            const sizesPayload = sizes.map(s => ({
-                colorName: s.colorName || '',
-                sizeName: s.sizeName,
-                sizeType: categoryType,
-                measurements: s.measurements,
-                stock: s.stock,
-                isAvailable: s.isAvailable,
-            }));
-
-            const fullPayload = { ...productPayload, colors: colorPayload, sizes: sizesPayload };
-            await axiosInstance.put(`/products/${productId}/full`, fullPayload);
-
-            await fetchProducts();
-            setShowModal(false);
-            resetForm();
-        } catch (error) {
-            console.error(error);
-            const message = (error as any)?.response?.data?.message || (error as Error)?.message || 'Failed to save product';
-            alert(message);
-        } finally {
-            setModalLoading(false);
-        }
+            const payload={name:formData.name,slug:formData.name.toLowerCase().replace(/[^a-z0-9]+/g,'-'),description:formData.description,price:parseFloat(formData.regularPrice),compare_price:formData.discountPrice?parseFloat(formData.discountPrice):null,stock_quantity:parseInt(formData.initialStock)||0,category_id:parseInt(formData.categoryId),is_featured:false};
+            if(editingProduct){ await axiosInstance.put(`/products/${editingProduct.id}`,payload); productId=editingProduct.id; }
+            else { const r=await axiosInstance.post('/products',payload); productId=r.data.data.id; }
+            const primaryExisting=productImages.find(img=>img.id&&img.isPrimary);
+            if(primaryExisting?.id) await axiosInstance.put(`/products/${productId}/images/${primaryExisting.id}/primary`);
+            for(const img of productImages) if(img.imageFile) await uploadProductImage(productId,img.imageFile,{isPrimary:img.isPrimary});
+            const colorPayload=[];
+            for(const c of colors){ let url=c.imageUrl; if(c.imageFile)url=await uploadProductImage(productId,c.imageFile,{colorName:c.colorName}); if(c.colorName&&url)colorPayload.push({colorName:c.colorName,imageUrl:url}); }
+            const sizesPayload=sizes.map(s=>({colorName:s.colorName||'',sizeName:s.sizeName,sizeType:categoryType,measurements:s.measurements,stock:s.stock,isAvailable:s.isAvailable}));
+            await axiosInstance.put(`/products/${productId}/full`,{...payload,colors:colorPayload,sizes:sizesPayload});
+            await fetchProducts(); setShowModal(false); resetForm();
+        } catch(e){ console.error(e); alert((e as any)?.response?.data?.message||(e as Error)?.message||'Failed to save product'); }
+        finally { setModalLoading(false); }
     };
-
-    const resetForm = () => {
-        setEditingProduct(null);
-        setFormData({ name: '', categoryId: '', description: '', regularPrice: '', discountPrice: '', initialStock: '' });
-        setProductImages([]);
-        setColors([]);
-        setSizes([]);
-        setSelectedCategoryId('');
-        setCategoryType('');
-    };
-
-    const handleEdit = (product: Product) => {
-        setEditingProduct(product);
-        setFormData({
-            name: product.name,
-            categoryId: product.category_id.toString(),
-            description: product.description || '',
-            regularPrice: product.price.toString(),
-            discountPrice: product.compare_price?.toString() || '',
-            initialStock: product.stock_quantity.toString(),
-        });
-        setSelectedCategoryId(product.category_id.toString());
-        setCategoryType(getCategoryType(product.category_id.toString()));
-        setProductImages(product.images?.map((image: any) => ({
-            id: image.id,
-            imageUrl: image.image_url,
-            imagePreview: getFullImageUrl(image.image_url),
-            imageFile: null,
-            isPrimary: image.is_primary,
-        })) || []);
-        setColors(product.colors?.map((c: any) => ({
-            id: c.id,
-            colorName: c.color_name,
-            imageUrl: c.image_url,
-            imagePreview: c.image_url,
-            imageFile: null,
-        })) || []);
-        setSizes(product.sizes?.map((s: any) => ({
-            id: s.id,
-            colorName: (s.color_id ? product.colors?.find((c: any) => c.id === s.color_id)?.color_name : '') || '',
-            sizeName: s.size_name,
-            sizeType: s.size_type,
-            measurements: s.measurements,
-            stock: s.stock,
-            isAvailable: s.is_available,
-        })) || []);
+    const resetForm = () => { setEditingProduct(null); setFormData({name:'',categoryId:'',description:'',regularPrice:'',discountPrice:'',initialStock:''}); setProductImages([]); setColors([]); setSizes([]); setSelectedCategoryId(''); setCategoryType(''); };
+    const handleEdit = (p: Product) => {
+        setEditingProduct(p);
+        setFormData({name:p.name,categoryId:p.category_id.toString(),description:(p as any).description||'',regularPrice:p.price.toString(),discountPrice:p.compare_price?.toString()||'',initialStock:p.stock_quantity.toString()});
+        setSelectedCategoryId(p.category_id.toString()); setCategoryType(getCategoryType(p.category_id.toString()));
+        setProductImages(p.images?.map((img:any)=>({id:img.id,imageUrl:img.image_url,imagePreview:getFullImageUrl(img.image_url),imageFile:null,isPrimary:img.is_primary}))||[]);
+        setColors(p.colors?.map((c:any)=>({id:c.id,colorName:c.color_name,imageUrl:c.image_url,imagePreview:c.image_url,imageFile:null}))||[]);
+        setSizes(p.sizes?.map((s:any)=>({id:s.id,colorName:(s.color_id?p.colors?.find((c:any)=>c.id===s.color_id)?.color_name:'')||'',sizeName:s.size_name,sizeType:s.size_type,measurements:s.measurements,stock:s.stock,isAvailable:s.is_available}))||[]);
         setShowModal(true);
     };
 
+    /* ── Size rows renderer (logic unchanged, UI improved) ── */
     const renderSizeRows = () => {
-        if (categoryType === 'pants') {
-            return sizes.map((size, idx) => (
-                <div key={idx} className="row g-2 mb-2 align-items-center border-bottom pb-2">
-                    <div className="col-2">
-                        <select className="form-select form-select-sm" value={size.colorName} onChange={e => updateSizeField(idx, 'colorName', e.target.value)}>
-                            <option value="">All Colors</option>
-                            {colors.map(c => <option key={c.colorName} value={c.colorName}>{c.colorName}</option>)}
-                        </select>
-                    </div>
-                    <div className="col-2"><input type="text" className="form-control form-control-sm" placeholder="Size (S,M,L,XL)" value={size.sizeName} onChange={e => updateSizeField(idx, 'sizeName', e.target.value)} /></div>
-                    <div className="col-2"><input type="text" className="form-control form-control-sm" placeholder="Waist (in)" value={size.measurements?.waist || ''} onChange={e => updateSizeField(idx, 'measurements.waist', e.target.value)} /></div>
-                    <div className="col-2"><input type="text" className="form-control form-control-sm" placeholder="Length (in)" value={size.measurements?.length || ''} onChange={e => updateSizeField(idx, 'measurements.length', e.target.value)} /></div>
-                    <div className="col-1"><input type="number" className="form-control form-control-sm" placeholder="Stock" value={size.stock} onChange={e => updateSizeField(idx, 'stock', e.target.value)} /></div>
-                    <div className="col-2"><div className="form-check"><input className="form-check-input" type="checkbox" checked={size.isAvailable} onChange={e => updateSizeField(idx, 'isAvailable', e.target.checked)} /><label>Available</label></div></div>
-                    <div className="col-1"><button className="btn btn-sm btn-danger" onClick={() => removeSizeVariant(idx)}><FaTimes /></button></div>
-                </div>
-            ));
-        } else if (categoryType === 'footwear') {
-            return sizes.map((size, idx) => (
-                <div key={idx} className="row g-2 mb-2 align-items-center border-bottom pb-2">
-                    <div className="col-2">
-                        <select className="form-select form-select-sm" value={size.colorName} onChange={e => updateSizeField(idx, 'colorName', e.target.value)}>
-                            <option value="">All Colors</option>
-                            {colors.map(c => <option key={c.colorName} value={c.colorName}>{c.colorName}</option>)}
-                        </select>
-                    </div>
-                    <div className="col-2"><input type="text" className="form-control form-control-sm" placeholder="Size (39,40,41)" value={size.sizeName} onChange={e => updateSizeField(idx, 'sizeName', e.target.value)} /></div>
-                    <div className="col-2"><input type="number" className="form-control form-control-sm" placeholder="Stock" value={size.stock} onChange={e => updateSizeField(idx, 'stock', e.target.value)} /></div>
-                    <div className="col-2"><div className="form-check"><input className="form-check-input" type="checkbox" checked={size.isAvailable} onChange={e => updateSizeField(idx, 'isAvailable', e.target.checked)} /><label>Available</label></div></div>
-                    <div className="col-1"><button className="btn btn-sm btn-danger" onClick={() => removeSizeVariant(idx)}><FaTimes /></button></div>
-                </div>
-            ));
-        } else {
-            return sizes.map((size, idx) => (
-                <div key={idx} className="row g-2 mb-2 align-items-center border-bottom pb-2">
-                    <div className="col-2">
-                        <select className="form-select form-select-sm" value={size.colorName} onChange={e => updateSizeField(idx, 'colorName', e.target.value)}>
-                            <option value="">All Colors</option>
-                            {colors.map(c => <option key={c.colorName} value={c.colorName}>{c.colorName}</option>)}
-                        </select>
-                    </div>
-                    <div className="col-2"><input type="text" className="form-control form-control-sm" placeholder="Size (XS,S,M,L,XL)" value={size.sizeName} onChange={e => updateSizeField(idx, 'sizeName', e.target.value)} /></div>
-                    <div className="col-2"><input type="text" className="form-control form-control-sm" placeholder="Chest (in)" value={size.measurements?.chest || ''} onChange={e => updateSizeField(idx, 'measurements.chest', e.target.value)} /></div>
-                    <div className="col-2"><input type="text" className="form-control form-control-sm" placeholder="Length (in)" value={size.measurements?.length || ''} onChange={e => updateSizeField(idx, 'measurements.length', e.target.value)} /></div>
-                    <div className="col-1"><input type="number" className="form-control form-control-sm" placeholder="Stock" value={size.stock} onChange={e => updateSizeField(idx, 'stock', e.target.value)} /></div>
-                    <div className="col-2"><div className="form-check"><input className="form-check-input" type="checkbox" checked={size.isAvailable} onChange={e => updateSizeField(idx, 'isAvailable', e.target.checked)} /><label>Available</label></div></div>
-                    <div className="col-1"><button className="btn btn-sm btn-danger" onClick={() => removeSizeVariant(idx)}><FaTimes /></button></div>
-                </div>
-            ));
-        }
+        const inputStyle = { width:'100%', height:36, padding:'0 10px', fontFamily:'Inter,sans-serif', fontSize:12, color:'#0f172a', background:'#f8fafc', border:'1px solid rgba(0,0,0,.1)', borderRadius:6, outline:'none' };
+        const selectStyle = { ...inputStyle, cursor:'pointer' };
+        const colorOpts = <><option value="">All Colors</option>{colors.map(c=><option key={c.colorName} value={c.colorName}>{c.colorName}</option>)}</>;
+
+        if (categoryType === 'pants') return sizes.map((s,i) => (
+            <div key={i} style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr 80px auto 36px', gap:8, alignItems:'center', padding:'12px 0', borderBottom:'1px solid rgba(0,0,0,.06)' }}>
+                <select style={selectStyle} value={s.colorName} onChange={e=>updateSizeField(i,'colorName',e.target.value)}>{colorOpts}</select>
+                <input style={inputStyle} placeholder="S / M / L / XL" value={s.sizeName} onChange={e=>updateSizeField(i,'sizeName',e.target.value)} />
+                <input style={inputStyle} placeholder='Waist (")' value={s.measurements?.waist||''} onChange={e=>updateSizeField(i,'measurements.waist',e.target.value)} />
+                <input style={inputStyle} placeholder='Length (")' value={s.measurements?.length||''} onChange={e=>updateSizeField(i,'measurements.length',e.target.value)} />
+                <input style={inputStyle} type="number" placeholder="Qty" value={s.stock} onChange={e=>updateSizeField(i,'stock',e.target.value)} />
+                <label style={{ display:'flex', alignItems:'center', gap:6, cursor:'pointer', fontFamily:'Inter,sans-serif', fontSize:12, color:'#64748b', whiteSpace:'nowrap' }}>
+                    <input type="checkbox" checked={s.isAvailable} onChange={e=>updateSizeField(i,'isAvailable',e.target.checked)} style={{ accentColor:'#6366f1' }} /> Available
+                </label>
+                <button onClick={()=>removeSizeVariant(i)} style={{ width:36, height:36, border:'1px solid rgba(239,68,68,.3)', borderRadius:6, background:'rgba(239,68,68,.06)', color:'#dc2626', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}><FaTimes size={11} /></button>
+            </div>
+        ));
+        if (categoryType === 'footwear') return sizes.map((s,i) => (
+            <div key={i} style={{ display:'grid', gridTemplateColumns:'1fr 1fr 80px auto 36px', gap:8, alignItems:'center', padding:'12px 0', borderBottom:'1px solid rgba(0,0,0,.06)' }}>
+                <select style={selectStyle} value={s.colorName} onChange={e=>updateSizeField(i,'colorName',e.target.value)}>{colorOpts}</select>
+                <input style={inputStyle} placeholder="39 / 40 / 41" value={s.sizeName} onChange={e=>updateSizeField(i,'sizeName',e.target.value)} />
+                <input style={inputStyle} type="number" placeholder="Qty" value={s.stock} onChange={e=>updateSizeField(i,'stock',e.target.value)} />
+                <label style={{ display:'flex', alignItems:'center', gap:6, cursor:'pointer', fontFamily:'Inter,sans-serif', fontSize:12, color:'#64748b', whiteSpace:'nowrap' }}>
+                    <input type="checkbox" checked={s.isAvailable} onChange={e=>updateSizeField(i,'isAvailable',e.target.checked)} style={{ accentColor:'#6366f1' }} /> Available
+                </label>
+                <button onClick={()=>removeSizeVariant(i)} style={{ width:36, height:36, border:'1px solid rgba(239,68,68,.3)', borderRadius:6, background:'rgba(239,68,68,.06)', color:'#dc2626', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}><FaTimes size={11} /></button>
+            </div>
+        ));
+        return sizes.map((s,i) => (
+            <div key={i} style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr 80px auto 36px', gap:8, alignItems:'center', padding:'12px 0', borderBottom:'1px solid rgba(0,0,0,.06)' }}>
+                <select style={selectStyle} value={s.colorName} onChange={e=>updateSizeField(i,'colorName',e.target.value)}>{colorOpts}</select>
+                <input style={inputStyle} placeholder="XS / S / M / L / XL" value={s.sizeName} onChange={e=>updateSizeField(i,'sizeName',e.target.value)} />
+                <input style={inputStyle} placeholder='Chest (")' value={s.measurements?.chest||''} onChange={e=>updateSizeField(i,'measurements.chest',e.target.value)} />
+                <input style={inputStyle} placeholder='Length (")' value={s.measurements?.length||''} onChange={e=>updateSizeField(i,'measurements.length',e.target.value)} />
+                <input style={inputStyle} type="number" placeholder="Qty" value={s.stock} onChange={e=>updateSizeField(i,'stock',e.target.value)} />
+                <label style={{ display:'flex', alignItems:'center', gap:6, cursor:'pointer', fontFamily:'Inter,sans-serif', fontSize:12, color:'#64748b', whiteSpace:'nowrap' }}>
+                    <input type="checkbox" checked={s.isAvailable} onChange={e=>updateSizeField(i,'isAvailable',e.target.checked)} style={{ accentColor:'#6366f1' }} /> Available
+                </label>
+                <button onClick={()=>removeSizeVariant(i)} style={{ width:36, height:36, border:'1px solid rgba(239,68,68,.3)', borderRadius:6, background:'rgba(239,68,68,.06)', color:'#dc2626', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}><FaTimes size={11} /></button>
+            </div>
+        ));
     };
 
-    if (loading) return <div className="text-center py-5"><div className="spinner-border text-dark" /></div>;
+    const inStock    = products.filter(p=>p.stock_quantity>0).length;
+    const outOfStock = products.filter(p=>p.stock_quantity===0).length;
+    const lowStock   = products.filter(p=>p.stock_quantity>0&&p.stock_quantity<=5).length;
 
+    /* ───────── RENDER ───────── */
     return (
-        <div className="position-relative">
-            {/* Header */}
-            <div className="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
-                <h1 className="mb-0" style={{ fontWeight: 'normal' }}>Product Management</h1>
-                <button
-                    className="btn btn-dark rounded-circle d-flex align-items-center justify-content-center shadow"
-                    style={{ width: '48px', height: '48px', position: 'fixed', bottom: '24px', right: '24px', zIndex: 1000 }}
-                    onClick={() => {
-                        setEditingProduct(null);
-                        setShowModal(true);
-                    }}
-                >
-                    <FaPlus size={24} />
-                </button>
-            </div>
+        <>
+            <style>{`
+                @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+                @keyframes pmShimmer { to { background-position: -200% 0; } }
+                @keyframes pmFadeUp  { from { opacity:0; transform:translateY(8px) } to { opacity:1; transform:translateY(0) } }
+                @keyframes pmFadeIn  { from { opacity:0 } to { opacity:1 } }
+                @keyframes pmSlideUp { from { opacity:0; transform:translateY(24px) } to { opacity:1; transform:translateY(0) } }
 
-            {/* Search */}
-            <div className="mb-4">
-                <div className="input-group" style={{ maxWidth: '300px' }}>
-                    <span className="input-group-text bg-white"><FaSearch /></span>
-                    <input
-                        type="text"
-                        className="form-control rounded-0"
-                        placeholder="Search products..."
-                        value={searchTerm}
-                        onChange={e => setSearchTerm(e.target.value)}
-                    />
+                :root {
+                    --pm-ink:     #0f172a;
+                    --pm-soft:    #64748b;
+                    --pm-faint:   #94a3b8;
+                    --pm-border:  rgba(0,0,0,0.07);
+                    --pm-white:   #ffffff;
+                    --pm-bg:      #f8f9fb;
+                    --pm-muted:   #f1f5f9;
+                    --pm-indigo:  #6366f1;
+                    --pm-green:   #10b981;
+                    --pm-red:     #ef4444;
+                    --pm-amber:   #f59e0b;
+                    --pm-shadow:  0 1px 3px rgba(0,0,0,.05), 0 4px 16px rgba(0,0,0,.06);
+                    --pm-shadow-h:0 4px 6px rgba(0,0,0,.04), 0 12px 32px rgba(0,0,0,.1);
+                    --pm-radius:  12px;
+                }
+                .pm-root { font-family:'Inter',sans-serif; color:var(--pm-ink); }
+                .pm-root * { box-sizing:border-box; }
+                input, select, textarea { font-family:'Inter',sans-serif !important; }
+                input:focus, select:focus, textarea:focus { outline:none; border-color:var(--pm-indigo) !important; box-shadow:0 0 0 3px rgba(99,102,241,.12) !important; }
+
+                /* cards */
+                .pm-card { background:var(--pm-white); border:1px solid var(--pm-border); border-radius:var(--pm-radius); box-shadow:var(--pm-shadow); transition:box-shadow .25s, transform .25s; }
+                .pm-card:hover { box-shadow:var(--pm-shadow-h); transform:translateY(-2px); }
+
+                /* product card */
+                .pm-product-card { background:var(--pm-white); border:1px solid var(--pm-border); border-radius:var(--pm-radius); box-shadow:var(--pm-shadow); overflow:hidden; display:flex; transition:box-shadow .25s, transform .22s; animation: pmFadeUp .35s ease both; }
+                .pm-product-card:hover { box-shadow:var(--pm-shadow-h); transform:translateY(-2px); }
+                .pm-product-img-wrap { width:110px; min-height:110px; background:#f7f6f3; flex-shrink:0; display:flex; align-items:center; justify-content:center; overflow:hidden; position:relative; }
+                .pm-product-img-wrap img { width:100%; height:100%; object-fit:contain; padding:12px; transition:transform .4s ease; }
+                .pm-product-card:hover .pm-product-img-wrap img { transform:scale(1.06); }
+
+                /* action button */
+                .pm-action-btn { width:32px; height:32px; border-radius:8px; border:1px solid var(--pm-border); background:var(--pm-white); display:flex; align-items:center; justify-content:center; cursor:pointer; transition:all .18s; color:var(--pm-soft); }
+                .pm-action-btn:hover.edit  { background:rgba(99,102,241,.08); border-color:rgba(99,102,241,.3); color:#6366f1; }
+                .pm-action-btn:hover.del   { background:rgba(239,68,68,.08); border-color:rgba(239,68,68,.3); color:#dc2626; }
+
+                /* filter chip */
+                .pm-chip { display:inline-flex; align-items:center; gap:6px; padding:7px 16px; border-radius:20px; font-family:'Inter',sans-serif; font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; cursor:pointer; border:1px solid var(--pm-border); background:var(--pm-white); color:var(--pm-soft); transition:all .18s; }
+                .pm-chip:hover { border-color:var(--pm-indigo); color:var(--pm-indigo); }
+                .pm-chip.active { background:var(--pm-indigo); color:#fff; border-color:var(--pm-indigo); }
+
+                /* add button (FAB) */
+                .pm-fab { position:fixed; bottom:28px; right:28px; z-index:800; width:52px; height:52px; border-radius:50%; background:var(--pm-indigo); color:#fff; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 16px rgba(99,102,241,.45); transition:transform .2s, box-shadow .2s; }
+                .pm-fab:hover { transform:scale(1.08); box-shadow:0 8px 28px rgba(99,102,241,.5); }
+
+                /* modal overlay */
+                .pm-modal-overlay { position:fixed; inset:0; z-index:1000; background:rgba(10,15,30,.5); backdrop-filter:blur(6px); display:flex; align-items:flex-start; justify-content:center; padding:32px 20px; overflow-y:auto; animation:pmFadeIn .22s ease; }
+                .pm-modal { background:var(--pm-bg); border-radius:16px; width:100%; max-width:960px; box-shadow:0 24px 80px rgba(0,0,0,.2); animation:pmSlideUp .3s cubic-bezier(.16,1,.3,1); overflow:hidden; }
+                .pm-modal-head { background:var(--pm-white); border-bottom:1px solid var(--pm-border); padding:24px 32px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:10; }
+                .pm-modal-body { padding:24px 28px 0; max-height:calc(100vh - 200px); overflow-y:auto; }
+                .pm-modal-body::-webkit-scrollbar { width:4px; }
+                .pm-modal-body::-webkit-scrollbar-thumb { background:var(--pm-border); border-radius:2px; }
+                .pm-modal-foot { background:var(--pm-white); border-top:1px solid var(--pm-border); padding:20px 28px; display:flex; align-items:center; justify-content:flex-end; gap:12px; position:sticky; bottom:0; z-index:10; }
+
+                /* input */
+                .pm-input { width:100%; height:40px; padding:0 12px; font-family:'Inter',sans-serif; font-size:13px; color:var(--pm-ink); background:var(--pm-muted); border:1px solid var(--pm-border); border-radius:8px; outline:none; transition:all .18s; }
+                .pm-input:focus { background:#fff; border-color:var(--pm-indigo); box-shadow:0 0 0 3px rgba(99,102,241,.12); }
+                .pm-input::placeholder { color:var(--pm-faint); }
+                .pm-textarea { width:100%; padding:12px; font-family:'Inter',sans-serif; font-size:13px; color:var(--pm-ink); background:var(--pm-muted); border:1px solid var(--pm-border); border-radius:8px; outline:none; resize:vertical; min-height:100px; transition:all .18s; line-height:1.6; }
+                .pm-textarea:focus { background:#fff; border-color:var(--pm-indigo); box-shadow:0 0 0 3px rgba(99,102,241,.12); }
+                .pm-select { width:100%; height:40px; padding:0 32px 0 12px; font-family:'Inter',sans-serif; font-size:13px; color:var(--pm-ink); background:var(--pm-muted) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2394a3b8' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 12px center; border:1px solid var(--pm-border); border-radius:8px; outline:none; appearance:none; cursor:pointer; transition:all .18s; }
+                .pm-select:focus { background-color:#fff; border-color:var(--pm-indigo); box-shadow:0 0 0 3px rgba(99,102,241,.12); }
+
+                /* upload zone */
+                .pm-upload-zone { border:2px dashed var(--pm-border); border-radius:10px; padding:28px; text-align:center; cursor:pointer; transition:all .22s; background:var(--pm-muted); }
+                .pm-upload-zone:hover, .pm-upload-zone.drag-over { border-color:var(--pm-indigo); background:rgba(99,102,241,.04); }
+
+                /* image thumb */
+                .pm-img-thumb { position:relative; border:1px solid var(--pm-border); border-radius:8px; overflow:hidden; background:#f7f6f3; width:100px; height:100px; flex-shrink:0; }
+                .pm-img-thumb img { width:100%; height:100%; object-fit:contain; padding:8px; }
+                .pm-img-thumb-actions { position:absolute; inset:0; background:rgba(10,15,30,.5); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; opacity:0; transition:opacity .2s; }
+                .pm-img-thumb:hover .pm-img-thumb-actions { opacity:1; }
+                .pm-img-thumb.primary-img { border-color:var(--pm-indigo); box-shadow:0 0 0 2px rgba(99,102,241,.35); }
+
+                /* color card */
+                .pm-color-card { background:var(--pm-muted); border:1px solid var(--pm-border); border-radius:10px; padding:16px; position:relative; }
+
+                /* btn styles */
+                .pm-btn { display:inline-flex; align-items:center; justify-content:center; gap:7px; padding:0 18px; height:38px; font-family:'Inter',sans-serif; font-size:12px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; border-radius:8px; cursor:pointer; transition:all .2s; border:none; }
+                .pm-btn-primary { background:var(--pm-indigo); color:#fff; box-shadow:0 2px 8px rgba(99,102,241,.35); }
+                .pm-btn-primary:hover:not(:disabled) { background:#4f46e5; box-shadow:0 4px 16px rgba(99,102,241,.45); }
+                .pm-btn-primary:disabled { opacity:.55; cursor:not-allowed; }
+                .pm-btn-ghost { background:var(--pm-white); color:var(--pm-soft); border:1px solid var(--pm-border); }
+                .pm-btn-ghost:hover { color:var(--pm-ink); border-color:var(--pm-ink); }
+                .pm-btn-outline { background:none; color:var(--pm-indigo); border:1px solid rgba(99,102,241,.35); }
+                .pm-btn-outline:hover { background:rgba(99,102,241,.06); border-color:var(--pm-indigo); }
+                .pm-btn-sm { height:30px; padding:0 12px; font-size:10px; border-radius:6px; }
+
+                /* empty / mono */
+                .pm-mono { font-family:'JetBrains Mono',monospace; }
+
+                /* grid */
+                .pm-product-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+
+                @media (max-width:900px)  { .pm-product-grid { grid-template-columns:1fr; } }
+                @media (max-width:700px)  { .pm-modal-body { padding:16px; } .pm-modal-head,.pm-modal-foot { padding:18px 20px; } }
+                @media (max-width:480px)  { .pm-product-img-wrap { width:90px; } }
+            `}</style>
+
+            <div className="pm-root">
+
+                {/* ── Page header ── */}
+                <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', flexWrap:'wrap', gap:16, marginBottom:28, animation:'pmFadeUp .35s ease' }}>
+                    <div>
+                        <p style={{ fontFamily:'Inter,sans-serif', fontSize:11, fontWeight:500, letterSpacing:'.16em', textTransform:'uppercase', color:'#94a3b8', marginBottom:5 }}>Catalog</p>
+                        <h1 style={{ fontFamily:'Inter,sans-serif', fontSize:22, fontWeight:700, letterSpacing:'-.02em', color:'var(--pm-ink)', margin:0 }}>Product Management</h1>
+                    </div>
+                    {/* Summary chips */}
+                    <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                        {[
+                            { label:'Total', val:products.length, bg:'rgba(99,102,241,.08)', color:'#6366f1' },
+                            { label:'In Stock', val:inStock,    bg:'rgba(16,185,129,.08)', color:'#059669' },
+                            { label:'Low',      val:lowStock,   bg:'rgba(245,158,11,.08)', color:'#d97706' },
+                            { label:'Out',      val:outOfStock, bg:'rgba(239,68,68,.08)', color:'#dc2626' },
+                        ].map(s => (
+                            <div key={s.label} style={{ padding:'8px 16px', borderRadius:20, background:s.bg }}>
+                                <span style={{ fontFamily:'JetBrains Mono,monospace', fontSize:15, fontWeight:700, color:s.color }}>{s.val}</span>
+                                <span style={{ fontFamily:'Inter,sans-serif', fontSize:10, fontWeight:600, letterSpacing:'.1em', textTransform:'uppercase', color:s.color, marginLeft:6, opacity:.7 }}>{s.label}</span>
+                            </div>
+                        ))}
+                    </div>
                 </div>
-            </div>
 
-            {/* Filter row */}
-            <div className="d-flex flex-wrap gap-2 mb-4">
-                <button className={`btn ${filterType === 'all' ? 'btn-dark' : 'btn-outline-dark'} rounded-0`} onClick={() => setFilterType('all')}>ALL PRODUCTS</button>
-                <button className={`btn ${filterType === 'instock' ? 'btn-dark' : 'btn-outline-dark'} rounded-0`} onClick={() => setFilterType('instock')}>IN STOCK</button>
-                <button className={`btn ${filterType === 'outofstock' ? 'btn-dark' : 'btn-outline-dark'} rounded-0`} onClick={() => setFilterType('outofstock')}>OUT OF STOCK</button>
-                <div className="dropdown">
-                    <button className="btn btn-outline-dark rounded-0 dropdown-toggle" data-bs-toggle="dropdown">CATEGORIES ▼</button>
-                    <ul className="dropdown-menu">
-                        <li><button className="dropdown-item" onClick={() => setSelectedCategory('all')}>All Categories</button></li>
-                        {categories.map(cat => <li key={cat.id}><button className="dropdown-item" onClick={() => setSelectedCategory(cat.name)}>{cat.name}</button></li>)}
-                    </ul>
+                {/* ── Toolbar ── */}
+                <div style={{ background:'#fff', border:'1px solid rgba(0,0,0,.07)', borderRadius:12, padding:'14px 18px', marginBottom:20, display:'flex', alignItems:'center', gap:12, flexWrap:'wrap', boxShadow:'0 1px 3px rgba(0,0,0,.04)' }}>
+                    {/* Search */}
+                    <div style={{ position:'relative', flex:1, minWidth:200 }}>
+                        <FaSearch style={{ position:'absolute', left:12, top:'50%', transform:'translateY(-50%)', color:'#94a3b8', fontSize:12 }} />
+                        <input
+                            type="text"
+                            className="pm-input"
+                            style={{ paddingLeft:36, background:'#f8fafc' }}
+                            placeholder="Search by name or SKU…"
+                            value={searchTerm}
+                            onChange={e=>setSearchTerm(e.target.value)}
+                        />
+                        {searchTerm && <button onClick={()=>setSearchTerm('')} style={{ position:'absolute', right:10, top:'50%', transform:'translateY(-50%)', background:'none', border:'none', cursor:'pointer', color:'#94a3b8', display:'flex', alignItems:'center' }}><FaTimes size={11} /></button>}
+                    </div>
+
+                    {/* Stock filter */}
+                    <div style={{ display:'flex', gap:6 }}>
+                        {(['all','instock','outofstock'] as const).map(f => (
+                            <button key={f} className={`pm-chip${filterType===f?' active':''}`} onClick={()=>setFilterType(f)}>
+                                {f==='all'?'All':f==='instock'?'In Stock':'Out of Stock'}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* Category dropdown */}
+                    <div ref={catMenuRef} style={{ position:'relative' }}>
+                        <button className="pm-chip" style={showCatMenu?{borderColor:'#6366f1',color:'#6366f1'}:{}} onClick={()=>setShowCatMenu(s=>!s)}>
+                            <FaLayerGroup size={10} />
+                            {selectedCategory==='all' ? 'All Categories' : selectedCategory}
+                            <FaChevronDown size={8} style={{ transition:'transform .2s', transform:showCatMenu?'rotate(180deg)':'none' }} />
+                        </button>
+                        {showCatMenu && (
+                            <div style={{ position:'absolute', top:'calc(100% + 8px)', right:0, background:'#fff', border:'1px solid rgba(0,0,0,.09)', borderRadius:10, minWidth:190, boxShadow:'0 8px 32px rgba(0,0,0,.12)', zIndex:200, padding:'6px 0', animation:'pmFadeUp .18s ease' }}>
+                                {['all',...categories.map(c=>c.name)].map(n => (
+                                    <button key={n} onClick={()=>{setSelectedCategory(n==='all'?'all':n);setShowCatMenu(false);}} style={{ width:'100%', background:selectedCategory===(n==='all'?'all':n)?'rgba(99,102,241,.07)':'none', border:'none', padding:'10px 16px', textAlign:'left', fontFamily:'Inter,sans-serif', fontSize:12, fontWeight:selectedCategory===(n==='all'?'all':n)?600:400, color:selectedCategory===(n==='all'?'all':n)?'#6366f1':'#64748b', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                                        {n==='all'?'All Categories':n}
+                                        {selectedCategory===(n==='all'?'all':n) && <FaCheck size={10} style={{ color:'#6366f1' }} />}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
                 </div>
-            </div>
 
-            {/* Products grid */}
-            <div className="row g-4">
-                {displayedProducts.map(product => (
-                    <div key={product.id} className="col-md-6">
-                        <div className="card border-0 shadow-sm h-100">
-                            <div className="card-body p-4">
-                                <div className="d-flex gap-3">
-                                    <div className="flex-shrink-0 bg-light d-flex align-items-center justify-content-center" style={{ width: '100px', height: '100px' }}>
-                                        <img src={getPrimaryImage(product)} alt={product.name} className="img-fluid" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
-                                    </div>
-                                    <div className="flex-grow-1">
-                                        <div className="d-flex justify-content-between align-items-start">
-                                            <h5 className="mb-1" style={{ fontWeight: 'normal' }}>{product.name}</h5>
-                                            <div className="d-flex gap-2">
-                                                <button className="btn btn-sm btn-link text-dark p-0" onClick={() => handleEdit(product)}><FaEdit size={18} /></button>
-                                                <button className="btn btn-sm btn-link text-danger p-0" onClick={() => handleDelete(product.id)}><FaTrash size={18} /></button>
-                                            </div>
-                                        </div>
-                                        <p className="text-muted small mb-1">SKU: {product.sku || 'N/A'} • {product.category_name}</p>
-                                        <div className="mt-2"><span className="fw-normal">${product.price}</span>{product.compare_price && <span className="text-muted ms-2"><del>${product.compare_price}</del></span>}</div>
-                                        <div className="mt-2">{product.stock_quantity > 0 ? <span className="badge bg-success rounded-pill">{product.stock_quantity} IN STOCK</span> : <span className="badge bg-danger rounded-pill">OUT OF STOCK</span>}</div>
-                                    </div>
+                {/* ── Loading skeletons ── */}
+                {loading ? (
+                    <div className="pm-product-grid">
+                        {[...Array(4)].map((_,i) => (
+                            <div key={i} style={{ background:'#fff', border:'1px solid rgba(0,0,0,.07)', borderRadius:12, overflow:'hidden', display:'flex' }}>
+                                <div style={{ width:110, background:'#f7f6f3', flexShrink:0 }} />
+                                <div style={{ flex:1, padding:16, display:'flex', flexDirection:'column', gap:10 }}>
+                                    <Skel w="65%" h={13} /><Skel w="45%" h={10} /><Skel w="50%" h={13} /><Skel w="80px" h={22} r={20} />
                                 </div>
                             </div>
-                        </div>
+                        ))}
                     </div>
-                ))}
-            </div>
+                ) : displayedProducts.length === 0 ? (
+                    /* ── Empty state ── */
+                    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'80px 24px', gap:16, textAlign:'center' }}>
+                        <div style={{ width:72, height:72, borderRadius:'50%', background:'rgba(99,102,241,.08)', display:'flex', alignItems:'center', justifyContent:'center', marginBottom:8 }}>
+                            <FaBoxOpen size={28} style={{ color:'#6366f1' }} />
+                        </div>
+                        <h3 style={{ fontFamily:'Inter,sans-serif', fontSize:18, fontWeight:600, color:'var(--pm-ink)', margin:0 }}>No products found</h3>
+                        <p style={{ fontFamily:'Inter,sans-serif', fontSize:13, color:'#64748b', margin:0, maxWidth:280 }}>Try adjusting your search or filters, or add a new product to get started.</p>
+                        <button className="pm-btn pm-btn-primary" onClick={()=>{resetForm();setShowModal(true);}}>
+                            <FaPlus size={10} /> Add Product
+                        </button>
+                    </div>
+                ) : (
+                    <>
+                        <p style={{ fontFamily:'Inter,sans-serif', fontSize:12, color:'#94a3b8', marginBottom:14 }}>
+                            Showing <span style={{ color:'var(--pm-ink)', fontWeight:600 }}>{displayedProducts.length}</span> of {totalProducts} products
+                        </p>
 
-            {/* Load more */}
-            {displayedProducts.length > 0 && (
-                <div className="text-center mt-4">
-                    <p className="text-muted">SHOWING {displayedProducts.length} OF {totalProducts} PRODUCTS</p>
-                    {displayedProducts.length < totalProducts && <button className="btn btn-outline-dark rounded-0 px-4" onClick={loadMore}>LOAD MORE</button>}
-                </div>
-            )}
-            {displayedProducts.length === 0 && <div className="text-center py-5"><p className="text-muted">No products found.</p></div>}
-
-            {/* Full product modal (add/edit) */}
-            {showModal && (
-                <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)', overflowY: 'auto', zIndex: 1050 }}>
-                    <div className="modal-dialog modal-xl modal-dialog-scrollable">
-                        <div className="modal-content rounded-0">
-                            <div className="modal-header border-0 pb-0"><h5 className="modal-title" style={{ fontWeight: 'normal' }}>{editingProduct ? 'Edit Product' : 'Add New Product'}</h5><button className="btn-close" onClick={() => setShowModal(false)}></button></div>
-                            <div className="modal-body pt-0">
-                                <p className="text-muted">Fill in the details to publish a new piece to the collection.</p>
-                                <div className="row g-4">
-                                    <div className="col-md-6">
-                                        <div className="mb-3"><label className="form-label">PRODUCT NAME</label><input type="text" className="form-control rounded-0" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} /></div>
-                                        <div className="mb-3"><label className="form-label">CATEGORY</label><select className="form-select rounded-0" value={formData.categoryId} onChange={handleCategoryChange}><option value="">Select Category</option>{categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
-                                        <div className="mb-3"><label className="form-label">DESCRIPTION</label><textarea rows={4} className="form-control rounded-0" value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} /></div>
-                                    </div>
-                                    <div className="col-md-6">
-                                        <h6 className="mb-3" style={{ fontWeight: 'normal' }}>Inventory & Pricing</h6>
-                                        <div className="mb-3"><label>INITIAL STOCK</label><input type="number" className="form-control rounded-0" value={formData.initialStock} onChange={e => setFormData({ ...formData, initialStock: e.target.value })} /></div>
-                                        <div className="mb-3"><label>REGULAR PRICE (USD)</label><input type="number" step="0.01" className="form-control rounded-0" value={formData.regularPrice} onChange={e => setFormData({ ...formData, regularPrice: e.target.value })} /></div>
-                                        <div className="mb-3"><label>DISCOUNT PRICE (Optional)</label><input type="number" step="0.01" className="form-control rounded-0" value={formData.discountPrice} onChange={e => setFormData({ ...formData, discountPrice: e.target.value })} /></div>
-                                        <div className="mb-3">
-                                            <label className="form-label">PRODUCT IMAGES</label>
-                                            <div className="border p-3">
-                                                <label className="btn btn-outline-dark rounded-0 mb-3">
-                                                    <FaCloudUploadAlt className="me-2" />
-                                                    Upload Images
-                                                    <input
-                                                        type="file"
-                                                        accept="image/*"
-                                                        multiple
-                                                        hidden
-                                                        onChange={e => {
-                                                            handleProductImages(e.target.files);
-                                                            e.target.value = '';
-                                                        }}
-                                                    />
-                                                </label>
-                                                {productImages.length > 0 && (
-                                                    <div className="d-flex flex-wrap gap-3">
-                                                        {productImages.map((image, idx) => (
-                                                            <div key={`${image.id || 'new'}-${idx}`} className="border p-2" style={{ width: '132px' }}>
-                                                                <div className="bg-light d-flex align-items-center justify-content-center mb-2" style={{ width: '112px', height: '112px' }}>
-                                                                    <img src={image.imagePreview || image.imageUrl || ''} alt="Product" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
-                                                                </div>
-                                                                <div className="form-check small">
-                                                                    <input
-                                                                        className="form-check-input"
-                                                                        type="radio"
-                                                                        name="primaryProductImage"
-                                                                        checked={image.isPrimary}
-                                                                        onChange={() => setPrimaryProductImage(idx)}
-                                                                    />
-                                                                    <label className="form-check-label">Primary</label>
-                                                                </div>
-                                                                {image.imageFile && (
-                                                                    <button className="btn btn-sm btn-link text-danger p-0 mt-1" onClick={() => removeProductImage(idx)}>
-                                                                        Remove
-                                                                    </button>
-                                                                )}
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                )}
+                        {/* ── Product grid ── */}
+                        <div className="pm-product-grid">
+                            {displayedProducts.map((p, idx) => (
+                                <div key={p.id} className="pm-product-card" style={{ animationDelay:`${idx*.04}s` }}>
+                                    {/* Image */}
+                                    <div className="pm-product-img-wrap">
+                                        <img src={getPrimaryImage(p)} alt={p.name} />
+                                        {p.stock_quantity === 0 && (
+                                            <div style={{ position:'absolute', inset:0, background:'rgba(0,0,0,.38)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                                                <span style={{ fontFamily:'Inter,sans-serif', fontSize:9, fontWeight:700, letterSpacing:'.12em', textTransform:'uppercase', color:'rgba(255,255,255,.9)' }}>Sold Out</span>
                                             </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <h6 className="mt-3" style={{ fontWeight: 'normal' }}>Color Variants</h6>
-                                {colors.map((color, idx) => (
-                                    <div key={idx} className="border p-3 mb-3">
-                                        <div className="d-flex gap-2 mb-2">
-                                            <input type="text" className="form-control w-25" placeholder="Color name" value={color.colorName} onChange={e => updateColorName(idx, e.target.value)} />
-                                            <button className="btn btn-sm btn-danger" onClick={() => removeColorVariant(idx)}><FaTimes /> Remove</button>
-                                        </div>
-                                        {color.imagePreview ? (
-                                            <div><img src={color.imagePreview} alt={color.colorName || 'Color variant'} style={{ maxHeight: '100px' }} /><button className="btn btn-sm btn-outline-secondary ms-2" onClick={() => { const upd = [...colors]; upd[idx].imagePreview = null; upd[idx].imageFile = null; setColors(upd); }}>Change</button></div>
-                                        ) : (
-                                            <input type="file" accept="image/*" onChange={e => e.target.files?.[0] && handleColorImage(idx, e.target.files[0])} />
                                         )}
                                     </div>
-                                ))}
-                                <button className="btn btn-outline-dark btn-sm" onClick={addColorVariant}><FaPlus /> Add Color Variant</button>
 
-                                {selectedCategoryId && (
-                                    <>
-                                        <h6 className="mt-4" style={{ fontWeight: 'normal' }}>Size Variants</h6>
-                                        <div className="border p-3">
-                                            {renderSizeRows()}
-                                            <button className="btn btn-outline-dark btn-sm mt-2" onClick={addSizeVariant}><FaPlus /> Add Size</button>
+                                    {/* Body */}
+                                    <div style={{ flex:1, padding:'14px 16px', display:'flex', flexDirection:'column', gap:5, minWidth:0 }}>
+                                        <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:8 }}>
+                                            <h3 style={{ fontFamily:'Inter,sans-serif', fontSize:14, fontWeight:600, color:'var(--pm-ink)', margin:0, lineHeight:1.35, flex:1, minWidth:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.name}</h3>
+                                            <div style={{ display:'flex', gap:6, flexShrink:0 }}>
+                                                <button className="pm-action-btn edit" onClick={()=>handleEdit(p)} title="Edit"><FaEdit size={13} /></button>
+                                                <button className="pm-action-btn del" onClick={()=>handleDelete(p.id)} title="Delete"><FaTrash size={12} /></button>
+                                            </div>
                                         </div>
-                                    </>
+
+                                        <p style={{ fontFamily:'Inter,sans-serif', fontSize:11, color:'#94a3b8', margin:0 }}>
+                                            {p.sku ? <span className="pm-mono" style={{ fontSize:11 }}>SKU: {p.sku}</span> : 'No SKU'} &nbsp;·&nbsp; {p.category_name}
+                                        </p>
+
+                                        <div style={{ display:'flex', alignItems:'baseline', gap:8, marginTop:2 }}>
+                                            <span className="pm-mono" style={{ fontSize:16, fontWeight:700, color:'var(--pm-ink)' }}>${p.price}</span>
+                                            {p.compare_price && <span style={{ fontFamily:'Inter,sans-serif', fontSize:12, color:'#94a3b8', textDecoration:'line-through' }}>${p.compare_price}</span>}
+                                            {p.compare_price && <span style={{ fontFamily:'Inter,sans-serif', fontSize:10, fontWeight:700, color:'#059669', background:'rgba(16,185,129,.1)', padding:'2px 7px', borderRadius:10 }}>−{Math.round(((p.compare_price-p.price)/p.compare_price)*100)}%</span>}
+                                        </div>
+
+                                        <div style={{ marginTop:4 }}>
+                                            <StockBadge qty={p.stock_quantity} />
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Load more */}
+                        {displayedProducts.length < totalProducts && (
+                            <div style={{ textAlign:'center', marginTop:28 }}>
+                                <button className="pm-btn pm-btn-ghost" onClick={loadMore}>
+                                    Load More <span style={{ fontFamily:'JetBrains Mono,monospace', fontSize:11, opacity:.6 }}>({totalProducts - displayedProducts.length} remaining)</span>
+                                </button>
+                            </div>
+                        )}
+                    </>
+                )}
+            </div>
+
+            {/* ── FAB ── */}
+            <button className="pm-fab" onClick={()=>{resetForm();setShowModal(true);}} title="Add Product">
+                <FaPlus size={20} />
+            </button>
+
+            {/* ══════════════════════════════════════
+                MODAL
+            ══════════════════════════════════════ */}
+            {showModal && (
+                <div className="pm-modal-overlay" onClick={e=>{if(e.target===e.currentTarget)setShowModal(false);}}>
+                    <div className="pm-modal">
+
+                        {/* Modal head */}
+                        <div className="pm-modal-head">
+                            <div>
+                                <div style={{ fontFamily:'Inter,sans-serif', fontSize:10, fontWeight:600, letterSpacing:'.14em', textTransform:'uppercase', color:'#94a3b8', marginBottom:3 }}>
+                                    {editingProduct ? 'Edit Product' : 'New Product'}
+                                </div>
+                                <h2 style={{ fontFamily:'Inter,sans-serif', fontSize:17, fontWeight:700, color:'var(--pm-ink)', margin:0, letterSpacing:'-.01em' }}>
+                                    {editingProduct ? editingProduct.name : 'Add to Collection'}
+                                </h2>
+                            </div>
+                            <button onClick={()=>setShowModal(false)} style={{ width:36, height:36, borderRadius:8, border:'1px solid rgba(0,0,0,.1)', background:'#fff', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'#64748b', transition:'all .18s' }}>
+                                <FaTimes size={14} />
+                            </button>
+                        </div>
+
+                        {/* Modal body */}
+                        <div className="pm-modal-body">
+                            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginBottom:0 }}>
+
+                                {/* ── Col 1: Basic Info ── */}
+                                <div>
+                                    <FormSection icon={FaTag} title="Basic Information">
+                                        <Field label="Product Name">
+                                            <input className="pm-input" type="text" placeholder="e.g. Classic Linen Shirt" value={formData.name} onChange={e=>setFormData({...formData,name:e.target.value})} />
+                                        </Field>
+                                        <Field label="Category">
+                                            <select className="pm-select" value={formData.categoryId} onChange={handleCategoryChange}>
+                                                <option value="">Select a category…</option>
+                                                {categories.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+                                            </select>
+                                        </Field>
+                                        <Field label="Description">
+                                            <textarea className="pm-textarea" placeholder="Describe the product, materials, fit, and feel…" value={formData.description} onChange={e=>setFormData({...formData,description:e.target.value})} />
+                                        </Field>
+                                    </FormSection>
+                                </div>
+
+                                {/* ── Col 2: Pricing & Images ── */}
+                                <div>
+                                    <FormSection icon={FaTag} title="Pricing & Inventory">
+                                        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+                                            <Field label="Regular Price (USD)">
+                                                <div style={{ position:'relative' }}>
+                                                    <span style={{ position:'absolute', left:12, top:'50%', transform:'translateY(-50%)', color:'#94a3b8', fontSize:13, fontWeight:500 }}>$</span>
+                                                    <input className="pm-input pm-mono" type="number" step="0.01" placeholder="0.00" style={{ paddingLeft:26 }} value={formData.regularPrice} onChange={e=>setFormData({...formData,regularPrice:e.target.value})} />
+                                                </div>
+                                            </Field>
+                                            <Field label="Compare Price" hint="Strike-through price shown to buyers">
+                                                <div style={{ position:'relative' }}>
+                                                    <span style={{ position:'absolute', left:12, top:'50%', transform:'translateY(-50%)', color:'#94a3b8', fontSize:13, fontWeight:500 }}>$</span>
+                                                    <input className="pm-input pm-mono" type="number" step="0.01" placeholder="0.00" style={{ paddingLeft:26 }} value={formData.discountPrice} onChange={e=>setFormData({...formData,discountPrice:e.target.value})} />
+                                                </div>
+                                            </Field>
+                                        </div>
+                                        <Field label="Initial Stock Quantity">
+                                            <input className="pm-input pm-mono" type="number" placeholder="0" value={formData.initialStock} onChange={e=>setFormData({...formData,initialStock:e.target.value})} />
+                                        </Field>
+                                    </FormSection>
+
+                                    {/* ── Product Images ── */}
+                                    <FormSection icon={FaImage} title="Product Images">
+                                        {/* Upload zone */}
+                                        <div
+                                            className={`pm-upload-zone${imgDragOver?' drag-over':''}`}
+                                            style={{ marginBottom:16 }}
+                                            onDragOver={e=>{e.preventDefault();setImgDragOver(true);}}
+                                            onDragLeave={()=>setImgDragOver(false)}
+                                            onDrop={e=>{e.preventDefault();setImgDragOver(false);handleProductImages(e.dataTransfer.files);}}
+                                            onClick={()=>fileInputRef.current?.click()}
+                                        >
+                                            <FaCloudUploadAlt size={24} style={{ color:'#94a3b8', marginBottom:8 }} />
+                                            <p style={{ fontFamily:'Inter,sans-serif', fontSize:13, fontWeight:500, color:'#64748b', margin:'0 0 3px' }}>Drop images here or <span style={{ color:'#6366f1', fontWeight:600 }}>browse</span></p>
+                                            <p style={{ fontFamily:'Inter,sans-serif', fontSize:11, color:'#94a3b8', margin:0 }}>PNG, JPG up to 10MB</p>
+                                            <input ref={fileInputRef} type="file" accept="image/*" multiple hidden onChange={e=>{handleProductImages(e.target.files);e.target.value='';}} />
+                                        </div>
+
+                                        {/* Thumbnails */}
+                                        {productImages.length > 0 && (
+                                            <div style={{ display:'flex', flexWrap:'wrap', gap:10 }}>
+                                                {productImages.map((img, idx) => (
+                                                    <div key={`${img.id||'n'}-${idx}`} className={`pm-img-thumb${img.isPrimary?' primary-img':''}`}>
+                                                        <img src={img.imagePreview||img.imageUrl||''} alt="Product" />
+                                                        <div className="pm-img-thumb-actions">
+                                                            {!img.isPrimary && (
+                                                                <button onClick={()=>setPrimaryProductImage(idx)} style={{ background:'rgba(99,102,241,.9)', border:'none', borderRadius:5, color:'#fff', fontSize:9, fontWeight:700, letterSpacing:'.08em', padding:'4px 8px', cursor:'pointer' }}>Set Primary</button>
+                                                            )}
+                                                            {img.isPrimary && <span style={{ background:'rgba(16,185,129,.9)', borderRadius:5, color:'#fff', fontSize:9, fontWeight:700, letterSpacing:'.08em', padding:'4px 8px', display:'flex', alignItems:'center', gap:4 }}><FaStar size={8} /> Primary</span>}
+                                                            {img.imageFile && <button onClick={()=>removeProductImage(idx)} style={{ background:'rgba(239,68,68,.85)', border:'none', borderRadius:5, color:'#fff', fontSize:9, fontWeight:700, letterSpacing:'.08em', padding:'4px 8px', cursor:'pointer' }}>Remove</button>}
+                                                        </div>
+                                                        {img.isPrimary && <div style={{ position:'absolute', top:4, right:4, width:16, height:16, borderRadius:'50%', background:'#6366f1', display:'flex', alignItems:'center', justifyContent:'center' }}><FaStar size={8} style={{ color:'#fff' }} /></div>}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </FormSection>
+                                </div>
+                            </div>
+
+                            {/* ── Color Variants ── */}
+                            <FormSection icon={FaPalette} title="Color Variants">
+                                {colors.length === 0 && (
+                                    <div style={{ textAlign:'center', padding:'20px 0', color:'#94a3b8', fontFamily:'Inter,sans-serif', fontSize:13 }}>
+                                        No color variants added yet. Click below to add one.
+                                    </div>
                                 )}
-                            </div>
-                            <div className="modal-footer border-0">
-                                <button className="btn btn-outline-secondary rounded-0" onClick={() => setShowModal(false)}>Cancel</button>
-                                <button className="btn btn-dark rounded-0" onClick={handleSaveProduct} disabled={modalLoading}>{modalLoading ? 'Saving...' : (editingProduct ? 'Update Product' : 'Publish Product')}</button>
-                            </div>
+                                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(200px, 1fr))', gap:12, marginBottom:14 }}>
+                                    {colors.map((c, idx) => (
+                                        <div key={idx} className="pm-color-card">
+                                            <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:8 }}>
+                                                <button onClick={()=>removeColorVariant(idx)} style={{ background:'none', border:'none', cursor:'pointer', color:'#94a3b8', display:'flex', alignItems:'center', transition:'color .15s' }} onMouseEnter={e=>(e.currentTarget.style.color='#ef4444')} onMouseLeave={e=>(e.currentTarget.style.color='#94a3b8')}>
+                                                    <FaTimes size={12} />
+                                                </button>
+                                            </div>
+                                            <Field label="Color Name">
+                                                <input className="pm-input" type="text" placeholder="e.g. Midnight Black" value={c.colorName} onChange={e=>updateColorName(idx,e.target.value)} />
+                                            </Field>
+                                            {c.imagePreview ? (
+                                                <div style={{ position:'relative', border:'1px solid rgba(0,0,0,.07)', borderRadius:8, overflow:'hidden', height:80, background:'#f7f6f3', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                                                    <img src={c.imagePreview} alt={c.colorName} style={{ maxHeight:'100%', maxWidth:'100%', objectFit:'contain', padding:8 }} />
+                                                    <button onClick={()=>{const u=[...colors];u[idx].imagePreview=null;u[idx].imageFile=null;setColors(u);}} style={{ position:'absolute', top:4, right:4, width:22, height:22, borderRadius:'50%', background:'rgba(239,68,68,.85)', border:'none', color:'#fff', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                                                        <FaTimes size={9} />
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <label style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', height:80, border:'2px dashed rgba(0,0,0,.1)', borderRadius:8, cursor:'pointer', gap:6, transition:'all .18s' }} onMouseEnter={e=>{(e.currentTarget.style.borderColor='#6366f1');(e.currentTarget.style.background='rgba(99,102,241,.03)');}} onMouseLeave={e=>{(e.currentTarget.style.borderColor='rgba(0,0,0,.1)');(e.currentTarget.style.background='none');}}>
+                                                    <FaImage size={16} style={{ color:'#94a3b8' }} />
+                                                    <span style={{ fontFamily:'Inter,sans-serif', fontSize:10, fontWeight:500, color:'#94a3b8' }}>Upload image</span>
+                                                    <input type="file" accept="image/*" hidden onChange={e=>e.target.files?.[0]&&handleColorImage(idx,e.target.files[0])} />
+                                                </label>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                                <button className="pm-btn pm-btn-outline pm-btn-sm" onClick={addColorVariant}>
+                                    <FaPlus size={9} /> Add Color Variant
+                                </button>
+                            </FormSection>
+
+                            {/* ── Size Variants ── */}
+                            {selectedCategoryId && (
+                                <FormSection icon={FaRuler} title="Size Variants">
+                                    {/* Column headers */}
+                                    {sizes.length > 0 && (
+                                        <div style={{ display:'grid', gridTemplateColumns: categoryType==='footwear' ? '1fr 1fr 80px auto 36px' : '1fr 1fr 1fr 1fr 80px auto 36px', gap:8, marginBottom:4 }}>
+                                            {['Color', 'Size', ...(categoryType==='footwear'?[]:(categoryType==='pants'?['Waist','Length']:['Chest','Length'])), 'Stock', 'Status', ''].map((h,i) => (
+                                                <div key={i} style={{ fontFamily:'Inter,sans-serif', fontSize:9, fontWeight:700, letterSpacing:'.14em', textTransform:'uppercase', color:'#94a3b8', padding:'0 0 8px' }}>{h}</div>
+                                            ))}
+                                        </div>
+                                    )}
+                                    {sizes.length === 0 && (
+                                        <div style={{ textAlign:'center', padding:'20px 0', color:'#94a3b8', fontFamily:'Inter,sans-serif', fontSize:13 }}>
+                                            No sizes added. Click below to add a size variant.
+                                        </div>
+                                    )}
+                                    {renderSizeRows()}
+                                    <div style={{ marginTop:14 }}>
+                                        <button className="pm-btn pm-btn-outline pm-btn-sm" onClick={addSizeVariant}>
+                                            <FaPlus size={9} /> Add Size
+                                        </button>
+                                    </div>
+                                </FormSection>
+                            )}
+
+                            <div style={{ height:8 }} />
+                        </div>
+
+                        {/* Modal footer */}
+                        <div className="pm-modal-foot">
+                            <p style={{ fontFamily:'Inter,sans-serif', fontSize:12, color:'#94a3b8', flex:1, margin:0 }}>
+                                {editingProduct ? `Editing: ${editingProduct.name}` : 'All fields marked with * are required.'}
+                            </p>
+                            <button className="pm-btn pm-btn-ghost" onClick={()=>setShowModal(false)}>Cancel</button>
+                            <button className="pm-btn pm-btn-primary" onClick={handleSaveProduct} disabled={modalLoading}>
+                                {modalLoading ? (
+                                    <><span style={{ width:14, height:14, border:'2px solid rgba(255,255,255,.35)', borderTopColor:'#fff', borderRadius:'50%', animation:'pmShimmer .7s linear infinite', display:'inline-block' }} />&nbsp;Saving…</>
+                                ) : (
+                                    <><FaCheck size={10} /> {editingProduct ? 'Update Product' : 'Publish Product'}</>
+                                )}
+                            </button>
                         </div>
                     </div>
                 </div>
             )}
-        </div>
+        </>
     );
 }
