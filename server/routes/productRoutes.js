@@ -8,24 +8,25 @@ const {
     updateFullProduct,
     deleteProduct,
     uploadProductImage,
+    setPrimaryProductImage,
 } = require('../controllers/productController');
 const { protect, adminOnly } = require('../middleware/authMiddleware');
 const multer = require('multer');
-const path = require('path');
+const { sendSuccess } = require('../utils/responseHandler');
+const { addProductColor, deleteProductColors, addProductSize, deleteProductSizes } = require('../models/ProductVariant');
 
 const router = express.Router();
 
-// Configure multer for product images
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, 'uploads/products/');
-    },
-    filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-        cb(null, `product-${uniqueSuffix}${path.extname(file.originalname)}`);
+const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 5 * 1024 * 1024 },
+    fileFilter: (req, file, cb) => {
+        if (!file.mimetype.startsWith('image/')) {
+            return cb(new Error('Only image uploads are allowed.'));
+        }
+        cb(null, true);
     },
 });
-const upload = multer({ storage });
 
 // Public routes
 router.get('/', getProducts);
@@ -38,6 +39,7 @@ router.put('/:id', protect, adminOnly, updateProduct);
 router.put('/:id/full', protect, adminOnly, updateFullProduct);
 router.delete('/:id', protect, adminOnly, deleteProduct);
 router.post('/:id/images', protect, adminOnly, upload.single('image'), uploadProductImage);
+router.put('/:id/images/:imageId/primary', protect, adminOnly, setPrimaryProductImage);
 
 // DELETE /api/products/:id/colors
 router.delete('/:id/colors', protect, adminOnly, async (req, res) => {
