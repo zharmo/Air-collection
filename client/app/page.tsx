@@ -131,7 +131,7 @@ export default function HomePage() {
     return "✦";
   };
 
-  const displayCategories = dbCategories.length ? dbCategories : categories;
+  const displayCategories = (dbCategories.length ? dbCategories : categories).slice(0, 4);
 
   const renderStars = (rating: number = 5) => {
     const full = Math.floor(rating);
