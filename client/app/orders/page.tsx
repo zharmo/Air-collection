@@ -9,11 +9,16 @@ import axiosInstance from '@/utils/axiosConfig';
 interface Order {
     id: number;
     order_number: string;
-    total_amount: number;
+    total_amount: number | string;
     status: string;
     created_at: string;
     payment_status: string;
 }
+
+const toMoney = (value: number | string | null | undefined) => {
+    const amount = Number(value);
+    return Number.isFinite(amount) ? amount.toFixed(2) : '0.00';
+};
 
 export default function OrdersPage() {
     const { user } = useAuth();
@@ -82,7 +87,7 @@ export default function OrdersPage() {
                                                 <tr key={order.id}>
                                                     <td className="fw-medium">{order.order_number}</td>
                                                     <td>{new Date(order.created_at).toLocaleDateString()}</td>
-                                                    <td>${order.total_amount.toFixed(2)}</td>
+                                                    <td>${toMoney(order.total_amount)}</td>
                                                     <td>
                                                         <span className={`badge ${
                                                             order.status === 'delivered' ? 'bg-success' :

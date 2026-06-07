@@ -495,7 +495,7 @@ export default function HomePage() {
                 .product-card-overlay button:hover { opacity: 0.7; }
 
                 .product-card-body {
-                    padding: 20px 0 8px;
+                    padding: 20px 6px 8px;
                 }
 
                 .product-card-name {
@@ -787,7 +787,7 @@ export default function HomePage() {
         <div className="hero-content">
           <div className="hero-eyebrow">
             <span className="hero-eyebrow-line" />
-            <span className="label-caps">New Season 2025</span>
+            <span className="label-caps">New Season 2026</span>
           </div>
           <h1 className="hero-title">
             Light

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
@@ -8,6 +8,20 @@ import { useAuth } from '@/context/AuthContext';
 import axiosInstance from '@/utils/axiosConfig';
 
 export default function SignUp() {
+  return (
+    <Suspense
+      fallback={
+        <div className="container py-5 text-center">
+          <div className="spinner-border text-dark" role="status"></div>
+        </div>
+      }
+    >
+      <SignUpContent />
+    </Suspense>
+  );
+}
+
+function SignUpContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [name,       setName      ] = useState('');

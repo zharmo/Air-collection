@@ -1,10 +1,24 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Suspense, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import axiosInstance from '@/utils/axiosConfig';
 
 export default function ResetPassword() {
+  return (
+    <Suspense
+      fallback={
+        <div className="container py-5 text-center">
+          <div className="spinner-border text-dark" role="status"></div>
+        </div>
+      }
+    >
+      <ResetPasswordContent />
+    </Suspense>
+  );
+}
+
+function ResetPasswordContent() {
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
   const router = useRouter();

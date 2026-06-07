@@ -1,6 +1,10 @@
 import type { NextConfig } from 'next';
  
 const nextConfig: NextConfig = {
+  turbopack: {
+    root: __dirname,
+  },
+
   async rewrites() {
     return [
       {
@@ -16,7 +20,7 @@ const nextConfig: NextConfig = {
         protocol: 'http',
         hostname: 'localhost',
         port: '5000',
-        pathname: '/**',
+        pathname: '/uploads/**',
       },
     ],
   },

@@ -3,9 +3,10 @@ const cors = require('cors');
 const path = require('path');
 const dotenv = require('dotenv');
 const session = require('express-session');
-const passport = require('./config/passport');
 
 dotenv.config();
+
+const passport = require('./config/passport');
 
 // Import routes
 const authRoutes = require('./routes/authRoutes');
