@@ -135,12 +135,11 @@ export default function OrderSuccessPage() {
                             {order.items?.map((item, idx) => (
                                 <div key={idx} className="d-flex gap-3 mb-3 pb-2 border-bottom">
                                     {/* Product Image */}
-                                    <div className="flex-shrink-0 bg-light d-flex align-items-center justify-content-center" style={{ width: '60px', height: '60px' }}>
+                                    <div className="flex-shrink-0 bg-light d-flex align-items-center justify-content-center overflow-hidden" style={{ width: '60px', height: '60px' }}>
                                         <img
                                             src={getFullImageUrl(item.image)}
                                             alt={item.name}
-                                            className="img-fluid"
-                                            style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+                                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                                             onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                                         />
                                     </div>

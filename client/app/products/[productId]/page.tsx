@@ -245,14 +245,14 @@ export default function ProductDetailPage() {
 
                 .pd-main-img-wrap {
                     background: var(--product-bg);
-                    aspect-ratio: 4/5;
+                    aspect-ratio: 1/1;
                     display: flex; align-items: center; justify-content: center;
                     overflow: hidden; position: relative;
                 }
                 .pd-main-img-wrap img {
                     width: 100%; height: 100%;
-                    object-fit: contain;
-                    padding: 40px;
+                    object-fit: cover;
+                    padding: 0;
                     transition: transform .5s cubic-bezier(.16,1,.3,1);
                 }
                 .pd-main-img-wrap:hover img { transform: scale(1.04); }
@@ -290,14 +290,14 @@ export default function ProductDetailPage() {
                 .pd-thumbs::-webkit-scrollbar-thumb { background: var(--border-md); }
                 .pd-thumb {
                     flex-shrink: 0;
-                    width: 72px; height: 88px;
+                    width: 72px; height: 72px;
                     background: var(--product-bg);
                     border: 1.5px solid transparent;
                     cursor: pointer; overflow: hidden;
                     transition: border-color .2s;
                     display: flex; align-items: center; justify-content: center;
                 }
-                .pd-thumb img { width:100%; height:100%; object-fit:contain; padding:6px; }
+                .pd-thumb img { width:100%; height:100%; object-fit:cover; padding:0; }
                 .pd-thumb.active { border-color: var(--ink); }
                 .pd-thumb:hover:not(.active) { border-color: var(--border-md); }
 

@@ -99,12 +99,11 @@ export default function CategoryProductsPage() {
                         <div key={product.id} className="col-md-4 col-lg-3">
                             <div className="card border-0 shadow-sm h-100 rounded-0">
                                 <Link href={`/products/${product.id}`}>
-                                    <div className="d-flex align-items-center justify-content-center p-3" style={{ height: '200px', cursor: 'pointer', backgroundColor: '#fff' }}>
+                                    <div className="d-flex align-items-center justify-content-center overflow-hidden" style={{ aspectRatio: '1 / 1', cursor: 'pointer', backgroundColor: '#fff' }}>
                                         <img
                                             src={getPrimaryImage(product)}
                                             alt={product.name}
-                                            className="img-fluid"
-                                            style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+                                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                                         />
                                     </div>
                                 </Link>

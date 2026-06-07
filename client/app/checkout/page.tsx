@@ -193,8 +193,8 @@ export default function CheckoutPage() {
                             <h5 className="fw-bold mb-3">Order Summary</h5>
                             {cart.items.map((item) => (
                                 <div key={item.id} className="d-flex gap-3 mb-3 pb-2 border-bottom">
-                                    <div className="flex-shrink-0 bg-light d-flex align-items-center justify-content-center" style={{ width: '60px', height: '60px' }}>
-                                        <img src={getImageUrl(item.image)} alt={item.name} className="img-fluid" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} onError={(e) => { e.target.style.display = 'none'; }} />
+                                    <div className="flex-shrink-0 bg-light d-flex align-items-center justify-content-center overflow-hidden" style={{ width: '60px', height: '60px' }}>
+                                        <img src={getImageUrl(item.image)} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { e.target.style.display = 'none'; }} />
                                     </div>
                                     <div className="flex-grow-1">
                                         <div className="fw-bold">{item.name}</div>

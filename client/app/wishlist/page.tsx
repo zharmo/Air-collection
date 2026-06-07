@@ -167,12 +167,11 @@ export default function WishlistPage() {
                                     {/* Image */}
                                     <div className="position-relative">
                                         <Link href={`/products/${item.product_id}`}>
-                                            <div className="bg-light d-flex align-items-center justify-content-center p-3" style={{ height: '250px', cursor: 'pointer' }}>
+                                            <div className="bg-light d-flex align-items-center justify-content-center overflow-hidden" style={{ aspectRatio: '1 / 1', cursor: 'pointer' }}>
                                                 <img
                                                     src={getFullImageUrl(item.image)}
                                                     alt={item.name}
-                                                    className="img-fluid"
-                                                    style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+                                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                                                 />
                                             </div>
                                         </Link>

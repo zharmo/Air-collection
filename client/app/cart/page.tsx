@@ -50,12 +50,11 @@ export default function CartPage() {
                         <div className="card-body p-4">
                             {cart.items.map((item) => (
                                 <div key={item.id} className="d-flex flex-wrap gap-3 mb-4 pb-3 border-bottom">
-                                    <div className="bg-light d-flex align-items-center justify-content-center" style={{ width: '100px', height: '120px' }}>
+                                    <div className="bg-light d-flex align-items-center justify-content-center overflow-hidden" style={{ width: '100px', height: '100px' }}>
                                         <img
                                             src={getImageUrl(item.image)}
                                             alt={item.name}
-                                            className="img-fluid"
-                                            style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+                                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                                         />
                                     </div>
                                     <div className="flex-grow-1">

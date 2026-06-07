@@ -612,7 +612,7 @@ const CSS = `
     gap: 12px;
   }
   .od-product-img-wrap {
-    width: 48px; height: 52px;
+    width: 48px; height: 48px;
     border-radius: 8px;
     background: #f8fafc;
     border: 1px solid #f1f5f9;
@@ -624,8 +624,8 @@ const CSS = `
   }
   .od-product-img {
     width: 100%; height: 100%;
-    object-fit: contain;
-    padding: 4px;
+    object-fit: cover;
+    padding: 0;
   }
   .od-product-name {
     font-size: 0.85rem;

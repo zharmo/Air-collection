@@ -419,7 +419,7 @@ export default function HomePage() {
 
                 .product-card-image {
                     background: var(--product-bg);
-                    aspect-ratio: 3/4;
+                    aspect-ratio: 1/1;
                     display: flex;
                     align-items: center;
                     justify-content: center;
@@ -430,8 +430,8 @@ export default function HomePage() {
                 .product-card-image img {
                     width: 100%;
                     height: 100%;
-                    object-fit: contain;
-                    padding: 28px;
+                    object-fit: cover;
+                    padding: 0;
                     transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
                 }
 
@@ -1071,10 +1071,7 @@ export default function HomePage() {
           <div className="product-grid-4">
             {aiRecommended.map((product) => (
               <div key={product.id} className="product-card">
-                <div
-                  className="product-card-image"
-                  style={{ aspectRatio: "2/3" }}
-                >
+                <div className="product-card-image">
                   <div className="product-card-badge ai">AI Pick</div>
                   <Link href={`/products/${product.id}`}>
                     <img src={getPrimaryImage(product)} alt={product.name} />
