@@ -86,13 +86,6 @@ export default function ProductDetailPage() {
         }
     }, [selectedColor]);
 
-    useEffect(() => {
-        if (selectedColor && product) {
-            const available = filteredSizes().find(s => s.is_available && s.stock > 0);
-            setSelectedSize(available || null);
-        }
-    }, [selectedColor, product]);
-
     const filteredSizes = () => {
         if (!product) return [];
         if (!selectedColor) return product.sizes.filter(s => s.color_id === null);
@@ -116,7 +109,19 @@ export default function ProductDetailPage() {
     };
 
     const handleAddToCart = async () => {
-        if (!selectedSize) { setSizeError(true); setTimeout(() => setSizeError(false), 2000); return; }
+        const sizeOptions = filteredSizes();
+        const needsSize = sizeOptions.length > 0;
+        const sizeUnavailable = needsSize && (!selectedSize?.is_available || selectedSize.stock === 0);
+        const productUnavailable = !needsSize && product!.stock_quantity === 0;
+
+        if (needsSize && !selectedSize) {
+            setSizeError(true);
+            setTimeout(() => setSizeError(false), 2000);
+            return false;
+        }
+
+        if (sizeUnavailable || productUnavailable) return false;
+
         let imageUrl = '';
         if (selectedColor?.image_url) imageUrl = getFullImageUrl(selectedColor.image_url);
         else if (product?.images?.length) {
@@ -126,7 +131,7 @@ export default function ProductDetailPage() {
         // FIX: ensure price is a number (convert from any possible string)
         const numericPrice = Number(product!.price);
         await addToCart(product!.id, quantity, {
-            size: selectedSize.size_name,
+            size: selectedSize?.size_name,
             color: selectedColor?.color_name,
             name: product!.name,
             price: numericPrice,
@@ -134,11 +139,12 @@ export default function ProductDetailPage() {
         });
         setAddedToCart(true);
         setTimeout(() => setAddedToCart(false), 2500);
+        return true;
     };
 
     const handleBuyNow = async () => {
-        await handleAddToCart();
-        window.location.href = '/cart';
+        const added = await handleAddToCart();
+        if (added) window.location.href = '/cart';
     };
 
     const handleToggleWishlist = () => {
@@ -184,6 +190,10 @@ export default function ProductDetailPage() {
     );
 
     const availableSizes = filteredSizes();
+    const hasSizeOptions = availableSizes.length > 0;
+    const selectedSizeUnavailable = hasSizeOptions && !!selectedSize && (!selectedSize.is_available || selectedSize.stock === 0);
+    const isOutOfStock = hasSizeOptions ? selectedSizeUnavailable : product.stock_quantity === 0;
+    const isActionDisabled = addedToCart || selectedSizeUnavailable || (!hasSizeOptions && product.stock_quantity === 0);
 
     return (
         <>
@@ -440,10 +450,11 @@ export default function ProductDetailPage() {
                     flex:1; min-width:140px;
                     font-family:'Jost',sans-serif; font-size:11px; font-weight:700;
                     letter-spacing:.2em; text-transform:uppercase;
-                    height:54px; padding:0 24px;
+                    min-height:54px; padding:14px 24px;
                     background:var(--ink); color:#fff; border:1.5px solid var(--ink);
                     cursor:pointer;
                     display:flex; align-items:center; justify-content:center; gap:10px;
+                    line-height:1.2;
                     transition:background .25s, color .25s;
                 }
                 .pd-btn-cart:hover:not(:disabled) { background:transparent; color:var(--ink); }
@@ -454,10 +465,11 @@ export default function ProductDetailPage() {
                     flex:1; min-width:140px;
                     font-family:'Jost',sans-serif; font-size:11px; font-weight:600;
                     letter-spacing:.18em; text-transform:uppercase;
-                    height:54px; padding:0 24px;
+                    min-height:54px; padding:14px 24px;
                     background:transparent; color:var(--ink); border:1.5px solid var(--border-md);
                     cursor:pointer;
                     display:flex; align-items:center; justify-content:center; gap:10px;
+                    line-height:1.2;
                     transition:border-color .22s, background .22s;
                 }
                 .pd-btn-buy:hover:not(:disabled) { border-color:var(--ink); background:var(--warm); }
@@ -515,8 +527,30 @@ export default function ProductDetailPage() {
                 }
                 @media (max-width: 640px) {
                     .pd-page { padding:20px 16px 80px; }
-                    .pd-actions { flex-direction:column; }
-                    .pd-btn-cart, .pd-btn-buy { width:100%; }
+                    .pd-actions { flex-direction:column; gap:12px; }
+                    .pd-btn-cart, .pd-btn-buy {
+                        width:100%;
+                        min-height:56px;
+                        padding:16px 18px;
+                    }
+                    .pd-delivery {
+                        display:grid;
+                        grid-template-columns:1fr 1fr;
+                        border:1px solid var(--border-md);
+                    }
+                    .pd-del-item {
+                        min-width:0;
+                        align-items:center;
+                        padding:24px 20px;
+                        border-right:1px solid var(--border);
+                        border-bottom:1px solid var(--border);
+                    }
+                    .pd-del-item:nth-child(2n) { border-right:none; }
+                    .pd-del-item:last-child {
+                        grid-column:1 / -1;
+                        border-right:none;
+                        border-bottom:none;
+                    }
                 }
             `}</style>
 
@@ -649,7 +683,7 @@ export default function ProductDetailPage() {
                             </div>
                         ) : (
                             <p style={{ fontFamily:'Jost,sans-serif', fontSize:13, color:'var(--ink-faint)', marginBottom:24 }}>
-                                No sizes available for this colour.
+                                {product.sizes?.length ? 'No sizes available for this colour.' : 'No size selection required.'}
                             </p>
                         )}
 
@@ -670,21 +704,21 @@ export default function ProductDetailPage() {
                             <button
                                 className={`pd-btn-cart${addedToCart ? ' success' : ''}`}
                                 onClick={handleAddToCart}
-                                disabled={!selectedSize || !selectedSize.is_available || selectedSize.stock === 0}
+                                disabled={isActionDisabled}
                             >
                                 {addedToCart
-                                    ? '✓ Added to Bag'
-                                    : !selectedSize
-                                        ? 'Select a Size'
-                                        : selectedSize.stock === 0
-                                            ? 'Out of Stock'
-                                            : (<>Add to Bag <FaArrowRight size={10} /></>)
+                                    ? '✓ Added to Cart'
+                                    : isOutOfStock
+                                        ? 'Out of Stock'
+                                        : hasSizeOptions && !selectedSize
+                                            ? 'Select a Size'
+                                            : (<>Add to Cart <FaArrowRight size={10} /></>)
                                 }
                             </button>
                             <button
                                 className="pd-btn-buy"
                                 onClick={handleBuyNow}
-                                disabled={!selectedSize || !selectedSize.is_available || selectedSize.stock === 0}
+                                disabled={isActionDisabled}
                             >
                                 Buy Now
                             </button>
