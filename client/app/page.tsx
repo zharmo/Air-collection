@@ -117,7 +117,8 @@ export default function HomePage() {
 
   const getCategoryImage = (category: Category) => {
     if (!category.image) return "";
-    if (category.image.startsWith("/uploads")) return `${backendUrl}${category.image}`;
+    if (category.image.startsWith("/uploads"))
+      return `${backendUrl}${category.image}`;
     return category.image;
   };
 
@@ -131,7 +132,9 @@ export default function HomePage() {
     return "✦";
   };
 
-  const displayCategories = (dbCategories.length ? dbCategories : categories).slice(0, 4);
+  const displayCategories = (
+    dbCategories.length ? dbCategories : categories
+  ).slice(0, 4);
 
   const renderStars = (rating: number = 5) => {
     const full = Math.floor(rating);
@@ -328,11 +331,11 @@ export default function HomePage() {
                     background: var(--ink);
                     color: #fff;
                     border: 1.5px solid var(--ink);
-                    padding: 18px 40px;
+                    padding: 14px 22px;
                     text-decoration: none;
                     display: inline-flex;
                     align-items: center;
-                    gap: 12px;
+                    gap: 6px;
                     transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
                     cursor: pointer;
                 }
@@ -518,7 +521,7 @@ export default function HomePage() {
                     text-transform: uppercase;
                     color: #fff;
                     cursor: pointer;
-                    padding: 8px;
+                    padding: 4px;
                     display: flex;
                     align-items: center;
                     justify-content: center;
