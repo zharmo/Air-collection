@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -39,7 +39,7 @@ interface Order {
 }
 
 /* ─────────────────────────── STATUS CONFIG ─────────────────── */
-const STATUS_CFG: Record<string, { label: string; color: string; bg: string; icon: JSX.Element }> = {
+const STATUS_CFG: Record<string, { label: string; color: string; bg: string; icon: ReactNode }> = {
     pending:    { label: 'Pending',    color: '#92400e', bg: '#fef3c7', icon: <FaClock size={11}/>       },
     processing: { label: 'Processing', color: '#1e40af', bg: '#dbeafe', icon: <FaSpinner size={11}/>     },
     packed:     { label: 'Packed',     color: '#5b21b6', bg: '#ede9fe', icon: <FaBoxOpen size={11}/>     },

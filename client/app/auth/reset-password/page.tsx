@@ -1,12 +1,30 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Suspense, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { FaLock, FaEye, FaEyeSlash } from 'react-icons/fa';
 import axiosInstance from '@/utils/axiosConfig';
 
+<<<<<<< HEAD
 export default function ResetPasswordPage() {
+=======
+export default function ResetPassword() {
+  return (
+    <Suspense
+      fallback={
+        <div className="container py-5 text-center">
+          <div className="spinner-border text-dark" role="status"></div>
+        </div>
+      }
+    >
+      <ResetPasswordContent />
+    </Suspense>
+  );
+}
+
+function ResetPasswordContent() {
+>>>>>>> 0d3a8e4b5ba8b456459db6daf3b587bdeecc92bd
   const searchParams = useSearchParams();
   const router = useRouter();
   const token = searchParams.get('token');
@@ -192,6 +210,7 @@ export default function ResetPasswordPage() {
     </>
   );
 }
+<<<<<<< HEAD
 
 /* ══════════════════════════════════════════════════════════════
    CSS
@@ -565,3 +584,5 @@ const CSS = `
   .rp-brand-name { font-size: 1.5rem; }
 }
 `;
+=======
+>>>>>>> 0d3a8e4b5ba8b456459db6daf3b587bdeecc92bd

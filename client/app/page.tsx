@@ -22,6 +22,16 @@ interface Product {
   stock_quantity: number;
 }
 
+interface Category {
+  id?: number;
+  name: string;
+  slug: string;
+  description?: string;
+  image?: string;
+  icon?: string;
+  desc?: string;
+}
+
 export default function HomePage() {
   const [email, setEmail] = useState("");
   const [subscribed, setSubscribed] = useState(false);
@@ -31,9 +41,10 @@ export default function HomePage() {
   const [bestSellers, setBestSellers] = useState<Product[]>([]);
   const [newArrivals, setNewArrivals] = useState<Product[]>([]);
   const [aiRecommended, setAiRecommended] = useState<Product[]>([]);
+  const [dbCategories, setDbCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const categories = [
+  const categories: Category[] = [
     {
       name: "Baggy Pants",
       slug: "baggy-pants",
@@ -57,14 +68,19 @@ export default function HomePage() {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const res = await axiosInstance.get("/products");
-        const allProducts = res.data.data;
+        const [productsRes, categoriesRes] = await Promise.all([
+          axiosInstance.get("/products"),
+          axiosInstance.get("/categories"),
+        ]);
+        const allProducts = productsRes.data.data;
+        const allCategories = categoriesRes.data.data;
         setFeaturedProducts(allProducts.slice(0, 2));
         setBestSellers(allProducts.slice(2, 5));
         setNewArrivals(allProducts.slice(5, 8));
         setAiRecommended(allProducts.slice(8, 12));
+        setDbCategories(allCategories);
       } catch (error) {
-        console.error("Failed to fetch products", error);
+        console.error("Failed to fetch home data", error);
       } finally {
         setLoading(false);
       }
@@ -98,6 +114,24 @@ export default function HomePage() {
     if (imagePath.startsWith("/uploads")) return `${backendUrl}${imagePath}`;
     return imagePath;
   };
+
+  const getCategoryImage = (category: Category) => {
+    if (!category.image) return "";
+    if (category.image.startsWith("/uploads")) return `${backendUrl}${category.image}`;
+    return category.image;
+  };
+
+  const getCategoryIcon = (category: Category) => {
+    if (category.icon) return category.icon;
+    const key = `${category.slug} ${category.name}`.toLowerCase();
+    if (key.includes("pant")) return "👖";
+    if (key.includes("shoe") || key.includes("footwear")) return "👟";
+    if (key.includes("shirt") || key.includes("tee")) return "👕";
+    if (key.includes("winter")) return "🧥";
+    return "✦";
+  };
+
+  const displayCategories = dbCategories.length ? dbCategories : categories;
 
   const renderStars = (rating: number = 5) => {
     const full = Math.floor(rating);
@@ -495,7 +529,7 @@ export default function HomePage() {
                 .product-card-overlay button:hover { opacity: 0.7; }
 
                 .product-card-body {
-                    padding: 20px 0 8px;
+                    padding: 20px 6px 8px;
                 }
 
                 .product-card-name {
@@ -572,8 +606,19 @@ export default function HomePage() {
                 }
 
                 .category-icon {
+                    width: 64px;
+                    height: 64px;
                     font-size: 48px;
                     line-height: 1;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+
+                .category-icon img {
+                    width: 100%;
+                    height: 100%;
+                    object-fit: contain;
                 }
 
                 .category-name {
@@ -776,8 +821,8 @@ export default function HomePage() {
                 }
 
                 @media (max-width: 480px) {
-                    .product-grid-3 { grid-template-columns: 1fr; }
-                    .product-grid-4 { grid-template-columns: 1fr; }
+                    .product-grid-3 { grid-template-columns: 1fr 1fr; }
+                    .product-grid-4 { grid-template-columns: 1fr 1fr; }
                     .category-grid { grid-template-columns: 1fr 1fr; }
                 }
             `}</style>
@@ -787,7 +832,7 @@ export default function HomePage() {
         <div className="hero-content">
           <div className="hero-eyebrow">
             <span className="hero-eyebrow-line" />
-            <span className="label-caps">New Season 2025</span>
+            <span className="label-caps">New Season 2026</span>
           </div>
           <h1 className="hero-title">
             Light
@@ -946,17 +991,29 @@ export default function HomePage() {
           </Link>
         </div>
         <div className="category-grid">
-          {categories.map((cat) => (
-            <Link
-              key={cat.slug}
-              href={`/categories/${cat.slug}`}
-              className="category-card"
-            >
-              <span className="category-icon">{cat.icon}</span>
-              <span className="category-name">{cat.name}</span>
-              <span className="category-desc">{cat.desc}</span>
-            </Link>
-          ))}
+          {displayCategories.map((cat) => {
+            const categoryImage = getCategoryImage(cat);
+
+            return (
+              <Link
+                key={cat.slug}
+                href={`/categories/${cat.slug}`}
+                className="category-card"
+              >
+                <span className="category-icon">
+                  {categoryImage ? (
+                    <img src={categoryImage} alt={cat.name} />
+                  ) : (
+                    getCategoryIcon(cat)
+                  )}
+                </span>
+                <span className="category-name">{cat.name}</span>
+                <span className="category-desc">
+                  {cat.description || cat.desc || "Explore Collection"}
+                </span>
+              </Link>
+            );
+          })}
         </div>
       </section>
 
@@ -971,7 +1028,7 @@ export default function HomePage() {
               View All <FaArrowRight size={10} />
             </Link>
           </div>
-          <div className="product-grid-3">
+          <div className="product-grid-4">
             {bestSellers.map((product) => (
               <div key={product.id} className="product-card">
                 <div className="product-card-image">
@@ -1050,7 +1107,7 @@ export default function HomePage() {
       )}
 
       {/* ── AI RECOMMENDED ── */}
-      {aiRecommended.length > 0 && (
+      {/* {aiRecommended.length > 0 && (
         <section className="section">
           <div className="section-header">
             <div>
@@ -1098,7 +1155,7 @@ export default function HomePage() {
             ))}
           </div>
         </section>
-      )}
+      )} */}
 
       {/* ── REVIEW ── */}
       <section className="review-section">

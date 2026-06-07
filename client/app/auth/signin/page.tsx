@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
@@ -8,6 +8,23 @@ import { useAuth } from '@/context/AuthContext';
 import axiosInstance from '@/utils/axiosConfig';
 
 export default function SignIn() {
+<<<<<<< HEAD
+=======
+  return (
+    <Suspense
+      fallback={
+        <div className="container py-5 text-center">
+          <div className="spinner-border text-dark" role="status"></div>
+        </div>
+      }
+    >
+      <SignInContent />
+    </Suspense>
+  );
+}
+
+function SignInContent() {
+>>>>>>> 0d3a8e4b5ba8b456459db6daf3b587bdeecc92bd
   const searchParams = useSearchParams();
   const router = useRouter();
   const [email,      setEmail     ] = useState('');
@@ -34,20 +51,28 @@ export default function SignIn() {
         })
         .catch(err => {
           console.error('Token validation error:', err);
+<<<<<<< HEAD
           setError('Google login failed. Please try again.');
+=======
+          setError('Google sign-in failed. Please try again.');
+>>>>>>> 0d3a8e4b5ba8b456459db6daf3b587bdeecc92bd
           setTokenProcessing(false);
         });
     }
   }, [searchParams, router]);
   // ----------------------------------
 
+<<<<<<< HEAD
   /* ── Email / password login ── */
+=======
+>>>>>>> 0d3a8e4b5ba8b456459db6daf3b587bdeecc92bd
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
       const result = await login(email, password);
+<<<<<<< HEAD
       if (result.success) {
         if (rememberMe) localStorage.setItem('rememberMe', 'true');
         else            localStorage.removeItem('rememberMe');
@@ -55,6 +80,10 @@ export default function SignIn() {
       } else {
         setError(result.message || 'Invalid email or password.');
       }
+=======
+      if (result.success) router.push('/');
+      else setError(result.message || 'Login failed. Please check your email and password.');
+>>>>>>> 0d3a8e4b5ba8b456459db6daf3b587bdeecc92bd
     } catch {
       setError('Something went wrong. Please try again.');
     } finally {
@@ -62,10 +91,25 @@ export default function SignIn() {
     }
   };
 
+<<<<<<< HEAD
   const handleGoogleLogin = () => {
     const base = process.env.NEXT_PUBLIC_API_URL;
     if (!base) {
       setError('Google login is not configured. Please contact support.');
+=======
+  /*
+   * ── Google OAuth ──
+   * Same pattern as SignIn – redirect browser to backend OAuth entry point.
+   * Backend redirects to /auth/callback?token=<JWT> after success.
+   *
+   * We intentionally do NOT reset googleLoad here because the page is
+   * navigating away; showing a spinner until the page unloads is correct UX.
+   */
+  const handleGoogleSignin = () => {
+    const base = process.env.NEXT_PUBLIC_API_URL;
+    if (!base) {
+      setError('Google sign-in is not configured. Please contact support.');
+>>>>>>> 0d3a8e4b5ba8b456459db6daf3b587bdeecc92bd
       return;
     }
     setGoogleLoad(true);
@@ -135,7 +179,11 @@ export default function SignIn() {
 
             <div className="auth-eyebrow">Welcome back</div>
             <h1 className="auth-heading">Sign in</h1>
+<<<<<<< HEAD
             <p className="auth-sub">Access your curated wardrobe.</p>
+=======
+            <p className="auth-sub">Access your orders, wishlist, and saved collection details.</p>
+>>>>>>> 0d3a8e4b5ba8b456459db6daf3b587bdeecc92bd
 
             {error && (
               <div className="auth-error" role="alert">
@@ -151,7 +199,11 @@ export default function SignIn() {
             <button
               type="button"
               className="auth-google-btn"
+<<<<<<< HEAD
               onClick={handleGoogleLogin}
+=======
+              onClick={handleGoogleSignin}
+>>>>>>> 0d3a8e4b5ba8b456459db6daf3b587bdeecc92bd
               disabled={googleLoad || loading}
               aria-busy={googleLoad}
               aria-label="Continue with Google"
@@ -184,7 +236,11 @@ export default function SignIn() {
                   id="si-email"
                   type="email"
                   className="auth-input"
+<<<<<<< HEAD
                   placeholder="name@example.com"
+=======
+                  placeholder="you@example.com"
+>>>>>>> 0d3a8e4b5ba8b456459db6daf3b587bdeecc92bd
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   required
@@ -194,10 +250,14 @@ export default function SignIn() {
               </div>
 
               <div className="auth-field">
+<<<<<<< HEAD
                 <div className="auth-label-row">
                   <label className="auth-label" htmlFor="si-password">Password</label>
                   <Link href="/auth/forgot-password" className="auth-forgot">Forgot password?</Link>
                 </div>
+=======
+                <label className="auth-label" htmlFor="si-password">Password</label>
+>>>>>>> 0d3a8e4b5ba8b456459db6daf3b587bdeecc92bd
                 <div className="auth-pw-wrap">
                   <input
                     id="si-password"
@@ -220,6 +280,7 @@ export default function SignIn() {
                     {showPw ? <FaEyeSlash size={15} /> : <FaEye size={15} />}
                   </button>
                 </div>
+<<<<<<< HEAD
               </div>
 
               <div className="auth-remember">
@@ -234,6 +295,8 @@ export default function SignIn() {
                   <span className="auth-check-box" aria-hidden="true" />
                   <span className="auth-check-text">Remember me for 30 days</span>
                 </label>
+=======
+>>>>>>> 0d3a8e4b5ba8b456459db6daf3b587bdeecc92bd
               </div>
 
               <button
@@ -242,15 +305,31 @@ export default function SignIn() {
                 disabled={loading || googleLoad}
                 aria-busy={loading}
               >
+<<<<<<< HEAD
                 {loading
                   ? <><span className="auth-spinner auth-spinner-white" aria-hidden="true" /> Signing in…</>
                   : 'Sign In'}
+=======
+                {loading ? (
+                  <>
+                    <span className="auth-spinner auth-spinner-white" aria-hidden="true" />
+                    Signing in...
+                  </>
+                ) : (
+                  'Sign In'
+                )}
+>>>>>>> 0d3a8e4b5ba8b456459db6daf3b587bdeecc92bd
               </button>
             </form>
 
             <p className="auth-switch">
+<<<<<<< HEAD
               Don&apos;t have an account?{' '}
               <Link href="/auth/signup" className="auth-switch-link">Create one</Link>
+=======
+              New to Air Collection?{' '}
+              <Link href="/auth/signup" className="auth-switch-link">Create account</Link>
+>>>>>>> 0d3a8e4b5ba8b456459db6daf3b587bdeecc92bd
             </p>
 
             <footer className="auth-footer">

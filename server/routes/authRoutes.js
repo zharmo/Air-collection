@@ -7,6 +7,14 @@ const { sendSuccess, sendError } = require('../utils/responseHandler');
 const generateToken = require('../utils/generateToken');
 const router = express.Router();
 
+const requireGoogleOAuth = (req, res, next) => {
+    if (passport._strategy('google')) {
+        return next();
+    }
+
+    return sendError(res, 'Google OAuth is not configured on this server', 503);
+};
+
 router.post('/register', registerUser);
 router.post('/login', loginUser);
 router.post('/forgot-password', forgotPassword);
@@ -30,17 +38,20 @@ router.get('/me', protect, async (req, res) => {
 // ========== Google OAuth Routes ==========
 // Redirect to Google consent screen
 router.get('/google',
+    requireGoogleOAuth,
     passport.authenticate('google', { scope: ['profile', 'email'] })
 );
 
 // Google callback – after user approves
 router.get('/google/callback',
+    requireGoogleOAuth,
     passport.authenticate('google', { failureRedirect: '/auth/signin' }),
     (req, res) => {
         const user = req.user;
         const token = generateToken(user.id, user.role);
+        const frontendUrl = process.env.FRONTEND_URL || process.env.SITE_URL || 'http://localhost:3000';
         // Redirect to frontend signin page with the token as a query parameter
-        res.redirect(`${process.env.FRONTEND_URL}/auth/signin?token=${token}`);
+        res.redirect(`${frontendUrl}/auth/signin?token=${token}`);
     }
 );
 

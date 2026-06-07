@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef, type ReactNode } from 'react';
 import Link from 'next/link';
 import {
     FaSearch, FaEye, FaFilter, FaDownload, FaTimes, FaSort,
@@ -67,7 +67,7 @@ interface Filters {
 ══════════════════════════════════════════ */
 const ALL_STATUSES = ['pending','processing','packed','shipped','delivered','cancelled'] as const;
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon: JSX.Element }> = {
+const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon: ReactNode }> = {
     pending:    { label: 'Pending',    color: '#b45309', bg: '#fef3c7', icon: <FaClock size={11}/> },
     processing: { label: 'Processing', color: '#1d4ed8', bg: '#dbeafe', icon: <FaSpinner size={11}/> },
     packed:     { label: 'Packed',     color: '#7c3aed', bg: '#ede9fe', icon: <FaBoxOpen size={11}/> },
@@ -156,7 +156,7 @@ const PaymentBadge = ({ status }: { status?: string }) => {
 /* ── Analytics Card ── */
 interface AnalyticsCardProps {
     label: string; value: string | number; growth: number;
-    icon: JSX.Element; accentColor: string; delay?: number;
+    icon: ReactNode; accentColor: string; delay?: number;
 }
 const AnalyticsCard = ({ label, value, growth, icon, accentColor, delay = 0 }: AnalyticsCardProps) => (
     <div className="col-xl-3 col-lg-4 col-sm-6" style={{ animationDelay: `${delay}ms` }}>
@@ -195,7 +195,7 @@ const SortTh = ({ label, field, sort, onSort }: {
 
 /* ── AI Insight Card ── */
 const AICard = ({ title, value, sub, icon, color }: {
-    title: string; value: string; sub: string; icon: JSX.Element; color: string;
+    title: string; value: string; sub: string; icon: ReactNode; color: string;
 }) => (
     <div className="ai-card">
         <div className="ai-card-icon" style={{ background: `${color}15`, color }}>{icon}</div>

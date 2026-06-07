@@ -949,9 +949,9 @@ export default function ProductsManagement() {
                 .pm-card:hover { box-shadow:var(--pm-shadow-h); transform:translateY(-2px); }
 
                 /* product card */
-                .pm-product-card { background:var(--pm-white); border:1px solid var(--pm-border); border-radius:var(--pm-radius); box-shadow:var(--pm-shadow); overflow:hidden; display:flex; transition:box-shadow .25s, transform .22s; animation: pmFadeUp .35s ease both; }
+                .pm-product-card { background:var(--pm-white); border:1px solid var(--pm-border); border-radius:var(--pm-radius); box-shadow:var(--pm-shadow); overflow:hidden; display:flex; align-items:stretch; transition:box-shadow .25s, transform .22s; animation: pmFadeUp .35s ease both; }
                 .pm-product-card:hover { box-shadow:var(--pm-shadow-h); transform:translateY(-2px); }
-                .pm-product-img-wrap { width:110px; height:110px; min-height:110px; background:#f7f6f3; flex-shrink:0; display:flex; align-items:center; justify-content:center; overflow:hidden; position:relative; }
+                .pm-product-img-wrap { width:120px; min-height:100%; align-self:stretch; background:#f7f6f3; flex-shrink:0; display:flex; align-items:center; justify-content:center; overflow:hidden; position:relative; }
                 .pm-product-img-wrap img { width:100%; height:100%; object-fit:cover; padding:0; transition:transform .4s ease; }
                 .pm-product-card:hover .pm-product-img-wrap img { transform:scale(1.06); }
 

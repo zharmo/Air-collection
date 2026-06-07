@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { FaCheckCircle, FaHome, FaShoppingBag, FaHeadset } from 'react-icons/fa';
@@ -10,12 +10,17 @@ import { useAuth } from '@/context/AuthContext';
 interface OrderItem {
     name: string;
     quantity: number;
-    price: number;
-    total: number;
+    price: number | string;
+    total: number | string;
     size: string;
     color: string;
     image: string;
 }
+
+const toMoney = (value: number | string | null | undefined) => {
+    const amount = Number(value);
+    return Number.isFinite(amount) ? amount.toFixed(2) : '0.00';
+};
 
 interface Order {
     order_number: string;
@@ -26,9 +31,24 @@ interface Order {
     items: OrderItem[];
     user_name?: string;
     user_email?: string;
+    user_phone?: string;
 }
 
 export default function OrderSuccessPage() {
+    return (
+        <Suspense
+            fallback={
+                <div className="container py-5 text-center">
+                    <div className="spinner-border text-dark"></div>
+                </div>
+            }
+        >
+            <OrderSuccessContent />
+        </Suspense>
+    );
+}
+
+function OrderSuccessContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const orderId = searchParams.get('orderId');
@@ -151,7 +171,7 @@ export default function OrderSuccessPage() {
                                             {item.quantity > 1 && ` | Qty: ${item.quantity}`}
                                         </div>
                                     </div>
-                                    <div className="fw-bold">${(item.price * item.quantity).toFixed(2)}</div>
+                                    <div className="fw-bold">${toMoney(Number(item.price) * item.quantity)}</div>
                                 </div>
                             ))}
                             <div className="d-flex justify-content-between mt-3">
