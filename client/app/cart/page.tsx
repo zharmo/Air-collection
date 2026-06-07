@@ -29,6 +29,218 @@ interface SizeOption {
   available: boolean;
 }
 
+const cartStyles = `
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Jost:wght@300;400;500;600&display=swap');
+
+  .cart-page {
+    max-width: 1220px;
+    margin: 0 auto;
+    padding: 52px 28px 76px;
+    font-family: 'Jost', sans-serif;
+    color: #0a0a0a;
+  }
+
+  .cart-header {
+    text-align: center;
+    padding: 18px 20px 42px;
+  }
+
+  .cart-eyebrow {
+    font-family: 'Jost', sans-serif;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: .22em;
+    text-transform: uppercase;
+    color: #aaa;
+    margin: 0 0 10px;
+    text-align: center;
+  }
+
+  .cart-header h1,
+  .cart-empty h2 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(42px, 5vw, 72px);
+    font-weight: 500;
+    color: #0a0a0a;
+    line-height: .95;
+    margin: 0;
+  }
+
+  .cart-header p,
+  .cart-empty p {
+    font-family: 'Jost', sans-serif;
+    font-size: 14px;
+    font-weight: 300;
+    color: #5c5c5c;
+    margin: 16px auto 0;
+  }
+
+  .cart-header .cart-eyebrow {
+    font-size: 10px;
+    font-weight: 500;
+    color: #aaa;
+    margin: 0 0 10px;
+  }
+
+  .cart-panel {
+    border: 1px solid rgba(0,0,0,.08) !important;
+    border-radius: 0;
+    box-shadow: none !important;
+  }
+
+  .cart-item-title {
+    font-family: 'Jost', sans-serif;
+    font-size: 15px;
+    font-weight: 500;
+    letter-spacing: .01em;
+    color: #0a0a0a;
+  }
+
+  .cart-item-meta,
+  .cart-promo-label,
+  .cart-summary-row {
+    font-family: 'Jost', sans-serif;
+    font-size: 12px;
+    font-weight: 300;
+    color: #5c5c5c;
+  }
+
+  .cart-line-price,
+  .cart-total-row {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 22px;
+    font-weight: 600;
+    color: #0a0a0a;
+  }
+
+  .cart-summary-title {
+    font-family: 'Jost', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: #0a0a0a;
+  }
+
+  .cart-muted-icon {
+    color: #aaa;
+  }
+
+  .cart-primary-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 46px;
+    padding: 0 28px;
+    background: #0a0a0a;
+    color: #fff;
+    text-decoration: none;
+    font-family: 'Jost', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    margin-top: 26px;
+  }
+
+  .cart-empty {
+    min-height: 68vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .cart-empty-icon {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: #f4f2ef;
+    color: #aaa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 22px;
+    font-family: 'Jost', sans-serif;
+    letter-spacing: .08em;
+  }
+
+  .cart-empty .display-1 {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: #f4f2ef;
+    color: #aaa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 22px;
+    font-size: 28px;
+  }
+
+  .cart-size-field {
+    width: 100%;
+  }
+
+  .cart-size-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .cart-size-btn {
+    width: 32px;
+    height: 30px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #d9d9d9;
+    background: #fff;
+    color: #222;
+    font-family: 'Jost', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    line-height: 1;
+    transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+  }
+
+  .cart-size-btn:hover:not(:disabled) {
+    border-color: #111;
+  }
+
+  .cart-size-btn.active {
+    background: #050505;
+    border-color: #050505;
+    color: #fff;
+  }
+
+  .cart-size-btn:disabled {
+    color: #b8b8b8;
+    background: #f7f7f7;
+    cursor: not-allowed;
+    opacity: 0.65;
+    text-decoration: line-through;
+  }
+
+  @media (max-width: 575px) {
+    .cart-page {
+      padding: 34px 16px 60px;
+    }
+
+    .cart-header {
+      padding: 8px 12px 32px;
+    }
+
+    .cart-size-btn {
+      width: 32px;
+      height: 30px;
+      font-size: 12px;
+    }
+  }
+`;
+
 export default function CartPage() {
   const { cart, updateQuantity, updateItemSize, removeFromCart, clearCart } =
     useCart();
@@ -143,13 +355,12 @@ export default function CartPage() {
   // No login check – always show cart (empty or full)
   if (cart.items.length === 0) {
     return (
-      <div className="container py-5 text-center">
+      <div className="cart-page cart-empty">
+        <style>{cartStyles}</style>
         <div className="display-1 mb-3">🛒</div>
-        <h2>Your bag is empty</h2>
-        <p className="text-muted mb-4">
-          Looks like you haven't added anything yet.
-        </p>
-        <Link href="/" className="btn btn-dark rounded-0 px-4">
+        <h2>Your Bag Is Empty</h2>
+        <p>Looks like you haven't added anything yet.</p>
+        <Link href="/products" className="cart-primary-link">
           Continue Shopping
         </Link>
       </div>
@@ -157,73 +368,19 @@ export default function CartPage() {
   }
 
   return (
-    <div className="container py-5">
-      <style>{`
-                .cart-size-field {
-                    width: 100%;
-                }
-
-                .cart-size-label {
-                    margin-bottom: 8px;
-                    font-size: 11px;
-                    font-weight: 600;
-                    letter-spacing: 0.08em;
-                    text-transform: uppercase;
-                    color: #6c757d;
-                }
-
-                .cart-size-options {
-                    display: flex;
-                    flex-wrap: wrap;
-                    gap: 10px;
-                }
-
-                .cart-size-btn {
-                    width: 32px;
-                    height: 30px;
-                    display: inline-flex;
-                    align-items: center;
-                    justify-content: center;
-                    border: 1px solid #d9d9d9;
-                    background: #fff;
-                    color: #222;
-                    font-size: 12px;
-                    font-weight: 600;
-                    letter-spacing: 0.03em;
-                    line-height: 1;
-                    transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease, opacity 0.15s ease;
-                }
-
-                .cart-size-btn:hover:not(:disabled) {
-                    border-color: #111;
-                }
-
-                .cart-size-btn.active {
-                    background: #050505;
-                    border-color: #050505;
-                    color: #fff;
-                }
-
-                .cart-size-btn:disabled {
-                    color: #b8b8b8;
-                    background: #f7f7f7;
-                    cursor: not-allowed;
-                    opacity: 0.65;
-                    text-decoration: line-through;
-                }
-
-                @media (max-width: 575px) {
-                    .cart-size-btn {
-                        width: 32px;
-                        height: 30px;
-                        font-size: 12px;
-                    }
-                }
-            `}</style>
-      <h1 className="fw-bold mb-4">Shopping Cart</h1>
+    <div className="cart-page">
+      <style>{cartStyles}</style>
+      <header className="cart-header">
+        <p className="cart-eyebrow">The Collection</p>
+        <h1>Shopping Cart</h1>
+        <p>
+          {cart.items.length} {cart.items.length === 1 ? "item" : "items"} ready
+          for checkout
+        </p>
+      </header>
       <div className="row g-4">
         <div className="col-lg-8">
-          <div className="card border-0 shadow-sm">
+          <div className="card border-0 shadow-sm cart-panel">
             <div className="card-body p-4">
               {cart.items.map((item) => {
                 const sizeOptions = getSizeOptions(item);
@@ -250,12 +407,12 @@ export default function CartPage() {
                     <div className="flex-grow-1">
                       <div className="d-flex flex-wrap justify-content-between align-items-start">
                         <div>
-                          <h5 className="fw-bold mb-1">{item.name}</h5>
-                          <p className="text-muted small mb-2">
+                          <h5 className="cart-item-title mb-1">{item.name}</h5>
+                          <p className="cart-item-meta mb-2">
                             {item.color && `COLOR: ${item.color}`}
                           </p>
                         </div>
-                        <div className="fw-bold">
+                        <div className="cart-line-price">
                           ${(item.price * item.quantity).toFixed(2)}
                         </div>
                       </div>
@@ -328,8 +485,8 @@ export default function CartPage() {
               })}
               <div className="mt-3 pt-2">
                 <div className="d-flex flex-wrap gap-2 align-items-center">
-                  <FaTag className="text-muted" />
-                  <span className="text-muted">PROMO CODE</span>
+                  <FaTag className="cart-muted-icon" />
+                  <span className="cart-promo-label">PROMO CODE</span>
                   <input
                     type="text"
                     className="form-control form-control-sm rounded-0"
@@ -355,21 +512,21 @@ export default function CartPage() {
           </div>
         </div>
         <div className="col-lg-4">
-          <div className="card border-0 shadow-sm">
+          <div className="card border-0 shadow-sm cart-panel">
             <div className="card-body p-4">
-              <h5 className="fw-bold mb-3">Order Summary</h5>
-              <div className="d-flex justify-content-between mb-2">
+              <h5 className="cart-summary-title mb-3">Order Summary</h5>
+              <div className="d-flex justify-content-between mb-2 cart-summary-row">
                 <span>Subtotal</span>
                 <span>${subtotal.toFixed(2)}</span>
               </div>
               {discount > 0 && (
-                <div className="d-flex justify-content-between mb-2 text-success">
+                <div className="d-flex justify-content-between mb-2 text-success cart-summary-row">
                   <span>Discount</span>
                   <span>-${discount.toFixed(2)}</span>
                 </div>
               )}
               <hr />
-              <div className="d-flex justify-content-between fw-bold fs-5 mb-4">
+              <div className="d-flex justify-content-between mb-4 cart-total-row">
                 <span>Total</span>
                 <span>${total.toFixed(2)}</span>
               </div>
