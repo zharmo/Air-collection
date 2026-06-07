@@ -11,8 +11,8 @@ interface OrderItem {
     id: number;
     product_name: string;
     quantity: number;
-    price: number;
-    total: number;
+    price: number | string;
+    total: number | string;
     size?: string;
     color?: string;
 }
@@ -20,13 +20,18 @@ interface OrderItem {
 interface Order {
     id: number;
     order_number: string;
-    total_amount: number;
+    total_amount: number | string;
     status: string;
     payment_status: string;
     shipping_address: string;
     created_at: string;
     items: OrderItem[];
 }
+
+const toMoney = (value: number | string | null | undefined) => {
+    const amount = Number(value);
+    return Number.isFinite(amount) ? amount.toFixed(2) : '0.00';
+};
 
 export default function OrderDetailPage() {
     const params = useParams();
@@ -85,8 +90,8 @@ export default function OrderDetailPage() {
                                                 <td>{item.product_name}</td>
                                                 <td>{item.size || 'N/A'} / {item.color || 'N/A'}</td>
                                                 <td>{item.quantity}</td>
-                                                <td>${item.price}</td>
-                                                <td>${item.total}</td>
+                                                <td>${toMoney(item.price)}</td>
+                                                <td>${toMoney(item.total)}</td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -101,7 +106,7 @@ export default function OrderDetailPage() {
                             <h5 className="fw-bold mb-3">Order Summary</h5>
                             <div className="d-flex justify-content-between mb-2">
                                 <span>Total Amount</span>
-                                <span className="fw-bold">${order.total_amount.toFixed(2)}</span>
+                                <span className="fw-bold">${toMoney(order.total_amount)}</span>
                             </div>
                             <div className="d-flex justify-content-between mb-2">
                                 <span>Status</span>

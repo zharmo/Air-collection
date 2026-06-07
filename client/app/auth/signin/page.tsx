@@ -1,26 +1,37 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import { useAuth } from '@/context/AuthContext';
 import axiosInstance from '@/utils/axiosConfig';
 
-export default function SignUp() {
+export default function SignIn() {
+  return (
+    <Suspense
+      fallback={
+        <div className="container py-5 text-center">
+          <div className="spinner-border text-dark" role="status"></div>
+        </div>
+      }
+    >
+      <SignInContent />
+    </Suspense>
+  );
+}
+
+function SignInContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const [name,       setName      ] = useState('');
   const [email,      setEmail     ] = useState('');
   const [password,   setPassword  ] = useState('');
   const [showPw,     setShowPw    ] = useState(false);
-  const [agreeTerms, setAgreeTerms] = useState(false);
   const [loading,    setLoading   ] = useState(false);
   const [googleLoad, setGoogleLoad] = useState(false);
   const [error,      setError     ] = useState('');
-  const [pwStrength, setPwStrength] = useState(0);
   const [tokenProcessing, setTokenProcessing] = useState(false);
-  const { register } = useAuth();
+  const { login } = useAuth();
 
   // Handle Google redirect token
   useEffect(() => {
@@ -36,39 +47,20 @@ export default function SignUp() {
         })
         .catch(err => {
           console.error('Token validation error:', err);
-          setError('Google sign-up failed. Please try again.');
+          setError('Google sign-in failed. Please try again.');
           setTokenProcessing(false);
         });
     }
   }, [searchParams, router]);
 
-  /* Password strength – 0 (empty) … 4 (strong) */
-  const evaluateStrength = (pw: string): number => {
-    if (!pw) return 0;
-    let s = 0;
-    if (pw.length >= 8)           s++;
-    if (/[A-Z]/.test(pw))        s++;
-    if (/[0-9]/.test(pw))        s++;
-    if (/[^A-Za-z0-9]/.test(pw)) s++;
-    return s;
-  };
-
-  const STRENGTH_LABEL = ['', 'Weak', 'Fair', 'Good', 'Strong'];
-  const STRENGTH_COLOR = ['', '#ef4444', '#f59e0b', '#3b82f6', '#22c55e'];
-
-  /* ── Email / password registration ── */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!agreeTerms) {
-      setError('You must agree to the Terms of Service and Privacy Policy.');
-      return;
-    }
     setError('');
     setLoading(true);
     try {
-      const result = await register(name, email, password);
+      const result = await login(email, password);
       if (result.success) router.push('/');
-      else setError(result.message || 'Registration failed. Please try again.');
+      else setError(result.message || 'Login failed. Please check your email and password.');
     } catch {
       setError('Something went wrong. Please try again.');
     } finally {
@@ -84,10 +76,10 @@ export default function SignUp() {
    * We intentionally do NOT reset googleLoad here because the page is
    * navigating away; showing a spinner until the page unloads is correct UX.
    */
-  const handleGoogleSignup = () => {
+  const handleGoogleSignin = () => {
     const base = process.env.NEXT_PUBLIC_API_URL;
     if (!base) {
-      setError('Google sign-up is not configured. Please contact support.');
+      setError('Google sign-in is not configured. Please contact support.');
       return;
     }
     setGoogleLoad(true);
@@ -99,7 +91,7 @@ export default function SignUp() {
     return (
       <div className="container py-5 text-center">
         <div className="spinner-border text-dark" role="status"></div>
-        <p className="mt-3">Completing sign up...</p>
+        <p className="mt-3">Completing sign in...</p>
       </div>
     );
   }
@@ -175,9 +167,9 @@ export default function SignUp() {
             {/* Mobile-only brand (panel is hidden on small screens) */}
             <div className="auth-mobile-brand">AIR COLLECTION</div>
 
-            <div className="auth-eyebrow">New member</div>
-            <h1 className="auth-heading">Create account</h1>
-            <p className="auth-sub">Join the collection. Free to join, exclusive by nature.</p>
+            <div className="auth-eyebrow">Welcome back</div>
+            <h1 className="auth-heading">Sign in</h1>
+            <p className="auth-sub">Access your orders, wishlist, and saved collection details.</p>
 
             {/* Error banner */}
             {error && (
@@ -195,7 +187,7 @@ export default function SignUp() {
             <button
               type="button"
               className="auth-google-btn"
-              onClick={handleGoogleSignup}
+              onClick={handleGoogleSignin}
               disabled={googleLoad || loading}
               aria-busy={googleLoad}
               aria-label="Continue with Google"
@@ -218,33 +210,18 @@ export default function SignUp() {
               )}
             </button>
 
-            <div className="auth-divider"><span>or register with email</span></div>
+            <div className="auth-divider"><span>or sign in with email</span></div>
 
             {/* ── Email / password form ── */}
             <form onSubmit={handleSubmit} noValidate>
 
               <div className="auth-field">
-                <label className="auth-label" htmlFor="su-name">Full name</label>
+                <label className="auth-label" htmlFor="si-email">Email address</label>
                 <input
-                  id="su-name"
-                  type="text"
-                  className="auth-input"
-                  placeholder="Evelyn Thorne"
-                  value={name}
-                  onChange={e => setName(e.target.value)}
-                  required
-                  autoComplete="name"
-                  disabled={loading || googleLoad}
-                />
-              </div>
-
-              <div className="auth-field">
-                <label className="auth-label" htmlFor="su-email">Email address</label>
-                <input
-                  id="su-email"
+                  id="si-email"
                   type="email"
                   className="auth-input"
-                  placeholder="evelyn@example.com"
+                  placeholder="you@example.com"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   required
@@ -254,20 +231,17 @@ export default function SignUp() {
               </div>
 
               <div className="auth-field">
-                <label className="auth-label" htmlFor="su-password">Password</label>
+                <label className="auth-label" htmlFor="si-password">Password</label>
                 <div className="auth-pw-wrap">
                   <input
-                    id="su-password"
+                    id="si-password"
                     type={showPw ? 'text' : 'password'}
                     className="auth-input auth-input-pw"
-                    placeholder="Create a strong password"
+                    placeholder="Enter your password"
                     value={password}
-                    onChange={e => {
-                      setPassword(e.target.value);
-                      setPwStrength(evaluateStrength(e.target.value));
-                    }}
+                    onChange={e => setPassword(e.target.value)}
                     required
-                    autoComplete="new-password"
+                    autoComplete="current-password"
                     disabled={loading || googleLoad}
                   />
                   <button
@@ -280,56 +254,6 @@ export default function SignUp() {
                     {showPw ? <FaEyeSlash size={15} /> : <FaEye size={15} />}
                   </button>
                 </div>
-
-                {/* Strength meter – only shown while user is typing */}
-                {password.length > 0 && (
-                  <div className="auth-strength" aria-live="polite">
-                    <div
-                      className="auth-strength-bars"
-                      role="progressbar"
-                      aria-valuenow={pwStrength}
-                      aria-valuemin={0}
-                      aria-valuemax={4}
-                    >
-                      {[1, 2, 3, 4].map(i => (
-                        <div
-                          key={i}
-                          className="auth-strength-bar"
-                          style={{
-                            background: i <= pwStrength ? STRENGTH_COLOR[pwStrength] : '#e4e2de',
-                            transition: 'background 0.25s',
-                          }}
-                        />
-                      ))}
-                    </div>
-                    <span
-                      className="auth-strength-label"
-                      style={{ color: STRENGTH_COLOR[pwStrength] }}
-                    >
-                      {STRENGTH_LABEL[pwStrength]}
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {/* Terms – the visual checkbox span MUST be the immediate next sibling of the hidden input */}
-              <div className="auth-terms-field">
-                <label className="auth-check-label" htmlFor="su-terms">
-                  <input
-                    id="su-terms"
-                    type="checkbox"
-                    className="auth-check-input"
-                    checked={agreeTerms}
-                    onChange={e => setAgreeTerms(e.target.checked)}
-                  />
-                  <span className="auth-check-box" aria-hidden="true" />
-                  <span className="auth-check-text">
-                    I agree to the{' '}
-                    <Link href="/terms" className="auth-inline-link">Terms of Service</Link>
-                    {' '}and{' '}
-                    <Link href="/privacy" className="auth-inline-link">Privacy Policy</Link>
-                  </span>
-                </label>
               </div>
 
               <button
@@ -341,17 +265,17 @@ export default function SignUp() {
                 {loading ? (
                   <>
                     <span className="auth-spinner auth-spinner-white" aria-hidden="true" />
-                    Creating account…
+                    Signing in...
                   </>
                 ) : (
-                  'Create Account'
+                  'Sign In'
                 )}
               </button>
             </form>
 
             <p className="auth-switch">
-              Already have an account?{' '}
-              <Link href="/auth/signin" className="auth-switch-link">Sign in</Link>
+              New to Air Collection?{' '}
+              <Link href="/auth/signup" className="auth-switch-link">Create account</Link>
             </p>
 
             <footer className="auth-footer">

@@ -11,19 +11,36 @@ interface Category {
     itemCount?: number;
 }
 
+interface Product {
+    id: number;
+    category_id: number;
+}
+
 export default function CategoriesPage() {
     const [categories, setCategories] = useState<Category[]>([]);
+    const [productCounts, setProductCounts] = useState<Record<number, number>>({});
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const fetchCategories = async () => {
             try {
-                const res = await axiosInstance.get('/categories');
-                const cats = res.data.data;
-                // For each category, we can get product count from a separate endpoint or assume it's provided.
-                // For simplicity, we'll fetch counts by calling /products?categoryId=... but that's many requests.
-                // We'll just show categories without counts or add counts later.
+                const [categoriesRes, productsRes] = await Promise.all([
+                    axiosInstance.get('/categories'),
+                    axiosInstance.get('/products'),
+                ]);
+
+                const cats = categoriesRes.data.data;
+                const products = productsRes.data.data;
+                const counts = products.reduce((acc: Record<number, number>, product: Product) => {
+                    const categoryId = Number(product.category_id);
+                    if (!Number.isNaN(categoryId)) {
+                        acc[categoryId] = (acc[categoryId] || 0) + 1;
+                    }
+                    return acc;
+                }, {});
+
                 setCategories(cats);
+                setProductCounts(counts);
             } catch (error) {
                 console.error(error);
             } finally {
@@ -43,30 +60,103 @@ export default function CategoriesPage() {
         { name: 'Winter', slug: 'winter', itemCount: 6 },
     ];
 
-    const displayCategories = categories.length ? categories.map(c => ({ ...c, itemCount: 0 })) : allCategories;
+    const displayCategories = categories.length
+        ? categories.map((category) => ({
+            ...category,
+            itemCount: productCounts[Number(category.id)] || 0,
+        }))
+        : allCategories;
 
-    if (loading) return <div className="container py-5 text-center"><div className="spinner-border text-dark"></div></div>;
+    if (loading) {
+        return (
+            <>
+                <CategoriesStyles />
+                <div className="categories-loading">
+                    <div className="spinner-border text-dark"></div>
+                </div>
+            </>
+        );
+    }
 
     return (
-        <div className="container py-5">
-            <div className="text-center mb-5">
-                <h1 className="display-4 fw-bold text-uppercase">Explore</h1>
-                <h2 className="display-1 fw-bold text-uppercase" style={{ marginTop: '-0.5rem' }}>Categories</h2>
-            </div>
-            <div className="row g-4">
-                {displayCategories.map((cat) => (
-                    <div key={cat.slug} className="col-md-4 col-lg-3">
-                        <Link href={`/categories/${cat.slug}`} className="text-decoration-none">
-                            <div className="card border-0 shadow-sm rounded-0 text-center h-100">
-                                <div className="card-body">
-                                    <h5 className="card-title text-dark">{cat.name}</h5>
-                                    {cat.itemCount !== undefined && <p className="text-muted">{cat.itemCount} items</p>}
+        <>
+            <CategoriesStyles />
+            <div className="categories-page">
+                <div className="ap-header">
+                    <p className="ap-header-eyebrow">The Collection</p>
+                    <h1>Categories</h1>
+                </div>
+
+                <div className="row g-4">
+                    {displayCategories.map((cat) => (
+                        <div key={cat.slug} className="col-md-4 col-lg-3">
+                            <Link href={`/categories/${cat.slug}`} className="text-decoration-none">
+                                <div className="card border-0 shadow-sm rounded-0 text-center h-100">
+                                    <div className="card-body">
+                                        <h5 className="card-title text-dark">{cat.name}</h5>
+                                        {cat.itemCount !== undefined && (
+                                            <p className="text-muted">
+                                                {cat.itemCount} {cat.itemCount === 1 ? 'item' : 'items'}
+                                            </p>
+                                        )}
+                                    </div>
                                 </div>
-                            </div>
-                        </Link>
-                    </div>
-                ))}
+                            </Link>
+                        </div>
+                    ))}
+                </div>
             </div>
-        </div>
+        </>
+    );
+}
+
+function CategoriesStyles() {
+    return (
+        <style>{`
+            @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Jost:wght@300;400;500;600&display=swap');
+
+            .categories-page {
+                width: 100%;
+                max-width: 1220px;
+                margin: 0 auto;
+                padding: 52px 28px 76px;
+            }
+
+            .categories-loading {
+                min-height: 60vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .ap-header {
+                text-align: center;
+                padding: 18px 20px 46px;
+            }
+
+            .ap-header-eyebrow {
+                font-family: 'Jost', sans-serif;
+                font-size: 11px;
+                font-weight: 600;
+                letter-spacing: .22em;
+                text-transform: uppercase;
+                color: #c8a96e;
+                margin: 0 0 10px;
+            }
+
+            .ap-header h1 {
+                font-family: 'Cormorant Garamond', serif;
+                font-size: clamp(42px, 5vw, 72px);
+                font-weight: 500;
+                color: #0a0a0a;
+                line-height: .95;
+                margin: 0;
+            }
+
+            @media (max-width: 768px) {
+                .categories-page { padding: 34px 16px 60px; }
+                .ap-header { padding: 8px 12px 32px; }
+            }
+        `}</style>
     );
 }

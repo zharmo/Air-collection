@@ -33,6 +33,7 @@ interface CartContextType {
     ) => Promise<boolean>;
     removeFromCart: (itemId: number) => Promise<void>;
     updateQuantity: (itemId: number, quantity: number) => Promise<void>;
+    updateItemSize: (itemId: number, size: string) => Promise<void>;
     clearCart: () => Promise<void>;
     fetchCart: () => Promise<void>;
 }
@@ -195,6 +196,35 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         }
     };
 
+    const updateItemSize = async (itemId: number, size: string): Promise<void> => {
+        const current = loadCartFromStorage();
+        const index = current.items.findIndex((item) => item.id === itemId);
+
+        if (index === -1) {
+            console.warn('CartContext: updateItemSize - item not found', itemId);
+            return;
+        }
+
+        const nextSize = size || undefined;
+        const item = current.items[index];
+        const duplicateIndex = current.items.findIndex(
+            (cartItem, cartIndex) =>
+                cartIndex !== index &&
+                cartItem.product_id === item.product_id &&
+                cartItem.color === item.color &&
+                cartItem.size === nextSize
+        );
+
+        if (duplicateIndex !== -1) {
+            current.items[duplicateIndex].quantity += item.quantity;
+            current.items.splice(index, 1);
+        } else {
+            current.items[index].size = nextSize;
+        }
+
+        applyCart(current);
+    };
+
     const clearCart = async (): Promise<void> => {
         applyCart({ items: [], total: 0 });
     };
@@ -205,7 +235,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
     return (
         <CartContext.Provider
-            value={{ cart, loading, addToCart, removeFromCart, updateQuantity, clearCart, fetchCart }}
+            value={{ cart, loading, addToCart, removeFromCart, updateQuantity, updateItemSize, clearCart, fetchCart }}
         >
             {children}
         </CartContext.Provider>

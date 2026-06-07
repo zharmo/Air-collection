@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { ChangeEvent, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { FaTruck, FaMoneyBillWave, FaMapMarkerAlt, FaUser } from 'react-icons/fa';
@@ -25,7 +25,7 @@ export default function CheckoutPage() {
 
     const backendUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000';
 
-    const getImageUrl = (imagePath: string) => {
+    const getImageUrl = (imagePath?: string) => {
         if (!imagePath) return '';
         if (imagePath.startsWith('/uploads')) return `${backendUrl}${imagePath}`;
         return imagePath;
@@ -48,7 +48,7 @@ export default function CheckoutPage() {
     const subtotal = cart.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
     const total = subtotal + deliveryFee;
 
-    const handleChange = (e) => {
+    const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
         setError('');
     };
@@ -101,7 +101,7 @@ export default function CheckoutPage() {
             const orderId = response.data.data.orderId;
             clearCart();
             router.push(`/order-success?orderId=${orderId}`);
-        } catch (err) {
+        } catch (err: any) {
             console.error(err);
             setError(err.response?.data?.message || 'Failed to place order. Please try again.');
         } finally {
@@ -194,7 +194,7 @@ export default function CheckoutPage() {
                             {cart.items.map((item) => (
                                 <div key={item.id} className="d-flex gap-3 mb-3 pb-2 border-bottom">
                                     <div className="flex-shrink-0 bg-light d-flex align-items-center justify-content-center overflow-hidden" style={{ width: '60px', height: '60px' }}>
-                                        <img src={getImageUrl(item.image)} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { e.target.style.display = 'none'; }} />
+                                                        <img src={getImageUrl(item.image)} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                                     </div>
                                     <div className="flex-grow-1">
                                         <div className="fw-bold">{item.name}</div>

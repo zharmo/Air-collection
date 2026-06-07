@@ -1,130 +1,163 @@
-'use client';
+"use client";
 
-import { useEffect, useState, useRef } from 'react';
-import Link from 'next/link';
-import { FaSearch, FaFilter, FaTimes, FaArrowRight, FaSlidersH, FaChevronDown } from 'react-icons/fa';
-import { useCart } from '@/context/CartContext';
-import axiosInstance from '@/utils/axiosConfig';
+import { useEffect, useState, useRef } from "react";
+import Link from "next/link";
+import {
+  FaSearch,
+  FaFilter,
+  FaTimes,
+  FaArrowRight,
+  FaSlidersH,
+  FaChevronDown,
+} from "react-icons/fa";
+import { useCart } from "@/context/CartContext";
+import axiosInstance from "@/utils/axiosConfig";
 
 interface Product {
-    id: number;
-    name: string;
-    price: number;
-    compare_price?: number;
-    images: { image_url: string; is_primary: boolean }[];
-    category_id: number;
-    category_name: string;
-    stock_quantity: number;
+  id: number;
+  name: string;
+  price: number;
+  compare_price?: number;
+  images: { image_url: string; is_primary: boolean }[];
+  category_id: number;
+  category_name: string;
+  stock_quantity: number;
 }
 
 interface Category {
-    id: number;
-    name: string;
-    slug: string;
+  id: number;
+  name: string;
+  slug: string;
 }
 
-type SortOption = 'default' | 'price-asc' | 'price-desc' | 'name-asc';
+type SortOption = "default" | "price-asc" | "price-desc" | "name-asc";
 
 const SORT_LABELS: Record<SortOption, string> = {
-    'default':    'Featured',
-    'price-asc':  'Price: Low to High',
-    'price-desc': 'Price: High to Low',
-    'name-asc':   'Name A–Z',
+  default: "Featured",
+  "price-asc": "Price: Low to High",
+  "price-desc": "Price: High to Low",
+  "name-asc": "Name A–Z",
 };
 
 export default function AllProductsPage() {
-    const [products,          setProducts]          = useState<Product[]>([]);
-    const [filteredProducts,  setFilteredProducts]  = useState<Product[]>([]);
-    const [categories,        setCategories]        = useState<Category[]>([]);
-    const [loading,           setLoading]           = useState(true);
-    const [searchTerm,        setSearchTerm]        = useState('');
-    const [selectedCategory,  setSelectedCategory]  = useState<number | null>(null);
-    const [sortBy,            setSortBy]            = useState<SortOption>('default');
-    const [showMobileFilters, setShowMobileFilters] = useState(false);
-    const [showSortMenu,      setShowSortMenu]      = useState(false);
-    const [hoveredId,         setHoveredId]         = useState<number | null>(null);
-    const { addToCart } = useCart();
-    const sortRef = useRef<HTMLDivElement>(null);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
+  const [sortBy, setSortBy] = useState<SortOption>("default");
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [showSortMenu, setShowSortMenu] = useState(false);
+  const [hoveredId, setHoveredId] = useState<number | null>(null);
+  const { addToCart } = useCart();
+  const sortRef = useRef<HTMLDivElement>(null);
 
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000';
+  const backendUrl =
+    process.env.NEXT_PUBLIC_API_URL?.replace("/api", "") ||
+    "http://localhost:5000";
 
-    /* ── Data fetching ── */
-    useEffect(() => { fetchProducts(); fetchCategories(); }, []);
-    useEffect(() => { filterProducts(); }, [searchTerm, selectedCategory, sortBy, products]);
+  /* ── Data fetching ── */
+  useEffect(() => {
+    fetchProducts();
+    fetchCategories();
+  }, []);
+  useEffect(() => {
+    filterProducts();
+  }, [searchTerm, selectedCategory, sortBy, products]);
 
-    /* Close sort menu on outside click */
-    useEffect(() => {
-        const handler = (e: MouseEvent) => {
-            if (sortRef.current && !sortRef.current.contains(e.target as Node))
-                setShowSortMenu(false);
-        };
-        document.addEventListener('mousedown', handler);
-        return () => document.removeEventListener('mousedown', handler);
-    }, []);
-
-    /* Lock body scroll when mobile filter is open */
-    useEffect(() => {
-        document.body.style.overflow = showMobileFilters ? 'hidden' : '';
-        return () => { document.body.style.overflow = ''; };
-    }, [showMobileFilters]);
-
-    const fetchProducts = async () => {
-        try {
-            const res = await axiosInstance.get('/products');
-            setProducts(res.data.data);
-        } catch (error) {
-            console.error('Failed to fetch products', error);
-        } finally {
-            setLoading(false);
-        }
+  /* Close sort menu on outside click */
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (sortRef.current && !sortRef.current.contains(e.target as Node))
+        setShowSortMenu(false);
     };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
-    const fetchCategories = async () => {
-        try {
-            const res = await axiosInstance.get('/categories');
-            setCategories(res.data.data);
-        } catch (error) {
-            console.error('Failed to fetch categories', error);
-        }
+  /* Lock body scroll when mobile filter is open */
+  useEffect(() => {
+    document.body.style.overflow = showMobileFilters ? "hidden" : "";
+    return () => {
+      document.body.style.overflow = "";
     };
+  }, [showMobileFilters]);
 
-    const filterProducts = () => {
-        let filtered = [...products];
-        if (searchTerm)
-            filtered = filtered.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
-        if (selectedCategory)
-            filtered = filtered.filter(p => p.category_id === selectedCategory);
+  const fetchProducts = async () => {
+    try {
+      const res = await axiosInstance.get("/products");
+      setProducts(res.data.data);
+    } catch (error) {
+      console.error("Failed to fetch products", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-        switch (sortBy) {
-            case 'price-asc':  filtered.sort((a, b) => a.price - b.price); break;
-            case 'price-desc': filtered.sort((a, b) => b.price - a.price); break;
-            case 'name-asc':   filtered.sort((a, b) => a.name.localeCompare(b.name)); break;
-        }
-        setFilteredProducts(filtered);
-    };
+  const fetchCategories = async () => {
+    try {
+      const res = await axiosInstance.get("/categories");
+      setCategories(res.data.data);
+    } catch (error) {
+      console.error("Failed to fetch categories", error);
+    }
+  };
 
-    const handleAddToCart = (product: Product) => { addToCart(product.id, 1); };
+  const filterProducts = () => {
+    let filtered = [...products];
+    if (searchTerm)
+      filtered = filtered.filter((p) =>
+        p.name.toLowerCase().includes(searchTerm.toLowerCase()),
+      );
+    if (selectedCategory)
+      filtered = filtered.filter((p) => p.category_id === selectedCategory);
 
-    const getPrimaryImage = (product: Product) => {
-        const primary = product.images?.find(img => img.is_primary);
-        const imagePath = primary?.image_url || product.images?.[0]?.image_url;
-        if (!imagePath) return '/images/placeholders/placeholder.jpg';
-        if (imagePath.startsWith('/uploads')) return `${backendUrl}${imagePath}`;
-        return imagePath;
-    };
+    switch (sortBy) {
+      case "price-asc":
+        filtered.sort((a, b) => a.price - b.price);
+        break;
+      case "price-desc":
+        filtered.sort((a, b) => b.price - a.price);
+        break;
+      case "name-asc":
+        filtered.sort((a, b) => a.name.localeCompare(b.name));
+        break;
+    }
+    setFilteredProducts(filtered);
+  };
 
-    const clearFilters = () => { setSearchTerm(''); setSelectedCategory(null); setSortBy('default'); };
+  const handleAddToCart = (product: Product) => {
+    addToCart(product.id, 1);
+  };
 
-    const isFiltersActive = searchTerm || selectedCategory !== null || sortBy !== 'default';
+  const getPrimaryImage = (product: Product) => {
+    const primary = product.images?.find((img) => img.is_primary);
+    const imagePath = primary?.image_url || product.images?.[0]?.image_url;
+    if (!imagePath) return "/images/placeholders/placeholder.jpg";
+    if (imagePath.startsWith("/uploads")) return `${backendUrl}${imagePath}`;
+    return imagePath;
+  };
 
-    const getDiscount = (p: Product) =>
-        p.compare_price ? Math.round(((p.compare_price - p.price) / p.compare_price) * 100) : null;
+  const clearFilters = () => {
+    setSearchTerm("");
+    setSelectedCategory(null);
+    setSortBy("default");
+  };
 
-    /* ─────────────────────────────────────────────────── */
+  const isFiltersActive =
+    searchTerm || selectedCategory !== null || sortBy !== "default";
 
-    return (
-        <>
-            <style>{`
+  const getDiscount = (p: Product) =>
+    p.compare_price
+      ? Math.round(((p.compare_price - p.price) / p.compare_price) * 100)
+      : null;
+
+  /* ─────────────────────────────────────────────────── */
+
+  return (
+    <>
+      <style>{`
                 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Jost:wght@300;400;500;600&display=swap');
 
                 *, *::before, *::after { box-sizing: border-box; }
@@ -389,8 +422,8 @@ export default function AllProductsPage() {
                 .ap-badge {
                     font-family: 'Jost', sans-serif;
                     font-size: 9px; font-weight: 700;
-                    letter-spacing: .16em; text-transform: uppercase;
-                    padding: 4px 10px; display: inline-block; width: fit-content;
+                    letter-spacing: .08em; text-transform: uppercase;
+                    padding: 3px 6px; display: inline-block; width: fit-content;
                 }
                 .ap-badge-sale    { background: var(--ink); color: #fff; }
                 .ap-badge-new     { background: var(--accent); color: var(--ink); }
@@ -423,7 +456,7 @@ export default function AllProductsPage() {
                     font-family: 'Jost', sans-serif;
                     font-size: 10px; font-weight: 500;
                     letter-spacing: .16em; text-transform: uppercase;
-                    color: var(--ink-faint); margin-bottom: 6px;
+                    color: var(--ink-faint); margin-bottom: 4px;
                 }
                 .ap-card-name {
                     font-family: 'Jost', sans-serif;
@@ -565,258 +598,342 @@ export default function AllProductsPage() {
                 }
             `}</style>
 
-            {/* ── Page header ── */}
-            <div className="ap-header">
-                <p className="ap-header-eyebrow">The Collection</p>
-                <h1>All Products</h1>
-                <p className="ap-header-sub">Discover our full range of thoughtfully crafted pieces.</p>
-            </div>
+      {/* ── Page header ── */}
+      <div className="ap-header">
+        <p className="ap-header-eyebrow">The Collection</p>
+        <h1>All Products</h1>
+      </div>
 
-            <div className="ap-layout">
+      <div className="ap-layout">
+        {/* ── Desktop sidebar ── */}
+        <aside className="ap-sidebar">
+          <p className="ap-sidebar-title">
+            <FaSlidersH size={11} /> Filters
+          </p>
 
-                {/* ── Desktop sidebar ── */}
-                <aside className="ap-sidebar">
-                    <p className="ap-sidebar-title">
-                        <FaSlidersH size={11} /> Filters
-                    </p>
-
-                    {/* Search */}
-                    <div className="ap-search-wrap">
-                        <input
-                            type="text"
-                            className="ap-search-input"
-                            placeholder="Search products…"
-                            value={searchTerm}
-                            onChange={e => setSearchTerm(e.target.value)}
-                        />
-                        {searchTerm
-                            ? <button className="ap-search-clear" onClick={() => setSearchTerm('')}><FaTimes size={11} /></button>
-                            : <FaSearch className="ap-search-icon" />
-                        }
-                    </div>
-
-                    {/* Categories */}
-                    <div className="ap-cat-section">
-                        <p className="ap-sidebar-title" style={{ marginBottom:10 }}>Categories</p>
-                        <ul className="ap-cat-list">
-                            <li>
-                                <button
-                                    className={`ap-cat-btn${selectedCategory === null ? ' active' : ''}`}
-                                    onClick={() => setSelectedCategory(null)}
-                                >
-                                    All Products
-                                    <span className="ap-cat-count">{products.length}</span>
-                                </button>
-                            </li>
-                            {categories.map(cat => {
-                                const count = products.filter(p => p.category_id === cat.id).length;
-                                return (
-                                    <li key={cat.id}>
-                                        <button
-                                            className={`ap-cat-btn${selectedCategory === cat.id ? ' active' : ''}`}
-                                            onClick={() => setSelectedCategory(cat.id)}
-                                        >
-                                            {cat.name}
-                                            <span className="ap-cat-count">{count}</span>
-                                        </button>
-                                    </li>
-                                );
-                            })}
-                        </ul>
-                    </div>
-
-                    {isFiltersActive && (
-                        <button className="ap-clear-btn" onClick={clearFilters}>
-                            <FaTimes size={9} /> Clear All Filters
-                        </button>
-                    )}
-                </aside>
-
-                {/* ── Main content ── */}
-                <main>
-
-                    {/* Toolbar */}
-                    <div className="ap-toolbar">
-                        <div style={{ display:'flex', alignItems:'center', gap:12 }}>
-                            {/* Mobile filter trigger */}
-                            <button className="ap-mobile-filter-btn" onClick={() => setShowMobileFilters(true)}>
-                                <FaFilter size={11} /> Filters
-                                {isFiltersActive && <span className="ap-filter-dot" />}
-                            </button>
-
-                            <p className="ap-count">
-                                Showing <strong>{filteredProducts.length}</strong> of {products.length} products
-                            </p>
-                        </div>
-
-                        {/* Sort */}
-                        <div className="ap-sort-wrap" ref={sortRef}>
-                            <button className="ap-sort-btn" onClick={() => setShowSortMenu(s => !s)}>
-                                Sort: {SORT_LABELS[sortBy]}
-                                <FaChevronDown className={`ap-sort-chevron${showSortMenu ? ' open' : ''}`} />
-                            </button>
-                            {showSortMenu && (
-                                <div className="ap-sort-menu">
-                                    {(Object.keys(SORT_LABELS) as SortOption[]).map(key => (
-                                        <button
-                                            key={key}
-                                            className={`ap-sort-option${sortBy === key ? ' selected' : ''}`}
-                                            onClick={() => { setSortBy(key); setShowSortMenu(false); }}
-                                        >
-                                            {SORT_LABELS[key]}
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Loading skeletons */}
-                    {loading ? (
-                        <div className="ap-skeleton-grid">
-                            {[...Array(6)].map((_, i) => (
-                                <div key={i} className="ap-skeleton-card">
-                                    <div className="ap-skeleton-img" style={{ animationDelay:`${i * .08}s` }} />
-                                    <div className="ap-skeleton-line" style={{ animationDelay:`${i * .08 + .1}s` }} />
-                                    <div className="ap-skeleton-line short" style={{ animationDelay:`${i * .08 + .15}s` }} />
-                                </div>
-                            ))}
-                        </div>
-                    ) : filteredProducts.length === 0 ? (
-                        <div className="ap-empty">
-                            <div className="ap-empty-icon">🕊️</div>
-                            <h3>Nothing found</h3>
-                            <p>Try adjusting your search terms or clearing the active filters.</p>
-                            <button className="ap-empty-btn" onClick={clearFilters}>
-                                Clear Filters <FaArrowRight size={10} />
-                            </button>
-                        </div>
-                    ) : (
-                        <div className="ap-grid">
-                            {filteredProducts.map((product, idx) => {
-                                const discount = getDiscount(product);
-                                const isNew    = idx < 4;
-                                const outOfStock = product.stock_quantity === 0;
-
-                                return (
-                                    <div
-                                        key={product.id}
-                                        className="ap-card"
-                                        onMouseEnter={() => setHoveredId(product.id)}
-                                        onMouseLeave={() => setHoveredId(null)}
-                                        style={{ animationDelay: `${idx * 0.04}s` }}
-                                    >
-                                        {/* Image area */}
-                                        <div className="ap-card-img">
-                                            {/* Badges */}
-                                            <div className="ap-badge-wrap">
-                                                {outOfStock && <span className="ap-badge ap-badge-sold">Sold Out</span>}
-                                                {discount && !outOfStock && <span className="ap-badge ap-badge-sale">−{discount}%</span>}
-                                                {isNew && !outOfStock && <span className="ap-badge ap-badge-new">New</span>}
-                                            </div>
-
-                                            <Link href={`/products/${product.id}`} style={{ display:'contents' }}>
-                                                <img src={getPrimaryImage(product)} alt={product.name} />
-                                            </Link>
-
-                                            {/* Hover CTA */}
-                                            <div className="ap-card-overlay">
-                                                <button
-                                                    className="ap-overlay-btn"
-                                                    onClick={() => handleAddToCart(product)}
-                                                    disabled={outOfStock}
-                                                >
-                                                    {outOfStock ? 'Out of Stock' : (<>Add to Bag <FaArrowRight size={9} /></>)}
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        {/* Card body */}
-                                        <div className="ap-card-body">
-                                            <p className="ap-card-cat">{product.category_name}</p>
-                                            <Link href={`/products/${product.id}`} className="ap-card-name">
-                                                {product.name}
-                                            </Link>
-                                            <div className="ap-card-price-row">
-                                                <span className="ap-card-price">${product.price}</span>
-                                                {product.compare_price && (
-                                                    <span className="ap-card-compare">${product.compare_price}</span>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    )}
-                </main>
-            </div>
-
-            {/* ── Mobile filter drawer ── */}
-            {showMobileFilters && (
-                <>
-                    <div className="ap-mobile-overlay" onClick={() => setShowMobileFilters(false)} />
-                    <div className="ap-mobile-drawer">
-                        <div className="ap-drawer-head">
-                            <span className="ap-drawer-head-title">Filters</span>
-                            <button className="ap-drawer-close" onClick={() => setShowMobileFilters(false)}>
-                                <FaTimes size={16} />
-                            </button>
-                        </div>
-                        <div className="ap-drawer-body">
-                            {/* Search */}
-                            <p className="ap-sidebar-title" style={{ marginBottom:12 }}>Search</p>
-                            <div className="ap-search-wrap">
-                                <input
-                                    type="text"
-                                    className="ap-search-input"
-                                    placeholder="Search products…"
-                                    value={searchTerm}
-                                    onChange={e => setSearchTerm(e.target.value)}
-                                />
-                                {searchTerm
-                                    ? <button className="ap-search-clear" onClick={() => setSearchTerm('')}><FaTimes size={11} /></button>
-                                    : <FaSearch className="ap-search-icon" />
-                                }
-                            </div>
-
-                            {/* Categories */}
-                            <p className="ap-sidebar-title" style={{ marginBottom:10 }}>Categories</p>
-                            <ul className="ap-cat-list" style={{ marginBottom:24 }}>
-                                <li>
-                                    <button
-                                        className={`ap-cat-btn${selectedCategory === null ? ' active' : ''}`}
-                                        onClick={() => { setSelectedCategory(null); setShowMobileFilters(false); }}
-                                    >
-                                        All Products
-                                        <span className="ap-cat-count">{products.length}</span>
-                                    </button>
-                                </li>
-                                {categories.map(cat => {
-                                    const count = products.filter(p => p.category_id === cat.id).length;
-                                    return (
-                                        <li key={cat.id}>
-                                            <button
-                                                className={`ap-cat-btn${selectedCategory === cat.id ? ' active' : ''}`}
-                                                onClick={() => { setSelectedCategory(cat.id); setShowMobileFilters(false); }}
-                                            >
-                                                {cat.name}
-                                                <span className="ap-cat-count">{count}</span>
-                                            </button>
-                                        </li>
-                                    );
-                                })}
-                            </ul>
-
-                            {isFiltersActive && (
-                                <button className="ap-clear-btn" onClick={() => { clearFilters(); setShowMobileFilters(false); }}>
-                                    <FaTimes size={9} /> Clear All Filters
-                                </button>
-                            )}
-                        </div>
-                    </div>
-                </>
+          {/* Search */}
+          <div className="ap-search-wrap">
+            <input
+              type="text"
+              className="ap-search-input"
+              placeholder="Search products…"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            {searchTerm ? (
+              <button
+                className="ap-search-clear"
+                onClick={() => setSearchTerm("")}
+              >
+                <FaTimes size={11} />
+              </button>
+            ) : (
+              <FaSearch className="ap-search-icon" />
             )}
+          </div>
+
+          {/* Categories */}
+          <div className="ap-cat-section">
+            <p className="ap-sidebar-title" style={{ marginBottom: 10 }}>
+              Categories
+            </p>
+            <ul className="ap-cat-list">
+              <li>
+                <button
+                  className={`ap-cat-btn${selectedCategory === null ? " active" : ""}`}
+                  onClick={() => setSelectedCategory(null)}
+                >
+                  All Products
+                  <span className="ap-cat-count">{products.length}</span>
+                </button>
+              </li>
+              {categories.map((cat) => {
+                const count = products.filter(
+                  (p) => p.category_id === cat.id,
+                ).length;
+                return (
+                  <li key={cat.id}>
+                    <button
+                      className={`ap-cat-btn${selectedCategory === cat.id ? " active" : ""}`}
+                      onClick={() => setSelectedCategory(cat.id)}
+                    >
+                      {cat.name}
+                      <span className="ap-cat-count">{count}</span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+
+          {isFiltersActive && (
+            <button className="ap-clear-btn" onClick={clearFilters}>
+              <FaTimes size={9} /> Clear All Filters
+            </button>
+          )}
+        </aside>
+
+        {/* ── Main content ── */}
+        <main>
+          {/* Toolbar */}
+          <div className="ap-toolbar">
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              {/* Mobile filter trigger */}
+              <button
+                className="ap-mobile-filter-btn"
+                onClick={() => setShowMobileFilters(true)}
+              >
+                <FaFilter size={11} /> Filters
+                {isFiltersActive && <span className="ap-filter-dot" />}
+              </button>
+
+              <p className="ap-count">
+                Showing <strong>{filteredProducts.length}</strong> of{" "}
+                {products.length} products
+              </p>
+            </div>
+
+            {/* Sort */}
+            <div className="ap-sort-wrap" ref={sortRef}>
+              <button
+                className="ap-sort-btn"
+                onClick={() => setShowSortMenu((s) => !s)}
+              >
+                Sort: {SORT_LABELS[sortBy]}
+                <FaChevronDown
+                  className={`ap-sort-chevron${showSortMenu ? " open" : ""}`}
+                />
+              </button>
+              {showSortMenu && (
+                <div className="ap-sort-menu">
+                  {(Object.keys(SORT_LABELS) as SortOption[]).map((key) => (
+                    <button
+                      key={key}
+                      className={`ap-sort-option${sortBy === key ? " selected" : ""}`}
+                      onClick={() => {
+                        setSortBy(key);
+                        setShowSortMenu(false);
+                      }}
+                    >
+                      {SORT_LABELS[key]}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Loading skeletons */}
+          {loading ? (
+            <div className="ap-skeleton-grid">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="ap-skeleton-card">
+                  <div
+                    className="ap-skeleton-img"
+                    style={{ animationDelay: `${i * 0.08}s` }}
+                  />
+                  <div
+                    className="ap-skeleton-line"
+                    style={{ animationDelay: `${i * 0.08 + 0.1}s` }}
+                  />
+                  <div
+                    className="ap-skeleton-line short"
+                    style={{ animationDelay: `${i * 0.08 + 0.15}s` }}
+                  />
+                </div>
+              ))}
+            </div>
+          ) : filteredProducts.length === 0 ? (
+            <div className="ap-empty">
+              <div className="ap-empty-icon">🕊️</div>
+              <h3>Nothing found</h3>
+              <p>
+                Try adjusting your search terms or clearing the active filters.
+              </p>
+              <button className="ap-empty-btn" onClick={clearFilters}>
+                Clear Filters <FaArrowRight size={10} />
+              </button>
+            </div>
+          ) : (
+            <div className="ap-grid">
+              {filteredProducts.map((product, idx) => {
+                const discount = getDiscount(product);
+                const isNew = idx < 4;
+                const outOfStock = product.stock_quantity === 0;
+
+                return (
+                  <div
+                    key={product.id}
+                    className="ap-card"
+                    onMouseEnter={() => setHoveredId(product.id)}
+                    onMouseLeave={() => setHoveredId(null)}
+                    style={{ animationDelay: `${idx * 0.04}s` }}
+                  >
+                    {/* Image area */}
+                    <div className="ap-card-img">
+                      {/* Badges */}
+                      <div className="ap-badge-wrap">
+                        {outOfStock && (
+                          <span className="ap-badge ap-badge-sold">
+                            Sold Out
+                          </span>
+                        )}
+                        {discount && !outOfStock && (
+                          <span className="ap-badge ap-badge-sale">
+                            −{discount}%
+                          </span>
+                        )}
+                      </div>
+
+                      <Link
+                        href={`/products/${product.id}`}
+                        style={{ display: "contents" }}
+                      >
+                        <img
+                          src={getPrimaryImage(product)}
+                          alt={product.name}
+                        />
+                      </Link>
+
+                      {/* Hover CTA */}
+                      <div className="ap-card-overlay">
+                        <button
+                          className="ap-overlay-btn"
+                          onClick={() => handleAddToCart(product)}
+                          disabled={outOfStock}
+                        >
+                          {outOfStock ? (
+                            "Out of Stock"
+                          ) : (
+                            <>
+                              Add to Cart <FaArrowRight size={9} />
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Card body */}
+                    <div className="ap-card-body">
+                      <p className="ap-card-cat">{product.category_name}</p>
+                      <Link
+                        href={`/products/${product.id}`}
+                        className="ap-card-name"
+                      >
+                        {product.name}
+                      </Link>
+                      <div className="ap-card-price-row">
+                        <span className="ap-card-price">${product.price}</span>
+                        {product.compare_price && (
+                          <span className="ap-card-compare">
+                            ${product.compare_price}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </main>
+      </div>
+
+      {/* ── Mobile filter drawer ── */}
+      {showMobileFilters && (
+        <>
+          <div
+            className="ap-mobile-overlay"
+            onClick={() => setShowMobileFilters(false)}
+          />
+          <div className="ap-mobile-drawer">
+            <div className="ap-drawer-head">
+              <span className="ap-drawer-head-title">Filters</span>
+              <button
+                className="ap-drawer-close"
+                onClick={() => setShowMobileFilters(false)}
+              >
+                <FaTimes size={16} />
+              </button>
+            </div>
+            <div className="ap-drawer-body">
+              {/* Search */}
+              <p className="ap-sidebar-title" style={{ marginBottom: 12 }}>
+                Search
+              </p>
+              <div className="ap-search-wrap">
+                <input
+                  type="text"
+                  className="ap-search-input"
+                  placeholder="Search products…"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+                {searchTerm ? (
+                  <button
+                    className="ap-search-clear"
+                    onClick={() => setSearchTerm("")}
+                  >
+                    <FaTimes size={11} />
+                  </button>
+                ) : (
+                  <FaSearch className="ap-search-icon" />
+                )}
+              </div>
+
+              {/* Categories */}
+              <p className="ap-sidebar-title" style={{ marginBottom: 10 }}>
+                Categories
+              </p>
+              <ul className="ap-cat-list" style={{ marginBottom: 24 }}>
+                <li>
+                  <button
+                    className={`ap-cat-btn${selectedCategory === null ? " active" : ""}`}
+                    onClick={() => {
+                      setSelectedCategory(null);
+                      setShowMobileFilters(false);
+                    }}
+                  >
+                    All Products
+                    <span className="ap-cat-count">{products.length}</span>
+                  </button>
+                </li>
+                {categories.map((cat) => {
+                  const count = products.filter(
+                    (p) => p.category_id === cat.id,
+                  ).length;
+                  return (
+                    <li key={cat.id}>
+                      <button
+                        className={`ap-cat-btn${selectedCategory === cat.id ? " active" : ""}`}
+                        onClick={() => {
+                          setSelectedCategory(cat.id);
+                          setShowMobileFilters(false);
+                        }}
+                      >
+                        {cat.name}
+                        <span className="ap-cat-count">{count}</span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+
+              {isFiltersActive && (
+                <button
+                  className="ap-clear-btn"
+                  onClick={() => {
+                    clearFilters();
+                    setShowMobileFilters(false);
+                  }}
+                >
+                  <FaTimes size={9} /> Clear All Filters
+                </button>
+              )}
+            </div>
+          </div>
         </>
-    );
+      )}
+    </>
+  );
 }
