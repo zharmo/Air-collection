@@ -6,7 +6,7 @@ import Link from 'next/link';
 import {
     FaArrowLeft, FaTruck, FaCreditCard, FaUser,
     FaMapMarkerAlt, FaTrash, FaCheckCircle, FaClock,
-    FaBoxOpen, FaShippingFast, FaBan, FaSpinner,
+    FaBoxOpen, FaShippingFast, FaBan, FaSpinner, FaPhone,
 } from 'react-icons/fa';
 import axiosInstance from '@/utils/axiosConfig';
 
@@ -32,6 +32,8 @@ interface Order {
     created_at: string;
     user_name?: string;
     user_email?: string;
+    user_phone?: string;      // ← added
+    phone?: string;           // ← added (fallback field name)
     items: OrderItem[];
     delivery_fee?: number;
 }
@@ -205,8 +207,10 @@ export default function AdminOrderDetailPage() {
         hour: '2-digit', minute: '2-digit',
     });
     const addrParts    = (order.shipping_address || '').split(',').map(s => s.trim()).filter(Boolean);
-    const statusCfg    = STATUS_CFG[order.status] || { label: order.status, color: '#475569', bg: '#f1f5f9', icon: null };
     const initials     = (order.user_name || 'G').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+
+    // Resolve phone from either field name the backend might use
+    const userPhone    = order.user_phone || order.phone || null;
 
     /* ── Render ── */
     return (
@@ -330,12 +334,33 @@ export default function AdminOrderDetailPage() {
                         <Card>
                             <CardHeader icon={<FaUser/>} title="Customer"/>
                             <div style={{ padding: '16px 20px' }}>
+                                {/* Avatar + name */}
                                 <div className="od-customer-row">
                                     <div className="od-avatar">{initials}</div>
                                     <div>
                                         <div className="od-customer-name">{order.user_name || 'Guest'}</div>
                                         <div className="od-customer-email">{order.user_email || '—'}</div>
                                     </div>
+                                </div>
+
+                                {/* ── FIXED: full customer details ── */}
+                                <div className="od-info-row">
+                                    <span className="od-info-label">Full Name</span>
+                                    <span className="od-info-val">{order.user_name || '—'}</span>
+                                </div>
+                                <div className="od-info-row">
+                                    <span className="od-info-label">Email</span>
+                                    <span className="od-info-val od-info-val-email">{order.user_email || '—'}</span>
+                                </div>
+                                <div className="od-info-row">
+                                    <span className="od-info-label" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                                        <FaPhone size={9}/> Phone
+                                    </span>
+                                    <span className="od-info-val">
+                                        {userPhone
+                                            ? <a href={`tel:${userPhone}`} className="od-phone-link">{userPhone}</a>
+                                            : '—'}
+                                    </span>
                                 </div>
                                 <div className="od-info-row">
                                     <span className="od-info-label">Order placed</span>
@@ -699,7 +724,7 @@ const CSS = `
     flex-shrink: 0;
     letter-spacing: 0.02em;
   }
-  .od-customer-name { font-size: 0.9rem; font-weight: 600; color: #1e293b; margin-bottom: 2px; }
+  .od-customer-name  { font-size: 0.9rem; font-weight: 600; color: #1e293b; margin-bottom: 2px; }
   .od-customer-email { font-size: 0.78rem; color: #94a3b8; }
 
   .od-info-row {
@@ -711,6 +736,20 @@ const CSS = `
   }
   .od-info-label { font-size: 0.75rem; color: #94a3b8; font-weight: 500; }
   .od-info-val   { font-size: 0.82rem; color: #374151; font-weight: 500; text-align: right; max-width: 58%; }
+
+  /* Email — allow wrap on tiny widths */
+  .od-info-val-email {
+    word-break: break-all;
+    font-size: 0.79rem;
+  }
+
+  /* Phone link */
+  .od-phone-link {
+    color: #3b82f6;
+    text-decoration: none;
+    font-weight: 500;
+  }
+  .od-phone-link:hover { text-decoration: underline; }
 
   .od-status-current {
     display: flex;

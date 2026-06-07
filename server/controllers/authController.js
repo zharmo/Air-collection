@@ -5,7 +5,7 @@ const { findUserByEmail, createUser, setResetToken, findByResetToken, updateUser
 const generateToken = require('../utils/generateToken');
 const { sendSuccess, sendError } = require('../utils/responseHandler');
 const { isValidEmail, isValidPassword } = require('../utils/validators');
-const { sendPasswordResetEmail } = require('../services/emailService'); // <-- added email service
+const { sendPasswordResetEmail } = require('../services/emailService');
 
 // @desc    Register a new user
 // @route   POST /api/auth/register

@@ -7,22 +7,20 @@ import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import { useAuth } from '@/context/AuthContext';
 import axiosInstance from '@/utils/axiosConfig';
 
-export default function SignUp() {
+export default function SignIn() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const [name,       setName      ] = useState('');
   const [email,      setEmail     ] = useState('');
   const [password,   setPassword  ] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [showPw,     setShowPw    ] = useState(false);
-  const [agreeTerms, setAgreeTerms] = useState(false);
   const [loading,    setLoading   ] = useState(false);
   const [googleLoad, setGoogleLoad] = useState(false);
   const [error,      setError     ] = useState('');
-  const [pwStrength, setPwStrength] = useState(0);
   const [tokenProcessing, setTokenProcessing] = useState(false);
-  const { register } = useAuth();
+  const { login } = useAuth();
 
-  // Handle Google redirect token
+  // --- Google token capture (added) ---
   useEffect(() => {
     const token = searchParams.get('token');
     if (token) {
@@ -36,39 +34,27 @@ export default function SignUp() {
         })
         .catch(err => {
           console.error('Token validation error:', err);
-          setError('Google sign-up failed. Please try again.');
+          setError('Google login failed. Please try again.');
           setTokenProcessing(false);
         });
     }
   }, [searchParams, router]);
+  // ----------------------------------
 
-  /* Password strength – 0 (empty) … 4 (strong) */
-  const evaluateStrength = (pw: string): number => {
-    if (!pw) return 0;
-    let s = 0;
-    if (pw.length >= 8)           s++;
-    if (/[A-Z]/.test(pw))        s++;
-    if (/[0-9]/.test(pw))        s++;
-    if (/[^A-Za-z0-9]/.test(pw)) s++;
-    return s;
-  };
-
-  const STRENGTH_LABEL = ['', 'Weak', 'Fair', 'Good', 'Strong'];
-  const STRENGTH_COLOR = ['', '#ef4444', '#f59e0b', '#3b82f6', '#22c55e'];
-
-  /* ── Email / password registration ── */
+  /* ── Email / password login ── */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!agreeTerms) {
-      setError('You must agree to the Terms of Service and Privacy Policy.');
-      return;
-    }
     setError('');
     setLoading(true);
     try {
-      const result = await register(name, email, password);
-      if (result.success) router.push('/');
-      else setError(result.message || 'Registration failed. Please try again.');
+      const result = await login(email, password);
+      if (result.success) {
+        if (rememberMe) localStorage.setItem('rememberMe', 'true');
+        else            localStorage.removeItem('rememberMe');
+        router.push('/');
+      } else {
+        setError(result.message || 'Invalid email or password.');
+      }
     } catch {
       setError('Something went wrong. Please try again.');
     } finally {
@@ -76,22 +62,13 @@ export default function SignUp() {
     }
   };
 
-  /*
-   * ── Google OAuth ──
-   * Same pattern as SignIn – redirect browser to backend OAuth entry point.
-   * Backend redirects to /auth/callback?token=<JWT> after success.
-   *
-   * We intentionally do NOT reset googleLoad here because the page is
-   * navigating away; showing a spinner until the page unloads is correct UX.
-   */
-  const handleGoogleSignup = () => {
+  const handleGoogleLogin = () => {
     const base = process.env.NEXT_PUBLIC_API_URL;
     if (!base) {
-      setError('Google sign-up is not configured. Please contact support.');
+      setError('Google login is not configured. Please contact support.');
       return;
     }
     setGoogleLoad(true);
-    // Full-page navigation – required for OAuth redirects
     window.location.href = `${base}/auth/google`;
   };
 
@@ -99,7 +76,7 @@ export default function SignUp() {
     return (
       <div className="container py-5 text-center">
         <div className="spinner-border text-dark" role="status"></div>
-        <p className="mt-3">Completing sign up...</p>
+        <p className="mt-3">Completing sign in...</p>
       </div>
     );
   }
@@ -110,92 +87,71 @@ export default function SignUp() {
 
       <div className="auth-root">
 
-        {/* ══ LEFT PANEL ══ */}
         <aside className="auth-panel-left">
           <div className="auth-panel-inner">
-            <div className="auth-brand-mark">AIR COLLECTION</div>
-
-            <div className="auth-panel-hero">
-              <div className="auth-panel-year">SS&apos;25</div>
-              <h2 className="auth-panel-headline">
-                The new<br />
-                <em>arrivals</em><br />
-                await.
-              </h2>
-            </div>
-
-            {/* Collection grid */}
-            <div className="auth-collection-grid">
-              <div
-                className="auth-col-block auth-col-block-tall"
-                style={{ background: 'linear-gradient(160deg,#1c1c1c 0%,#3a3230 100%)' }}
-              >
-                <div className="auth-col-tag">Outerwear</div>
-              </div>
-              <div className="auth-col-right">
-                <div
-                  className="auth-col-block"
-                  style={{ background: 'linear-gradient(140deg,#c8b89a 0%,#a89070 100%)' }}
-                >
-                  <div className="auth-col-tag">Knitwear</div>
+            <div className="auth-brand-mark">AC</div>
+            <h2 className="auth-panel-headline">
+              Every piece.<br />A statement.
+            </h2>
+            <p className="auth-panel-sub">
+              Air Collection curates fashion that moves between art and
+              wardrobe. Rare. Intentional. Yours.
+            </p>
+            <div className="auth-cards">
+              <div className="auth-float-card auth-float-card-1">
+                <div className="auth-float-img" style={{ background: 'linear-gradient(135deg,#e8e0d8,#c9bfb5)' }} />
+                <div className="auth-float-info">
+                  <div className="auth-float-name">Linen Overshirt</div>
+                  <div className="auth-float-price">$240</div>
                 </div>
-                <div
-                  className="auth-col-block"
-                  style={{ background: 'linear-gradient(140deg,#2c2c2c 0%,#505050 100%)' }}
-                >
-                  <div className="auth-col-tag">Essentials</div>
+              </div>
+              <div className="auth-float-card auth-float-card-2">
+                <div className="auth-float-img" style={{ background: 'linear-gradient(135deg,#1a1a1a,#3a3a3a)' }} />
+                <div className="auth-float-info">
+                  <div className="auth-float-name">Shadow Trench</div>
+                  <div className="auth-float-price">$680</div>
+                </div>
+              </div>
+              <div className="auth-float-card auth-float-card-3">
+                <div className="auth-float-img" style={{ background: 'linear-gradient(135deg,#d4c4b0,#a89880)' }} />
+                <div className="auth-float-info">
+                  <div className="auth-float-name">Silk Slip Dress</div>
+                  <div className="auth-float-price">$395</div>
                 </div>
               </div>
             </div>
-
-            {/* Stats */}
-            <div className="auth-stats">
-              <div className="auth-stat">
-                <div className="auth-stat-val">2,400+</div>
-                <div className="auth-stat-label">Members</div>
-              </div>
-              <div className="auth-stat-divider" />
-              <div className="auth-stat">
-                <div className="auth-stat-val">340+</div>
-                <div className="auth-stat-label">Curated pieces</div>
-              </div>
-              <div className="auth-stat-divider" />
-              <div className="auth-stat">
-                <div className="auth-stat-val">4.9★</div>
-                <div className="auth-stat-label">Avg. rating</div>
-              </div>
+            <div className="auth-trust-row">
+              <span className="auth-trust-item">✦ Free shipping</span>
+              <span className="auth-trust-item">✦ 30-day returns</span>
+              <span className="auth-trust-item">✦ Authenticated pieces</span>
             </div>
           </div>
         </aside>
 
-        {/* ══ RIGHT FORM ══ */}
         <main className="auth-form-side">
           <div className="auth-form-wrap">
 
-            {/* Mobile-only brand (panel is hidden on small screens) */}
             <div className="auth-mobile-brand">AIR COLLECTION</div>
 
-            <div className="auth-eyebrow">New member</div>
-            <h1 className="auth-heading">Create account</h1>
-            <p className="auth-sub">Join the collection. Free to join, exclusive by nature.</p>
+            <div className="auth-eyebrow">Welcome back</div>
+            <h1 className="auth-heading">Sign in</h1>
+            <p className="auth-sub">Access your curated wardrobe.</p>
 
-            {/* Error banner */}
             {error && (
               <div className="auth-error" role="alert">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
                   <circle cx="12" cy="12" r="10" />
-                  <line x1="12" y1="8"  x2="12"    y2="12" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
                   <line x1="12" y1="16" x2="12.01" y2="16" />
                 </svg>
                 {error}
               </div>
             )}
 
-            {/* ── Google OAuth button ── */}
             <button
               type="button"
               className="auth-google-btn"
-              onClick={handleGoogleSignup}
+              onClick={handleGoogleLogin}
               disabled={googleLoad || loading}
               aria-busy={googleLoad}
               aria-label="Continue with Google"
@@ -218,33 +174,17 @@ export default function SignUp() {
               )}
             </button>
 
-            <div className="auth-divider"><span>or register with email</span></div>
+            <div className="auth-divider"><span>or sign in with email</span></div>
 
-            {/* ── Email / password form ── */}
             <form onSubmit={handleSubmit} noValidate>
 
               <div className="auth-field">
-                <label className="auth-label" htmlFor="su-name">Full name</label>
+                <label className="auth-label" htmlFor="si-email">Email address</label>
                 <input
-                  id="su-name"
-                  type="text"
-                  className="auth-input"
-                  placeholder="Evelyn Thorne"
-                  value={name}
-                  onChange={e => setName(e.target.value)}
-                  required
-                  autoComplete="name"
-                  disabled={loading || googleLoad}
-                />
-              </div>
-
-              <div className="auth-field">
-                <label className="auth-label" htmlFor="su-email">Email address</label>
-                <input
-                  id="su-email"
+                  id="si-email"
                   type="email"
                   className="auth-input"
-                  placeholder="evelyn@example.com"
+                  placeholder="name@example.com"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   required
@@ -254,20 +194,20 @@ export default function SignUp() {
               </div>
 
               <div className="auth-field">
-                <label className="auth-label" htmlFor="su-password">Password</label>
+                <div className="auth-label-row">
+                  <label className="auth-label" htmlFor="si-password">Password</label>
+                  <Link href="/auth/forgot-password" className="auth-forgot">Forgot password?</Link>
+                </div>
                 <div className="auth-pw-wrap">
                   <input
-                    id="su-password"
+                    id="si-password"
                     type={showPw ? 'text' : 'password'}
                     className="auth-input auth-input-pw"
-                    placeholder="Create a strong password"
+                    placeholder="Enter your password"
                     value={password}
-                    onChange={e => {
-                      setPassword(e.target.value);
-                      setPwStrength(evaluateStrength(e.target.value));
-                    }}
+                    onChange={e => setPassword(e.target.value)}
                     required
-                    autoComplete="new-password"
+                    autoComplete="current-password"
                     disabled={loading || googleLoad}
                   />
                   <button
@@ -280,55 +220,19 @@ export default function SignUp() {
                     {showPw ? <FaEyeSlash size={15} /> : <FaEye size={15} />}
                   </button>
                 </div>
-
-                {/* Strength meter – only shown while user is typing */}
-                {password.length > 0 && (
-                  <div className="auth-strength" aria-live="polite">
-                    <div
-                      className="auth-strength-bars"
-                      role="progressbar"
-                      aria-valuenow={pwStrength}
-                      aria-valuemin={0}
-                      aria-valuemax={4}
-                    >
-                      {[1, 2, 3, 4].map(i => (
-                        <div
-                          key={i}
-                          className="auth-strength-bar"
-                          style={{
-                            background: i <= pwStrength ? STRENGTH_COLOR[pwStrength] : '#e4e2de',
-                            transition: 'background 0.25s',
-                          }}
-                        />
-                      ))}
-                    </div>
-                    <span
-                      className="auth-strength-label"
-                      style={{ color: STRENGTH_COLOR[pwStrength] }}
-                    >
-                      {STRENGTH_LABEL[pwStrength]}
-                    </span>
-                  </div>
-                )}
               </div>
 
-              {/* Terms – the visual checkbox span MUST be the immediate next sibling of the hidden input */}
-              <div className="auth-terms-field">
-                <label className="auth-check-label" htmlFor="su-terms">
+              <div className="auth-remember">
+                <label className="auth-check-label" htmlFor="si-remember">
                   <input
-                    id="su-terms"
+                    id="si-remember"
                     type="checkbox"
                     className="auth-check-input"
-                    checked={agreeTerms}
-                    onChange={e => setAgreeTerms(e.target.checked)}
+                    checked={rememberMe}
+                    onChange={e => setRememberMe(e.target.checked)}
                   />
                   <span className="auth-check-box" aria-hidden="true" />
-                  <span className="auth-check-text">
-                    I agree to the{' '}
-                    <Link href="/terms" className="auth-inline-link">Terms of Service</Link>
-                    {' '}and{' '}
-                    <Link href="/privacy" className="auth-inline-link">Privacy Policy</Link>
-                  </span>
+                  <span className="auth-check-text">Remember me for 30 days</span>
                 </label>
               </div>
 
@@ -338,20 +242,15 @@ export default function SignUp() {
                 disabled={loading || googleLoad}
                 aria-busy={loading}
               >
-                {loading ? (
-                  <>
-                    <span className="auth-spinner auth-spinner-white" aria-hidden="true" />
-                    Creating account…
-                  </>
-                ) : (
-                  'Create Account'
-                )}
+                {loading
+                  ? <><span className="auth-spinner auth-spinner-white" aria-hidden="true" /> Signing in…</>
+                  : 'Sign In'}
               </button>
             </form>
 
             <p className="auth-switch">
-              Already have an account?{' '}
-              <Link href="/auth/signin" className="auth-switch-link">Sign in</Link>
+              Don&apos;t have an account?{' '}
+              <Link href="/auth/signup" className="auth-switch-link">Create one</Link>
             </p>
 
             <footer className="auth-footer">
@@ -363,6 +262,7 @@ export default function SignUp() {
               <span aria-hidden="true">·</span>
               <span>© 2025 Air Collection</span>
             </footer>
+
           </div>
         </main>
       </div>
@@ -371,7 +271,7 @@ export default function SignUp() {
 }
 
 /* ═══════════════════════════════════════
-   STYLES
+   STYLES – unchanged
 ═══════════════════════════════════════ */
 const STYLES = `
   @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=DM+Sans:wght@300;400;500;600&display=swap');
@@ -388,7 +288,7 @@ const STYLES = `
   /* ── Left panel ── */
   .auth-panel-left {
     flex: 0 0 46%;
-    background: #0a0a0a;
+    background: #0e0e0e;
     position: relative;
     overflow: hidden;
     display: flex;
@@ -396,17 +296,22 @@ const STYLES = `
   }
   .auth-panel-left::before {
     content: '';
-    position: absolute; inset: 0;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
-    pointer-events: none; z-index: 1;
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    opacity: 0.6;
+    pointer-events: none;
+    z-index: 1;
   }
   .auth-panel-left::after {
     content: '';
     position: absolute;
-    width: 400px; height: 400px; border-radius: 50%;
-    background: radial-gradient(circle, rgba(180,154,100,0.12) 0%, transparent 70%);
-    bottom: -80px; left: -80px;
-    pointer-events: none; z-index: 1;
+    width: 500px; height: 500px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(180,140,100,0.15) 0%, transparent 70%);
+    top: -100px; right: -150px;
+    pointer-events: none;
+    z-index: 1;
   }
 
   .auth-panel-inner {
@@ -416,95 +321,84 @@ const STYLES = `
     width: 100%;
     position: relative;
     z-index: 2;
+    gap: 0;
   }
 
   .auth-brand-mark {
     font-family: 'Cormorant Garamond', serif;
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     font-weight: 600;
-    letter-spacing: 0.38em;
-    color: rgba(255,255,255,0.3);
+    letter-spacing: 0.35em;
+    color: rgba(255,255,255,0.35);
     text-transform: uppercase;
-    margin-bottom: 52px;
+    margin-bottom: 60px;
   }
 
-  .auth-panel-hero { margin-bottom: 44px; }
-  .auth-panel-year {
-    font-size: 0.7rem;
-    letter-spacing: 0.2em;
-    color: #b49a7a;
-    font-weight: 500;
-    margin-bottom: 12px;
-  }
   .auth-panel-headline {
     font-family: 'Cormorant Garamond', serif;
-    font-size: clamp(2.6rem, 3.8vw, 3.8rem);
+    font-size: clamp(2.2rem, 3.5vw, 3.2rem);
     font-weight: 400;
-    line-height: 1.1;
+    line-height: 1.15;
     color: #f5f0eb;
     letter-spacing: -0.02em;
+    margin-bottom: 20px;
   }
-  .auth-panel-headline em { font-style: italic; color: #b49a7a; }
 
-  /* Collection grid */
-  .auth-collection-grid {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 44px;
-    height: 200px;
-    flex: 1;
+  .auth-panel-sub {
+    font-size: 0.88rem;
+    color: rgba(255,255,255,0.45);
+    line-height: 1.7;
+    max-width: 340px;
+    margin-bottom: 48px;
+    font-weight: 300;
   }
-  .auth-col-block-tall { flex: 1.2; }
-  .auth-col-right {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-  .auth-col-block {
-    flex: 1;
-    border-radius: 12px;
+
+  /* Floating product cards */
+  .auth-cards {
     position: relative;
-    overflow: hidden;
-    transition: transform 0.25s;
+    height: 220px;
+    margin-bottom: 48px;
+    flex-shrink: 0;
   }
-  .auth-col-block:hover { transform: scale(1.02); }
-  .auth-col-tag {
+  .auth-float-card {
     position: absolute;
-    bottom: 12px; left: 12px;
-    font-size: 0.65rem;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: rgba(255,255,255,0.5);
-    font-weight: 500;
-  }
-
-  /* Stats */
-  .auth-stats {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 14px;
+    padding: 12px;
     display: flex;
     align-items: center;
+    gap: 12px;
+    backdrop-filter: blur(8px);
+    animation: auth-float 6s ease-in-out infinite;
+  }
+  .auth-float-card-1 { top: 0;    left: 0;   width: 200px; animation-delay: 0s; }
+  .auth-float-card-2 { top: 70px; left: 80px; width: 215px; animation-delay: 2s; }
+  .auth-float-card-3 { top: 140px; left: 20px; width: 205px; animation-delay: 4s; }
+  @keyframes auth-float {
+    0%,100% { transform: translateY(0); }
+    50%      { transform: translateY(-6px); }
+  }
+  .auth-float-img {
+    width: 40px; height: 40px;
+    border-radius: 8px;
+    flex-shrink: 0;
+  }
+  .auth-float-name { font-size: 0.78rem; font-weight: 500; color: rgba(255,255,255,0.85); margin-bottom: 3px; }
+  .auth-float-price { font-size: 0.72rem; color: rgba(255,255,255,0.40); }
+
+  .auth-trust-row {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
     margin-top: auto;
     padding-top: 24px;
-    border-top: 1px solid rgba(255,255,255,0.07);
   }
-  .auth-stat { flex: 1; text-align: center; }
-  .auth-stat-val {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 1.35rem;
-    font-weight: 500;
-    color: #f5f0eb;
-    letter-spacing: -0.02em;
-    margin-bottom: 3px;
-  }
-  .auth-stat-label {
-    font-size: 0.67rem;
+  .auth-trust-item {
+    font-size: 0.72rem;
     color: rgba(255,255,255,0.3);
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-  }
-  .auth-stat-divider {
-    width: 1px; height: 32px;
-    background: rgba(255,255,255,0.10);
+    letter-spacing: 0.06em;
+    font-weight: 300;
   }
 
   /* ── Right form side ── */
@@ -528,7 +422,6 @@ const STYLES = `
     to   { opacity: 1; transform: translateY(0); }
   }
 
-  /* Shown only on mobile when left panel is hidden */
   .auth-mobile-brand {
     display: none;
     font-family: 'Cormorant Garamond', serif;
@@ -561,7 +454,7 @@ const STYLES = `
   .auth-sub {
     font-size: 0.88rem;
     color: #8a8680;
-    margin-bottom: 28px;
+    margin-bottom: 32px;
     font-weight: 300;
   }
 
@@ -620,7 +513,7 @@ const STYLES = `
     display: flex;
     align-items: center;
     gap: 14px;
-    margin: 20px 0;
+    margin: 22px 0;
     color: #c5c1bc;
     font-size: 0.74rem;
     font-weight: 500;
@@ -636,7 +529,8 @@ const STYLES = `
   }
 
   /* Fields */
-  .auth-field { margin-bottom: 16px; }
+  .auth-field { margin-bottom: 18px; }
+
   .auth-label {
     display: block;
     font-size: 0.72rem;
@@ -646,6 +540,14 @@ const STYLES = `
     color: #6b6762;
     margin-bottom: 7px;
   }
+  .auth-label-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 7px;
+  }
+  .auth-label-row .auth-label { margin-bottom: 0; }
+
   .auth-input {
     width: 100%;
     height: 50px;
@@ -659,9 +561,9 @@ const STYLES = `
     outline: none;
     transition: border-color 0.15s, box-shadow 0.15s;
   }
-  .auth-input:focus        { border-color: #1a1a1a; box-shadow: 0 0 0 3px rgba(26,26,26,0.07); }
+  .auth-input:focus { border-color: #1a1a1a; box-shadow: 0 0 0 3px rgba(26,26,26,0.07); }
   .auth-input::placeholder { color: #c0bdb9; }
-  .auth-input:disabled     { opacity: 0.55; cursor: not-allowed; background: #f5f4f2; }
+  .auth-input:disabled { opacity: 0.55; cursor: not-allowed; background: #f5f4f2; }
 
   .auth-pw-wrap { position: relative; }
   .auth-input-pw { padding-right: 48px; }
@@ -678,35 +580,27 @@ const STYLES = `
   }
   .auth-pw-toggle:hover { color: #1a1a1a; }
 
-  /* Strength meter */
-  .auth-strength {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-top: 8px;
+  .auth-forgot {
+    font-size: 0.78rem;
+    color: #b49a7a;
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.15s;
   }
-  .auth-strength-bars { display: flex; gap: 4px; flex: 1; }
-  .auth-strength-bar  { height: 3px; flex: 1; border-radius: 100px; }
-  .auth-strength-label {
-    font-size: 0.72rem;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    min-width: 44px;
-    text-align: right;
-  }
+  .auth-forgot:hover { color: #8c7655; }
 
-  /* Terms – the visual checkbox span MUST be the immediate next sibling of the hidden input */
-  .auth-terms-field { margin-bottom: 24px; }
+  /* Checkbox */
+  .auth-remember { margin-bottom: 24px; }
   .auth-check-label {
     display: inline-flex;
-    align-items: flex-start;
+    align-items: center;
     gap: 10px;
     cursor: pointer;
     user-select: none;
   }
   .auth-check-input { display: none; }
   .auth-check-box {
-    width: 18px; height: 18px; min-width: 18px;
+    width: 18px; height: 18px;
     border: 1.5px solid #d4d1cc;
     border-radius: 5px;
     background: #fff;
@@ -714,11 +608,11 @@ const STYLES = `
     display: flex; align-items: center; justify-content: center;
     transition: background 0.15s, border-color 0.15s;
     position: relative;
-    margin-top: 1px;
   }
+  .auth-check-input:checked ~ .auth-check-box,
   .auth-check-input:checked + .auth-check-box {
-    background: #0e0e0e;
-    border-color: #0e0e0e;
+    background: #1a1a1a;
+    border-color: #1a1a1a;
   }
   .auth-check-input:checked + .auth-check-box::after {
     content: '';
@@ -727,20 +621,7 @@ const STYLES = `
     border-bottom: 2px solid #fff;
     transform: rotate(42deg) translate(-1px,-1px);
   }
-  .auth-check-text {
-    font-size: 0.83rem;
-    color: #6b6762;
-    line-height: 1.5;
-  }
-  .auth-inline-link {
-    color: #0e0e0e;
-    font-weight: 600;
-    text-decoration: underline;
-    text-underline-offset: 2px;
-    text-decoration-color: rgba(14,14,14,0.3);
-    transition: text-decoration-color 0.15s;
-  }
-  .auth-inline-link:hover { text-decoration-color: #0e0e0e; }
+  .auth-check-text { font-size: 0.83rem; color: #6b6762; }
 
   /* Submit */
   .auth-submit-btn {
@@ -815,11 +696,11 @@ const STYLES = `
   .auth-footer a { color: inherit; text-decoration: none; transition: color 0.15s; }
   .auth-footer a:hover { color: #6b6762; }
 
-  /* ── Responsive ── */
+  /* Responsive */
   @media (max-width: 900px) {
-    .auth-panel-left   { display: none; }
+    .auth-panel-left  { display: none; }
     .auth-mobile-brand { display: block; }
-    .auth-form-side    { padding: 32px 20px; }
+    .auth-form-side   { padding: 32px 20px; }
   }
   @media (max-width: 480px) {
     .auth-heading { font-size: 2.2rem; }
