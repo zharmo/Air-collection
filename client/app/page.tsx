@@ -737,69 +737,6 @@ export default function HomePage() {
                     margin-bottom: 8px;
                 }
 
-                /* ── Newsletter ── */
-                .newsletter-section {
-                    background: var(--ink);
-                    padding: 100px max(24px, calc((100vw - 1400px) / 2 + 40px));
-                    display: grid;
-                    grid-template-columns: 1fr 1fr;
-                    gap: 80px;
-                    align-items: center;
-                }
-
-                .newsletter-input-row {
-                    display: flex;
-                    gap: 0;
-                    border-bottom: 1px solid rgba(255,255,255,0.2);
-                }
-
-                .newsletter-input {
-                    flex: 1;
-                    background: none;
-                    border: none;
-                    outline: none;
-                    font-family: 'Jost', sans-serif;
-                    font-size: 16px;
-                    font-weight: 300;
-                    color: #fff;
-                    padding: 18px 0;
-                    letter-spacing: 0.04em;
-                }
-
-                .newsletter-input::placeholder { color: rgba(255,255,255,0.3); }
-
-                .newsletter-btn {
-                    font-family: 'Jost', sans-serif;
-                    font-size: 11px;
-                    font-weight: 700;
-                    letter-spacing: 0.2em;
-                    text-transform: uppercase;
-                    background: none;
-                    border: none;
-                    color: var(--accent);
-                    cursor: pointer;
-                    padding: 18px 0 18px 24px;
-                    display: flex;
-                    align-items: center;
-                    gap: 10px;
-                    transition: gap 0.3s;
-                }
-
-                .newsletter-btn:hover { gap: 16px; }
-
-                .success-msg {
-                    display: flex;
-                    align-items: center;
-                    gap: 12px;
-                    color: var(--accent);
-                    font-family: 'Jost', sans-serif;
-                    font-size: 14px;
-                    font-weight: 400;
-                    letter-spacing: 0.05em;
-                    padding: 18px 0;
-                    border-bottom: 1px solid rgba(255,255,255,0.2);
-                }
-
                 /* ── Responsive ── */
                 @media (max-width: 1024px) {
                     .hero { grid-template-columns: 1fr; min-height: 80vh; }
@@ -808,7 +745,6 @@ export default function HomePage() {
                     .product-grid-4 { grid-template-columns: repeat(2, 1fr); }
                     .category-grid { grid-template-columns: repeat(2, 1fr); }
                     .review-section { grid-template-columns: 1fr; gap: 48px; }
-                    .newsletter-section { grid-template-columns: 1fr; gap: 40px; }
                 }
 
                 @media (max-width: 768px) {
@@ -817,7 +753,7 @@ export default function HomePage() {
                     .hero-title { font-size: clamp(52px, 13vw, 80px); }
                     .section { padding: 64px 24px; }
                     .category-section { padding: 64px 24px; }
-                    .newsletter-section, .review-section { padding: 64px 24px; }
+                    .review-section { padding: 64px 24px; }
                 }
 
                 @media (max-width: 480px) {
@@ -1216,80 +1152,6 @@ export default function HomePage() {
               </div>
             </div>
           ))}
-        </div>
-      </section>
-
-      {/* ── NEWSLETTER ── */}
-      <section className="newsletter-section">
-        <div>
-          <div
-            className="label-caps"
-            style={{
-              color: "var(--accent)",
-              marginBottom: 16,
-              letterSpacing: "0.25em",
-            }}
-          >
-            Stay in the Air
-          </div>
-          <h2
-            style={{
-              fontFamily: "Cormorant Garamond",
-              fontSize: 44,
-              fontWeight: 500,
-              color: "#fff",
-              lineHeight: 1.05,
-              marginBottom: 16,
-            }}
-          >
-            First to Know.
-            <br />
-            Always.
-          </h2>
-          <p
-            className="body-text"
-            style={{
-              color: "rgba(255,255,255,0.45)",
-              fontSize: 15,
-              maxWidth: 340,
-            }}
-          >
-            Receive exclusive access to new drops, seasonal edits, and
-            members-only stories.
-          </p>
-        </div>
-        <div>
-          {subscribed ? (
-            <div className="success-msg">
-              <FaCheckCircle /> You're on the list. Watch your inbox.
-            </div>
-          ) : (
-            <form onSubmit={handleSubscribe}>
-              <div className="newsletter-input-row">
-                <input
-                  type="email"
-                  className="newsletter-input"
-                  placeholder="Your email address"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-                <button type="submit" className="newsletter-btn">
-                  Subscribe <FaArrowRight size={11} />
-                </button>
-              </div>
-            </form>
-          )}
-          <p
-            className="label-caps"
-            style={{
-              color: "rgba(255,255,255,0.2)",
-              marginTop: 20,
-              fontSize: 10,
-            }}
-          >
-            No spam. Unsubscribe anytime. We respect your privacy.
-          </p>
         </div>
       </section>
     </>

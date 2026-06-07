@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
@@ -8,36 +8,19 @@ import { useAuth } from '@/context/AuthContext';
 import axiosInstance from '@/utils/axiosConfig';
 
 export default function SignIn() {
-<<<<<<< HEAD
-=======
-  return (
-    <Suspense
-      fallback={
-        <div className="container py-5 text-center">
-          <div className="spinner-border text-dark" role="status"></div>
-        </div>
-      }
-    >
-      <SignInContent />
-    </Suspense>
-  );
-}
-
-function SignInContent() {
->>>>>>> 0d3a8e4b5ba8b456459db6daf3b587bdeecc92bd
   const searchParams = useSearchParams();
   const router = useRouter();
-  const [email,      setEmail     ] = useState('');
-  const [password,   setPassword  ] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
-  const [showPw,     setShowPw    ] = useState(false);
-  const [loading,    setLoading   ] = useState(false);
+  const [showPw, setShowPw] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [googleLoad, setGoogleLoad] = useState(false);
-  const [error,      setError     ] = useState('');
+  const [error, setError] = useState('');
   const [tokenProcessing, setTokenProcessing] = useState(false);
   const { login } = useAuth();
 
-  // --- Google token capture (added) ---
+  // Handle Google redirect token
   useEffect(() => {
     const token = searchParams.get('token');
     if (token) {
@@ -51,39 +34,25 @@ function SignInContent() {
         })
         .catch(err => {
           console.error('Token validation error:', err);
-<<<<<<< HEAD
           setError('Google login failed. Please try again.');
-=======
-          setError('Google sign-in failed. Please try again.');
->>>>>>> 0d3a8e4b5ba8b456459db6daf3b587bdeecc92bd
           setTokenProcessing(false);
         });
     }
   }, [searchParams, router]);
-  // ----------------------------------
 
-<<<<<<< HEAD
-  /* ── Email / password login ── */
-=======
->>>>>>> 0d3a8e4b5ba8b456459db6daf3b587bdeecc92bd
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
       const result = await login(email, password);
-<<<<<<< HEAD
       if (result.success) {
         if (rememberMe) localStorage.setItem('rememberMe', 'true');
-        else            localStorage.removeItem('rememberMe');
+        else localStorage.removeItem('rememberMe');
         router.push('/');
       } else {
         setError(result.message || 'Invalid email or password.');
       }
-=======
-      if (result.success) router.push('/');
-      else setError(result.message || 'Login failed. Please check your email and password.');
->>>>>>> 0d3a8e4b5ba8b456459db6daf3b587bdeecc92bd
     } catch {
       setError('Something went wrong. Please try again.');
     } finally {
@@ -91,25 +60,10 @@ function SignInContent() {
     }
   };
 
-<<<<<<< HEAD
   const handleGoogleLogin = () => {
     const base = process.env.NEXT_PUBLIC_API_URL;
     if (!base) {
       setError('Google login is not configured. Please contact support.');
-=======
-  /*
-   * ── Google OAuth ──
-   * Same pattern as SignIn – redirect browser to backend OAuth entry point.
-   * Backend redirects to /auth/callback?token=<JWT> after success.
-   *
-   * We intentionally do NOT reset googleLoad here because the page is
-   * navigating away; showing a spinner until the page unloads is correct UX.
-   */
-  const handleGoogleSignin = () => {
-    const base = process.env.NEXT_PUBLIC_API_URL;
-    if (!base) {
-      setError('Google sign-in is not configured. Please contact support.');
->>>>>>> 0d3a8e4b5ba8b456459db6daf3b587bdeecc92bd
       return;
     }
     setGoogleLoad(true);
@@ -130,7 +84,7 @@ function SignInContent() {
       <style>{STYLES}</style>
 
       <div className="auth-root">
-
+        {/* ── LEFT PANEL ── */}
         <aside className="auth-panel-left">
           <div className="auth-panel-inner">
             <div className="auth-brand-mark">AC</div>
@@ -138,8 +92,7 @@ function SignInContent() {
               Every piece.<br />A statement.
             </h2>
             <p className="auth-panel-sub">
-              Air Collection curates fashion that moves between art and
-              wardrobe. Rare. Intentional. Yours.
+              Air Collection curates fashion that moves between art and wardrobe. Rare. Intentional. Yours.
             </p>
             <div className="auth-cards">
               <div className="auth-float-card auth-float-card-1">
@@ -172,18 +125,13 @@ function SignInContent() {
           </div>
         </aside>
 
+        {/* ── RIGHT FORM ── */}
         <main className="auth-form-side">
           <div className="auth-form-wrap">
-
             <div className="auth-mobile-brand">AIR COLLECTION</div>
-
             <div className="auth-eyebrow">Welcome back</div>
             <h1 className="auth-heading">Sign in</h1>
-<<<<<<< HEAD
             <p className="auth-sub">Access your curated wardrobe.</p>
-=======
-            <p className="auth-sub">Access your orders, wishlist, and saved collection details.</p>
->>>>>>> 0d3a8e4b5ba8b456459db6daf3b587bdeecc92bd
 
             {error && (
               <div className="auth-error" role="alert">
@@ -199,11 +147,7 @@ function SignInContent() {
             <button
               type="button"
               className="auth-google-btn"
-<<<<<<< HEAD
               onClick={handleGoogleLogin}
-=======
-              onClick={handleGoogleSignin}
->>>>>>> 0d3a8e4b5ba8b456459db6daf3b587bdeecc92bd
               disabled={googleLoad || loading}
               aria-busy={googleLoad}
               aria-label="Continue with Google"
@@ -229,18 +173,13 @@ function SignInContent() {
             <div className="auth-divider"><span>or sign in with email</span></div>
 
             <form onSubmit={handleSubmit} noValidate>
-
               <div className="auth-field">
                 <label className="auth-label" htmlFor="si-email">Email address</label>
                 <input
                   id="si-email"
                   type="email"
                   className="auth-input"
-<<<<<<< HEAD
                   placeholder="name@example.com"
-=======
-                  placeholder="you@example.com"
->>>>>>> 0d3a8e4b5ba8b456459db6daf3b587bdeecc92bd
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   required
@@ -250,14 +189,10 @@ function SignInContent() {
               </div>
 
               <div className="auth-field">
-<<<<<<< HEAD
                 <div className="auth-label-row">
                   <label className="auth-label" htmlFor="si-password">Password</label>
                   <Link href="/auth/forgot-password" className="auth-forgot">Forgot password?</Link>
                 </div>
-=======
-                <label className="auth-label" htmlFor="si-password">Password</label>
->>>>>>> 0d3a8e4b5ba8b456459db6daf3b587bdeecc92bd
                 <div className="auth-pw-wrap">
                   <input
                     id="si-password"
@@ -280,7 +215,6 @@ function SignInContent() {
                     {showPw ? <FaEyeSlash size={15} /> : <FaEye size={15} />}
                   </button>
                 </div>
-<<<<<<< HEAD
               </div>
 
               <div className="auth-remember">
@@ -295,41 +229,20 @@ function SignInContent() {
                   <span className="auth-check-box" aria-hidden="true" />
                   <span className="auth-check-text">Remember me for 30 days</span>
                 </label>
-=======
->>>>>>> 0d3a8e4b5ba8b456459db6daf3b587bdeecc92bd
               </div>
 
-              <button
-                type="submit"
-                className="auth-submit-btn"
-                disabled={loading || googleLoad}
-                aria-busy={loading}
-              >
-<<<<<<< HEAD
-                {loading
-                  ? <><span className="auth-spinner auth-spinner-white" aria-hidden="true" /> Signing in…</>
-                  : 'Sign In'}
-=======
+              <button type="submit" className="auth-submit-btn" disabled={loading || googleLoad} aria-busy={loading}>
                 {loading ? (
-                  <>
-                    <span className="auth-spinner auth-spinner-white" aria-hidden="true" />
-                    Signing in...
-                  </>
+                  <><span className="auth-spinner auth-spinner-white" aria-hidden="true" /> Signing in…</>
                 ) : (
                   'Sign In'
                 )}
->>>>>>> 0d3a8e4b5ba8b456459db6daf3b587bdeecc92bd
               </button>
             </form>
 
             <p className="auth-switch">
-<<<<<<< HEAD
               Don&apos;t have an account?{' '}
               <Link href="/auth/signup" className="auth-switch-link">Create one</Link>
-=======
-              New to Air Collection?{' '}
-              <Link href="/auth/signup" className="auth-switch-link">Create account</Link>
->>>>>>> 0d3a8e4b5ba8b456459db6daf3b587bdeecc92bd
             </p>
 
             <footer className="auth-footer">
@@ -350,7 +263,7 @@ function SignInContent() {
 }
 
 /* ═══════════════════════════════════════
-   STYLES – unchanged
+   STYLES  (unchanged)
 ═══════════════════════════════════════ */
 const STYLES = `
   @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=DM+Sans:wght@300;400;500;600&display=swap');
@@ -451,18 +364,11 @@ const STYLES = `
     backdrop-filter: blur(8px);
     animation: auth-float 6s ease-in-out infinite;
   }
-  .auth-float-card-1 { top: 0;    left: 0;   width: 200px; animation-delay: 0s; }
+  .auth-float-card-1 { top: 0; left: 0; width: 200px; animation-delay: 0s; }
   .auth-float-card-2 { top: 70px; left: 80px; width: 215px; animation-delay: 2s; }
   .auth-float-card-3 { top: 140px; left: 20px; width: 205px; animation-delay: 4s; }
-  @keyframes auth-float {
-    0%,100% { transform: translateY(0); }
-    50%      { transform: translateY(-6px); }
-  }
-  .auth-float-img {
-    width: 40px; height: 40px;
-    border-radius: 8px;
-    flex-shrink: 0;
-  }
+  @keyframes auth-float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+  .auth-float-img { width: 40px; height: 40px; border-radius: 8px; flex-shrink: 0; }
   .auth-float-name { font-size: 0.78rem; font-weight: 500; color: rgba(255,255,255,0.85); margin-bottom: 3px; }
   .auth-float-price { font-size: 0.72rem; color: rgba(255,255,255,0.40); }
 
@@ -496,10 +402,7 @@ const STYLES = `
     max-width: 420px;
     animation: auth-fade-up 0.45s ease both;
   }
-  @keyframes auth-fade-up {
-    from { opacity: 0; transform: translateY(16px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
+  @keyframes auth-fade-up { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
 
   .auth-mobile-brand {
     display: none;
@@ -513,29 +416,9 @@ const STYLES = `
     text-transform: uppercase;
   }
 
-  .auth-eyebrow {
-    font-size: 0.72rem;
-    font-weight: 600;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: #b49a7a;
-    margin-bottom: 10px;
-  }
-  .auth-heading {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 2.8rem;
-    font-weight: 400;
-    color: #0e0e0e;
-    letter-spacing: -0.03em;
-    line-height: 1;
-    margin-bottom: 8px;
-  }
-  .auth-sub {
-    font-size: 0.88rem;
-    color: #8a8680;
-    margin-bottom: 32px;
-    font-weight: 300;
-  }
+  .auth-eyebrow { font-size: 0.72rem; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; color: #b49a7a; margin-bottom: 10px; }
+  .auth-heading { font-family: 'Cormorant Garamond', serif; font-size: 2.8rem; font-weight: 400; color: #0e0e0e; letter-spacing: -0.03em; line-height: 1; margin-bottom: 8px; }
+  .auth-sub { font-size: 0.88rem; color: #8a8680; margin-bottom: 32px; font-weight: 300; }
 
   /* Error */
   .auth-error {
@@ -552,13 +435,7 @@ const STYLES = `
     margin-bottom: 20px;
     animation: auth-shake 0.35s ease;
   }
-  @keyframes auth-shake {
-    0%,100% { transform: translateX(0); }
-    20%     { transform: translateX(-4px); }
-    40%     { transform: translateX(4px); }
-    60%     { transform: translateX(-3px); }
-    80%     { transform: translateX(3px); }
-  }
+  @keyframes auth-shake { 0%,100% { transform: translateX(0); } 20% { transform: translateX(-4px); } 40% { transform: translateX(4px); } 60% { transform: translateX(-3px); } 80% { transform: translateX(3px); } }
 
   /* Google button */
   .auth-google-btn {
@@ -579,11 +456,7 @@ const STYLES = `
     letter-spacing: 0.01em;
     transition: border-color 0.15s, box-shadow 0.15s, transform 0.12s;
   }
-  .auth-google-btn:hover:not(:disabled) {
-    border-color: #c8c5c0;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.07);
-    transform: translateY(-1px);
-  }
+  .auth-google-btn:hover:not(:disabled) { border-color: #c8c5c0; box-shadow: 0 4px 16px rgba(0,0,0,0.07); transform: translateY(-1px); }
   .auth-google-btn:active:not(:disabled) { transform: translateY(0); box-shadow: none; }
   .auth-google-btn:disabled { opacity: 0.60; cursor: not-allowed; }
 
@@ -599,17 +472,10 @@ const STYLES = `
     letter-spacing: 0.05em;
     text-transform: uppercase;
   }
-  .auth-divider::before,
-  .auth-divider::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: #e8e5e1;
-  }
+  .auth-divider::before, .auth-divider::after { content: ''; flex: 1; height: 1px; background: #e8e5e1; }
 
   /* Fields */
   .auth-field { margin-bottom: 18px; }
-
   .auth-label {
     display: block;
     font-size: 0.72rem;
@@ -659,13 +525,7 @@ const STYLES = `
   }
   .auth-pw-toggle:hover { color: #1a1a1a; }
 
-  .auth-forgot {
-    font-size: 0.78rem;
-    color: #b49a7a;
-    text-decoration: none;
-    font-weight: 500;
-    transition: color 0.15s;
-  }
+  .auth-forgot { font-size: 0.78rem; color: #b49a7a; text-decoration: none; font-weight: 500; transition: color 0.15s; }
   .auth-forgot:hover { color: #8c7655; }
 
   /* Checkbox */
@@ -688,7 +548,6 @@ const STYLES = `
     transition: background 0.15s, border-color 0.15s;
     position: relative;
   }
-  .auth-check-input:checked ~ .auth-check-box,
   .auth-check-input:checked + .auth-check-box {
     background: #1a1a1a;
     border-color: #1a1a1a;
@@ -723,11 +582,7 @@ const STYLES = `
     box-shadow: 0 4px 20px rgba(14,14,14,0.20);
     margin-bottom: 20px;
   }
-  .auth-submit-btn:hover:not(:disabled) {
-    background: #2a2a2a;
-    transform: translateY(-1px);
-    box-shadow: 0 8px 28px rgba(14,14,14,0.25);
-  }
+  .auth-submit-btn:hover:not(:disabled) { background: #2a2a2a; transform: translateY(-1px); box-shadow: 0 8px 28px rgba(14,14,14,0.25); }
   .auth-submit-btn:active:not(:disabled) { transform: translateY(0); box-shadow: none; }
   .auth-submit-btn:disabled { opacity: 0.55; cursor: not-allowed; }
 
@@ -747,20 +602,8 @@ const STYLES = `
   }
   @keyframes auth-spin { to { transform: rotate(360deg); } }
 
-  .auth-switch {
-    text-align: center;
-    font-size: 0.83rem;
-    color: #8a8680;
-    margin-bottom: 32px;
-  }
-  .auth-switch-link {
-    color: #0e0e0e;
-    font-weight: 600;
-    text-decoration: none;
-    border-bottom: 1px solid #0e0e0e;
-    padding-bottom: 1px;
-    transition: opacity 0.15s;
-  }
+  .auth-switch { text-align: center; font-size: 0.83rem; color: #8a8680; margin-bottom: 32px; }
+  .auth-switch-link { color: #0e0e0e; font-weight: 600; text-decoration: none; border-bottom: 1px solid #0e0e0e; padding-bottom: 1px; transition: opacity 0.15s; }
   .auth-switch-link:hover { opacity: 0.6; }
 
   .auth-footer {
@@ -777,9 +620,9 @@ const STYLES = `
 
   /* Responsive */
   @media (max-width: 900px) {
-    .auth-panel-left  { display: none; }
+    .auth-panel-left { display: none; }
     .auth-mobile-brand { display: block; }
-    .auth-form-side   { padding: 32px 20px; }
+    .auth-form-side { padding: 32px 20px; }
   }
   @media (max-width: 480px) {
     .auth-heading { font-size: 2.2rem; }
