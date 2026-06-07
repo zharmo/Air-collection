@@ -288,16 +288,33 @@ export default function Navbar() {
                     margin: 0 20px;
                     display: flex; align-items: center;
                     gap: 14px;
-                    padding: 4px 20px;
+                    padding: 8px 20px;
                     border-bottom: 2px solid var(--ink);
+                    min-height: 68px;
+                }
+                .ac-search-form {
+                    flex: 1;
+                    min-width: 0;
+                    display: flex;
                 }
                 .ac-search-box input {
-                    flex: 1; border: none; outline: none;
+                    flex: 1; width: 100%; min-width: 0;
+                    border: none; outline: none;
                     font-family: 'Jost', sans-serif;
-                    font-size: 17px; font-weight: 300;
+                    font-size: 22px; font-weight: 300;
                     color: var(--ink); background: transparent;
-                    padding: 16px 0;
+                    padding: 14px 0;
                     letter-spacing: 0.03em;
+                }
+                .ac-search-box input::-webkit-search-decoration,
+                .ac-search-box input::-webkit-search-cancel-button,
+                .ac-search-box input::-webkit-search-results-button,
+                .ac-search-box input::-webkit-search-results-decoration {
+                    display: none;
+                }
+                .ac-search-box input[type="search"] {
+                    appearance: textfield;
+                    -webkit-appearance: textfield;
                 }
                 .ac-search-box input::placeholder { color: #ccc; }
                 .ac-search-close {
@@ -374,6 +391,14 @@ export default function Navbar() {
                     .ac-icons { gap: 2px; }
                     .ac-icon  { width: 34px; height: 34px; }
                     .ac-logo  { font-size: 17px; letter-spacing: 0.12em; }
+                    .ac-search-overlay { padding-top: 86px; }
+                    .ac-search-box {
+                        margin: 0 16px;
+                        max-width: calc(100vw - 32px);
+                        min-height: 64px;
+                        padding: 8px 16px;
+                    }
+                    .ac-search-box input { font-size: 20px; }
                 }
 
                 /* Very small (≤360px): even tighter */
@@ -541,7 +566,7 @@ export default function Navbar() {
         <div className="ac-search-overlay" onClick={() => setShowSearch(false)}>
           <div className="ac-search-box" onClick={(e) => e.stopPropagation()}>
             <FaSearch size={14} style={{ color: "#ccc", flexShrink: 0 }} />
-            <form action="/search" method="GET" style={{ flex: 1 }}>
+            <form action="/search" method="GET" className="ac-search-form">
               <input
                 ref={searchRef}
                 type="search"
