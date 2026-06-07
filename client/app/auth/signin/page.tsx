@@ -266,14 +266,14 @@ export default function SignIn() {
    STYLES  (unchanged)
 ═══════════════════════════════════════ */
 const STYLES = `
-  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=DM+Sans:wght@300;400;500;600&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Jost:wght@300;400;500;600&display=swap');
 
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   .auth-root {
     display: flex;
     min-height: 100vh;
-    font-family: 'DM Sans', sans-serif;
+    font-family: 'Jost', sans-serif;
     background: #faf9f7;
   }
 
@@ -452,7 +452,7 @@ const STYLES = `
     font-weight: 600;
     color: #1a1a1a;
     cursor: pointer;
-    font-family: 'DM Sans', sans-serif;
+    font-family: 'Jost', sans-serif;
     letter-spacing: 0.01em;
     transition: border-color 0.15s, box-shadow 0.15s, transform 0.12s;
   }
@@ -502,7 +502,7 @@ const STYLES = `
     background: #ffffff;
     color: #1a1a1a;
     font-size: 0.9rem;
-    font-family: 'DM Sans', sans-serif;
+    font-family: 'Jost', sans-serif;
     outline: none;
     transition: border-color 0.15s, box-shadow 0.15s;
   }
@@ -577,7 +577,7 @@ const STYLES = `
     align-items: center;
     justify-content: center;
     gap: 8px;
-    font-family: 'DM Sans', sans-serif;
+    font-family: 'Jost', sans-serif;
     transition: background 0.2s, transform 0.12s, box-shadow 0.2s;
     box-shadow: 0 4px 20px rgba(14,14,14,0.20);
     margin-bottom: 20px;

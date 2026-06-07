@@ -20,6 +20,70 @@ const toMoney = (value: number | string | null | undefined) => {
     return Number.isFinite(amount) ? amount.toFixed(2) : '0.00';
 };
 
+const ordersTypographyStyles = `
+    .orders-page {
+        font-family: 'Jost', sans-serif;
+        font-weight: 300;
+        color: #0a0a0a;
+    }
+
+    .orders-page h1,
+    .orders-page h2 {
+        font-family: 'Cormorant Garamond', serif;
+        font-size: clamp(38px, 5vw, 58px);
+        font-weight: 500 !important;
+        letter-spacing: -0.01em;
+        line-height: 1;
+    }
+
+    .orders-page h3 {
+        font-family: 'Cormorant Garamond', serif;
+        font-size: 30px;
+        font-weight: 500;
+    }
+
+    .orders-page table,
+    .orders-page p,
+    .orders-page span,
+    .orders-page .small {
+        font-family: 'Jost', sans-serif;
+    }
+
+    .orders-page thead th {
+        font-family: 'Jost', sans-serif;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+    }
+
+    .orders-page tbody td {
+        font-size: 14px;
+        font-weight: 300;
+    }
+
+    .orders-page .btn {
+        font-family: 'Jost', sans-serif;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+    }
+
+    .orders-page .badge {
+        font-family: 'Jost', sans-serif;
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .orders-page .fw-bold,
+    .orders-page .fw-medium {
+        font-weight: 500 !important;
+    }
+`;
+
 export default function OrdersPage() {
     const { user } = useAuth();
     const [orders, setOrders] = useState<Order[]>([]);
@@ -44,14 +108,16 @@ export default function OrdersPage() {
 
     if (loading) {
         return (
-            <div className="container py-5 text-center">
+            <div className="container py-5 text-center orders-page">
+                <style>{ordersTypographyStyles}</style>
                 <div className="spinner-border text-dark" role="status"></div>
             </div>
         );
     }
 
     return (
-        <div className="container py-5">
+        <div className="container py-5 orders-page">
+            <style>{ordersTypographyStyles}</style>
             <div className="row justify-content-center">
                 <div className="col-lg-10">
                     <div className="card border-0 shadow-sm">

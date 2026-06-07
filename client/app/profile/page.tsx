@@ -6,6 +6,68 @@ import { FaUser, FaEnvelope, FaSave, FaEdit } from 'react-icons/fa';
 import { useAuth } from '@/context/AuthContext';
 import axiosInstance from '@/utils/axiosConfig';
 
+const accountTypographyStyles = `
+    .account-page {
+        font-family: 'Jost', sans-serif;
+        font-weight: 300;
+        color: #0a0a0a;
+    }
+
+    .account-page h1,
+    .account-page h2 {
+        font-family: 'Cormorant Garamond', serif;
+        font-size: clamp(38px, 5vw, 58px);
+        font-weight: 500 !important;
+        letter-spacing: -0.01em;
+        line-height: 1;
+    }
+
+    .account-page h3,
+    .account-page h5,
+    .account-page h6 {
+        font-family: 'Jost', sans-serif;
+        font-weight: 600 !important;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+    }
+
+    .account-page .form-label {
+        font-family: 'Jost', sans-serif;
+        font-size: 11px;
+        font-weight: 500 !important;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #6b6b6b;
+    }
+
+    .account-page .form-control,
+    .account-page .input-group-text,
+    .account-page p,
+    .account-page span,
+    .account-page .small {
+        font-family: 'Jost', sans-serif;
+    }
+
+    .account-page .form-control {
+        font-size: 14px;
+        font-weight: 300;
+    }
+
+    .account-page .btn {
+        font-family: 'Jost', sans-serif;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+    }
+
+    .account-page .fw-bold,
+    .account-page .fw-semibold,
+    .account-page .fw-medium {
+        font-weight: 500 !important;
+    }
+`;
+
 export default function ProfilePage() {
     const { user, logout } = useAuth();
     const router = useRouter();
@@ -46,7 +108,8 @@ export default function ProfilePage() {
     if (!user) return null;
 
     return (
-        <div className="container py-5">
+        <div className="container py-5 account-page">
+            <style>{accountTypographyStyles}</style>
             <div className="row justify-content-center">
                 <div className="col-lg-8">
                     <div className="card border-0 shadow-sm">

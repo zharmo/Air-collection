@@ -153,6 +153,20 @@ function CategoriesStyles() {
                 margin: 0;
             }
 
+            .categories-page .card-title {
+                font-family: 'Jost', sans-serif;
+                font-size: 12px;
+                font-weight: 600;
+                letter-spacing: .16em;
+                text-transform: uppercase;
+            }
+
+            .categories-page .text-muted {
+                font-family: 'Jost', sans-serif;
+                font-size: 13px;
+                font-weight: 300;
+            }
+
             @media (max-width: 768px) {
                 .categories-page { padding: 34px 16px 60px; }
                 .ap-header { padding: 8px 12px 32px; }

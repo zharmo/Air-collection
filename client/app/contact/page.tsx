@@ -46,7 +46,7 @@ export default function ContactPage() {
     <>
       <style>{`
         /* Import elegant fonts */
-        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@300;400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Jost:wght@300;400;500;600&display=swap');
 
         .contact-page {
           --ink: #0a0a0a;
@@ -91,7 +91,8 @@ export default function ContactPage() {
           width: 100%;
           padding: 0.75rem 1rem;
           font-size: 0.95rem;
-          font-family: 'Inter', sans-serif;
+          font-family: 'Jost', sans-serif;
+          font-weight: 300;
           border: 1.5px solid #e2e2e0;
           border-radius: 20px;
           background: #fff;
@@ -103,7 +104,7 @@ export default function ContactPage() {
           box-shadow: 0 0 0 3px rgba(200,169,110,0.2);
         }
         .form-label {
-          font-family: 'Inter', sans-serif;
+          font-family: 'Jost', sans-serif;
           font-size: 0.7rem;
           font-weight: 600;
           letter-spacing: 0.08em;
@@ -118,12 +119,24 @@ export default function ContactPage() {
           border: none;
           border-radius: 40px;
           padding: 0.9rem 2rem;
-          font-family: 'Inter', sans-serif;
+          font-family: 'Jost', sans-serif;
           font-weight: 600;
           letter-spacing: 0.05em;
           transition: all 0.25s ease;
           width: 100%;
           font-size: 0.9rem;
+        }
+
+        .contact-page {
+          font-family: 'Jost', sans-serif;
+          font-weight: 300;
+        }
+
+        .contact-page .lead,
+        .contact-page .text-muted,
+        .contact-page a,
+        .contact-page p {
+          font-family: 'Jost', sans-serif;
         }
         .btn-send:hover:not(:disabled) {
           background: #2a2a2a;

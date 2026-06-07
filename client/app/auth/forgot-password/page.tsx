@@ -141,7 +141,7 @@ export default function ForgotPasswordPage() {
    CSS
 ══════════════════════════════════════════════════════════════ */
 const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=Jost:wght@300;400;500;600&display=swap');
 
 :root {
   --fp-cream:    #faf9f6;
@@ -156,7 +156,7 @@ const CSS = `
   --fp-card-w:   420px;
   --fp-radius:   20px;
   --fp-ff-serif: 'Cormorant Garamond', Georgia, serif;
-  --fp-ff-body:  'DM Sans', sans-serif;
+  --fp-ff-body:  'Jost', sans-serif;
   --fp-shadow:   0 2px 4px rgba(0,0,0,0.03), 0 8px 32px rgba(0,0,0,0.07), 0 32px 80px rgba(0,0,0,0.06);
 }
 

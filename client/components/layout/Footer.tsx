@@ -203,7 +203,7 @@ export default function Footer() {
    CSS
 ══════════════════════════════════════════════════════════════ */
 const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=Jost:wght@300;400;500;600&display=swap');
 
 .ft-sr {
   position:absolute;width:1px;height:1px;padding:0;margin:-1px;
@@ -212,7 +212,7 @@ const CSS = `
 
 /* ── Root ── */
 .ft-root {
-  font-family: 'DM Sans', sans-serif;
+  font-family: 'Jost', sans-serif;
   background: #0d0c0a;
   color: #e8e3da;
   position: relative;
@@ -393,7 +393,7 @@ const CSS = `
   flex: 1; background: transparent; border: none; outline: none;
   padding: 11px 13px;
   font-size: 0.79rem;
-  font-family: 'DM Sans', sans-serif;
+  font-family: 'Jost', sans-serif;
   color: #e8e3da;
   min-width: 0;
 }

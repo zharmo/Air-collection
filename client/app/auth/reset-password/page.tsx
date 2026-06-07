@@ -1,14 +1,11 @@
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { FaLock, FaEye, FaEyeSlash } from 'react-icons/fa';
 import axiosInstance from '@/utils/axiosConfig';
 
-<<<<<<< HEAD
-export default function ResetPasswordPage() {
-=======
 export default function ResetPassword() {
   return (
     <Suspense
@@ -24,7 +21,6 @@ export default function ResetPassword() {
 }
 
 function ResetPasswordContent() {
->>>>>>> 0d3a8e4b5ba8b456459db6daf3b587bdeecc92bd
   const searchParams = useSearchParams();
   const router = useRouter();
   const token = searchParams.get('token');
@@ -210,13 +206,11 @@ function ResetPasswordContent() {
     </>
   );
 }
-<<<<<<< HEAD
-
 /* ══════════════════════════════════════════════════════════════
    CSS
 ══════════════════════════════════════════════════════════════ */
 const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=Jost:wght@300;400;500;600&display=swap');
 
 /* ── Variables ── */
 :root {
@@ -233,7 +227,7 @@ const CSS = `
   --rp-card-w:   420px;
   --rp-radius:   20px;
   --rp-ff-serif: 'Cormorant Garamond', Georgia, serif;
-  --rp-ff-body:  'DM Sans', sans-serif;
+  --rp-ff-body:  'Jost', sans-serif;
   --rp-shadow:   0 2px 4px rgba(0,0,0,0.03), 0 8px 32px rgba(0,0,0,0.07), 0 32px 80px rgba(0,0,0,0.06);
 }
 
@@ -584,5 +578,3 @@ const CSS = `
   .rp-brand-name { font-size: 1.5rem; }
 }
 `;
-=======
->>>>>>> 0d3a8e4b5ba8b456459db6daf3b587bdeecc92bd

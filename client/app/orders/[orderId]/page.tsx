@@ -33,6 +33,72 @@ const toMoney = (value: number | string | null | undefined) => {
     return Number.isFinite(amount) ? amount.toFixed(2) : '0.00';
 };
 
+const orderDetailTypographyStyles = `
+    .order-detail-page {
+        font-family: 'Jost', sans-serif;
+        font-weight: 300;
+        color: #0a0a0a;
+    }
+
+    .order-detail-page h2 {
+        font-family: 'Cormorant Garamond', serif;
+        font-size: clamp(34px, 4vw, 52px);
+        font-weight: 500 !important;
+        letter-spacing: -0.01em;
+        line-height: 1;
+    }
+
+    .order-detail-page h5,
+    .order-detail-page h6 {
+        font-family: 'Jost', sans-serif;
+        font-size: 12px;
+        font-weight: 600 !important;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+    }
+
+    .order-detail-page table,
+    .order-detail-page p,
+    .order-detail-page span,
+    .order-detail-page .small,
+    .order-detail-page .btn {
+        font-family: 'Jost', sans-serif;
+    }
+
+    .order-detail-page thead th {
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+    }
+
+    .order-detail-page tbody td,
+    .order-detail-page p,
+    .order-detail-page span {
+        font-size: 14px;
+        font-weight: 300;
+    }
+
+    .order-detail-page .btn {
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+    }
+
+    .order-detail-page .badge {
+        font-family: 'Jost', sans-serif;
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .order-detail-page .fw-bold {
+        font-weight: 500 !important;
+    }
+`;
+
 export default function OrderDetailPage() {
     const params = useParams();
     const router = useRouter();
@@ -58,13 +124,14 @@ export default function OrderDetailPage() {
     }, [orderId, user]);
 
     if (!user) return null;
-    if (loading) return <div className="container py-5 text-center"><div className="spinner-border text-dark" /></div>;
-    if (error || !order) return <div className="container py-5 text-center"><h2>{error || 'Order not found'}</h2><Link href="/orders" className="btn btn-dark rounded-0">Back to Orders</Link></div>;
+    if (loading) return <div className="container py-5 text-center order-detail-page"><style>{orderDetailTypographyStyles}</style><div className="spinner-border text-dark" /></div>;
+    if (error || !order) return <div className="container py-5 text-center order-detail-page"><style>{orderDetailTypographyStyles}</style><h2>{error || 'Order not found'}</h2><Link href="/orders" className="btn btn-dark rounded-0">Back to Orders</Link></div>;
 
     const addressParts = order.shipping_address?.split(',') || [];
 
     return (
-        <div className="container py-5">
+        <div className="container py-5 order-detail-page">
+            <style>{orderDetailTypographyStyles}</style>
             <div className="mb-4">
                 <Link href="/orders" className="btn btn-link text-dark p-0">
                     <FaArrowLeft className="me-2" /> Back to Orders

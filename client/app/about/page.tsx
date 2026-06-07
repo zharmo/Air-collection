@@ -22,14 +22,15 @@ const aboutStyles = `
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
   .about-hero {
-    min-height: 80vh;
+    min-height: auto;
     background: linear-gradient(135deg, #f5f0eb 0%, #e8dfd0 100%);
     display: flex;
     align-items: center;
     justify-content: center;
     position: relative;
     overflow: hidden;
-    padding: 80px 24px;
+    padding: 72px 24px 76px;
+    border-bottom: 1px solid var(--border);
   }
 
   .about-hero::before {
@@ -50,43 +51,42 @@ const aboutStyles = `
   .about-eyebrow {
     display: inline-flex;
     align-items: center;
-    gap: 14px;
-    margin-bottom: 32px;
+    gap: 10px;
+    margin-bottom: 14px;
   }
 
   .about-eyebrow-line {
-    width: 40px;
+    width: 28px;
     height: 1px;
     background: var(--accent);
   }
 
   .about-eyebrow-label {
     font-family: 'Jost', sans-serif;
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 500;
-    letter-spacing: 0.25em;
+    letter-spacing: 0.22em;
     text-transform: uppercase;
-    color: var(--ink-soft);
+    color: var(--ink-faint);
   }
 
   .about-hero-title {
     font-family: 'Cormorant Garamond', serif;
-    font-size: clamp(64px, 10vw, 120px);
+    font-size: clamp(42px, 5vw, 72px);
     font-weight: 500;
-    line-height: 0.92;
-    letter-spacing: -0.02em;
+    line-height: 0.95;
+    letter-spacing: -0.01em;
     color: var(--ink);
-    margin-bottom: 28px;
+    margin-bottom: 16px;
   }
 
   .about-hero-sub {
     font-family: 'Jost', sans-serif;
-    font-size: clamp(15px, 2vw, 18px);
+    font-size: 15px;
     font-weight: 300;
     color: var(--ink-soft);
-    letter-spacing: 0.04em;
     line-height: 1.7;
-    margin-bottom: 48px;
+    margin-bottom: 32px;
   }
 
   .btn-primary-ink {
@@ -467,7 +467,7 @@ const aboutStyles = `
     .about-section, .story-section, .values-section,
     .quote-section, .stats-section { padding: 64px 24px; }
     .cta-section { padding: 64px 24px; }
-    .about-hero { min-height: 70vh; padding: 60px 24px; }
+    .about-hero { padding: 48px 24px 56px; }
     .values-grid { grid-template-columns: 1fr; }
     .value-card { border-right: none !important; border-top: 1px solid var(--border-strong); }
     .value-card:first-child { border-top: none; }
@@ -477,7 +477,6 @@ const aboutStyles = `
   @media (max-width: 480px) {
     .stats-grid { grid-template-columns: 1fr 1fr; }
     .stat-cell { padding: 36px 16px; }
-    .about-hero-title { font-size: 52px; }
   }
 `;
 
@@ -494,9 +493,7 @@ export default function AboutPage() {
             <span className="about-eyebrow-label">Est. 2024 · Slow Fashion</span>
             <span className="about-eyebrow-line" />
           </div>
-          <h1 className="about-hero-title">
-            AIR<br />COLLECTION
-          </h1>
+          <h1 className="about-hero-title">About Air Collection</h1>
           <p className="about-hero-sub">Where Comfort Meets Conscience</p>
           <Link href="/products" className="btn-primary-ink">
             Explore Collection

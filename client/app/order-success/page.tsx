@@ -22,6 +22,55 @@ const toMoney = (value: number | string | null | undefined) => {
     return Number.isFinite(amount) ? amount.toFixed(2) : '0.00';
 };
 
+const orderSuccessTypographyStyles = `
+    .order-success-page {
+        font-family: 'Jost', sans-serif;
+        font-weight: 300;
+        color: #0a0a0a;
+    }
+
+    .order-success-page h1 {
+        font-family: 'Cormorant Garamond', serif;
+        font-size: clamp(38px, 5vw, 58px);
+        font-weight: 500 !important;
+        letter-spacing: -0.01em;
+        line-height: 1;
+    }
+
+    .order-success-page h5 {
+        font-family: 'Jost', sans-serif;
+        font-size: 12px;
+        font-weight: 600 !important;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+    }
+
+    .order-success-page p,
+    .order-success-page span,
+    .order-success-page .small,
+    .order-success-page .btn,
+    .order-success-page a {
+        font-family: 'Jost', sans-serif;
+    }
+
+    .order-success-page .btn {
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+    }
+
+    .order-success-page .fw-bold {
+        font-weight: 500 !important;
+    }
+
+    .order-success-page .fs-5 {
+        font-family: 'Cormorant Garamond', serif;
+        font-size: 24px !important;
+        font-weight: 600 !important;
+    }
+`;
+
 interface Order {
     order_number: string;
     status: string;
@@ -38,7 +87,8 @@ export default function OrderSuccessPage() {
     return (
         <Suspense
             fallback={
-                <div className="container py-5 text-center">
+                <div className="container py-5 text-center order-success-page">
+                    <style>{orderSuccessTypographyStyles}</style>
                     <div className="spinner-border text-dark"></div>
                 </div>
             }
@@ -94,14 +144,15 @@ function OrderSuccessContent() {
         fetchOrder();
     }, [orderId, router, user]);
 
-    if (loading) return <div className="container py-5 text-center"><div className="spinner-border text-dark" /></div>;
+    if (loading) return <div className="container py-5 text-center order-success-page"><style>{orderSuccessTypographyStyles}</style><div className="spinner-border text-dark" /></div>;
     if (!order) return null;
 
     const subtotal = order.total_amount - (order.delivery_fee || 0);
     const addressParts = order.shipping_address?.split(',') || ['Wadnaha Road', 'Hargeisa, Somaliland'];
 
     return (
-        <div className="container py-5">
+        <div className="container py-5 order-success-page">
+            <style>{orderSuccessTypographyStyles}</style>
             <div className="row g-4">
                 <div className="col-lg-7">
                     <div className="mb-4">
