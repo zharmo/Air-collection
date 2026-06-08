@@ -1,18 +1,26 @@
+const path = require('path');
+const dotenv = require('dotenv');
 const nodemailer = require('nodemailer');
 
-// Create transporter using Gmail SMTP (explicit settings)
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 465,
-  secure: true, // true for 465, false for other ports
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-  tls: {
-    rejectUnauthorized: false, // optional for development
-  },
-});
+dotenv.config({ path: path.join(__dirname, '../.env') });
+
+const isEmailConfigured = () => Boolean(process.env.EMAIL_USER && process.env.EMAIL_PASS);
+
+const createTransporter = () => {
+  const host = process.env.EMAIL_HOST || 'smtp.gmail.com';
+  const port = Number(process.env.EMAIL_PORT || 465);
+  const secure = String(process.env.EMAIL_SECURE || 'true') === 'true';
+
+  return nodemailer.createTransport({
+    host,
+    port,
+    secure,
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
+  });
+};
 
 /**
  * Send a generic email
@@ -22,8 +30,14 @@ const transporter = nodemailer.createTransport({
  */
 const sendEmail = async (to, subject, html) => {
   try {
+    if (!isEmailConfigured()) {
+      console.error('Email service is not configured. Set EMAIL_USER and EMAIL_PASS in server/.env.');
+      return false;
+    }
+
+    const transporter = createTransporter();
     const info = await transporter.sendMail({
-      from: `"Air Collection" <${process.env.EMAIL_USER}>`,
+      from: process.env.EMAIL_FROM || `"Air Collection" <${process.env.EMAIL_USER}>`,
       to,
       subject,
       html,
@@ -42,7 +56,8 @@ const sendEmail = async (to, subject, html) => {
  * @param {string} resetToken - plain token (not hashed)
  */
 const sendPasswordResetEmail = async (to, resetToken) => {
-  const resetUrl = `${process.env.SITE_URL}/auth/reset-password?token=${resetToken}`;
+  const siteUrl = process.env.FRONTEND_URL || process.env.SITE_URL || 'http://localhost:3000';
+  const resetUrl = `${siteUrl}/auth/reset-password?token=${resetToken}`;
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <h2>Reset Your Password</h2>
@@ -109,6 +124,7 @@ const sendContactNotification = async (name, email, subject, message) => {
 
 module.exports = {
   sendEmail,
+  isEmailConfigured,
   sendPasswordResetEmail,
   sendOrderConfirmation,
   sendContactNotification,
