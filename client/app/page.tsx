@@ -218,6 +218,8 @@ export default function HomePage() {
                     --radius: 0px;
                     --card-shadow: 0 2px 20px rgba(0,0,0,0.06);
                     --card-shadow-hover: 0 12px 48px rgba(0,0,0,0.12);
+                    --home-x: 36px;
+                    --home-pad-x: max(var(--home-x), calc((100vw - 1400px) / 2 + var(--home-x)));
                 }
 
                 * { box-sizing: border-box; }
@@ -277,7 +279,7 @@ export default function HomePage() {
                 }
 
                 .hero-content {
-                    padding: 80px 80px 80px max(40px, calc((100vw - 1400px) / 2 + 40px));
+                    padding: 80px var(--home-pad-x);
                     position: relative;
                     z-index: 1;
                 }
@@ -412,7 +414,7 @@ export default function HomePage() {
 
                 /* ── Section Layout ── */
                 .section {
-                    padding: 100px max(24px, calc((100vw - 1400px) / 2 + 40px));
+                    padding: 100px var(--home-pad-x);
                 }
 
                 .section-header {
@@ -440,7 +442,7 @@ export default function HomePage() {
                 .product-grid-4 {
                     display: grid;
                     grid-template-columns: repeat(4, 1fr);
-                    gap: 20px;
+                    gap: 15px;
                 }
 
                 .product-card {
@@ -499,7 +501,7 @@ export default function HomePage() {
                     bottom: 0;
                     left: 0;
                     right: 0;
-                    padding: 20px;
+                    padding: 10px;
                     background: var(--ink);
                     transform: translateY(100%);
                     transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
@@ -567,7 +569,7 @@ export default function HomePage() {
                 /* ── Categories ── */
                 .category-section {
                     background: var(--surface-muted);
-                    padding: 100px max(24px, calc((100vw - 1400px) / 2 + 40px));
+                    padding: 100px var(--home-pad-x);
                 }
 
                 .category-grid {
@@ -679,7 +681,7 @@ export default function HomePage() {
                 /* ── Review Section ── */
                 .review-section {
                     background: var(--surface-warm);
-                    padding: 100px max(24px, calc((100vw - 1400px) / 2 + 40px));
+                    padding: 100px var(--home-pad-x);
                     display: grid;
                     grid-template-columns: 1fr 1fr;
                     gap: 80px;
@@ -742,9 +744,10 @@ export default function HomePage() {
 
                 /* ── Responsive ── */
                 @media (max-width: 1024px) {
+                    :root { --home-x: 24px; }
                     .hero { grid-template-columns: 1fr; min-height: 80vh; }
                     .hero-visual { display: none; }
-                    .hero-content { padding: 80px 24px; }
+                    .hero-content { padding-top: 80px; padding-bottom: 80px; }
                     .product-grid-4 { grid-template-columns: repeat(2, 1fr); }
                     .category-grid { grid-template-columns: repeat(2, 1fr); }
                     .review-section { grid-template-columns: 1fr; gap: 48px; }
@@ -754,15 +757,23 @@ export default function HomePage() {
                     .product-grid-2 { grid-template-columns: 1fr; }
                     .product-grid-3 { grid-template-columns: 1fr 1fr; }
                     .hero-title { font-size: clamp(52px, 13vw, 80px); }
-                    .section { padding: 64px 24px; }
-                    .category-section { padding: 64px 24px; }
-                    .review-section { padding: 64px 24px; }
+                    .section { padding-top: 64px; padding-bottom: 64px; }
+                    .category-section { padding-top: 64px; padding-bottom: 64px; }
+                    .review-section { padding-top: 64px; padding-bottom: 64px; }
+                }
+
+                @media (max-width: 640px) {
+                    :root { --home-x: 16px; }
                 }
 
                 @media (max-width: 480px) {
                     .product-grid-3 { grid-template-columns: 1fr 1fr; }
                     .product-grid-4 { grid-template-columns: 1fr 1fr; }
                     .category-grid { grid-template-columns: 1fr 1fr; }
+                }
+
+                @media (max-width: 360px) {
+                    :root { --home-x: 10px; }
                 }
             `}</style>
 
