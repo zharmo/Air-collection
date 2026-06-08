@@ -2,49 +2,113 @@ const express = require('express');
 const pool = require('../config/db');
 const { sendSuccess, sendError } = require('../utils/responseHandler');
 const { ensureOrderCustomerColumns, normalizeCheckoutCustomer } = require('../utils/orderCustomerFields');
+const { sendOrderConfirmation, sendNewOrderNotification } = require('../services/emailService');
+
 const router = express.Router();
 
-// POST - Guest checkout (create order)
+/* ─────────────────────────────────────────────────────────────
+ * Ensure the advance_payment column exists (JSONB, nullable).
+ * ───────────────────────────────────────────────────────────── */
+const ensureAdvancePaymentColumn = async (pool) => {
+    await pool.query(`
+        ALTER TABLE orders
+        ADD COLUMN IF NOT EXISTS advance_payment JSONB DEFAULT NULL
+    `);
+};
+
+/* ─────────────────────────────────────────────────────────────
+ * POST /guest-orders  — guest checkout
+ * ───────────────────────────────────────────────────────────── */
 router.post('/', async (req, res) => {
     try {
         const { customer, items, subtotal, deliveryFee, total, paymentMethod } = req.body;
-        await ensureOrderCustomerColumns(pool);
 
-        const orderNumber = `GUEST-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-        const shippingAddress = `${customer.address}, ${customer.location === 'inside' ? 'Inside Hargeisa' : 'Outside Hargeisa'}`;
-        const billingAddress = shippingAddress;
+        await ensureOrderCustomerColumns(pool);
+        await ensureAdvancePaymentColumn(pool);
+
+        const orderNumber     = `GUEST-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+        const locationLabel   = customer.location === 'inside' ? 'Inside Hargeisa' : 'Outside Hargeisa';
+        const shippingAddress = `${customer.address}, ${locationLabel}`;
+        const billingAddress  = shippingAddress;
+
         const { customerName, customerEmail, customerPhone } = normalizeCheckoutCustomer(customer);
+
+        // Capture advance payment details (only present for outside Hargeisa orders)
+        const advancePayment = customer.advancePayment
+            ? {
+                provider:    customer.advancePayment.provider    || null,
+                amount:      customer.advancePayment.amount      || deliveryFee,
+                receiptName: customer.advancePayment.receiptName || null,
+                senderPhone: customer.advancePayment.senderPhone || null,
+              }
+            : null;
 
         await pool.query('BEGIN');
 
-        // Insert order with user_id = NULL for guests
         const orderResult = await pool.query(
             `INSERT INTO orders (
                 user_id, order_number, total_amount, shipping_address, billing_address,
                 payment_method, payment_status, status, delivery_fee,
-                customer_name, customer_email, customer_phone
+                customer_name, customer_email, customer_phone,
+                advance_payment
              )
-             VALUES (NULL, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
+             VALUES (NULL,$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+             RETURNING *`,
             [
                 orderNumber, total, shippingAddress, billingAddress,
                 paymentMethod, 'pending', 'pending', deliveryFee,
-                customerName, customerEmail, customerPhone
+                customerName, customerEmail, customerPhone,
+                advancePayment ? JSON.stringify(advancePayment) : null,
             ]
         );
         const order = orderResult.rows[0];
 
-        // Insert order items (including image_url)
         for (const item of items) {
             await pool.query(
-                `INSERT INTO order_items (order_id, product_id, product_name, quantity, price, total, size, color, image_url)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-                [order.id, item.productId, item.name, item.quantity, item.price, item.price * item.quantity, item.size || null, item.color || null, item.image || null]
+                `INSERT INTO order_items
+                    (order_id, product_id, product_name, quantity, price, total, size, color, image_url)
+                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+                [
+                    order.id, item.productId, item.name,
+                    item.quantity, item.price, item.price * item.quantity,
+                    item.size  || null,
+                    item.color || null,
+                    item.image || null,
+                ]
             );
         }
 
         await pool.query('COMMIT');
 
+        // ── Respond immediately — emails are fire-and-forget ──
         sendSuccess(res, { orderNumber, orderId: order.id }, 'Order placed successfully', 201);
+
+        // ── Email payload shared by both notifications ──
+        const emailPayload = {
+            customerName,
+            customerEmail,
+            customerPhone,
+            orderNumber,
+            items,
+            subtotal,
+            deliveryFee,
+            total,
+            shippingAddress,
+            location:     customer.location,
+            paymentMethod,
+            advancePayment,
+        };
+
+        // Customer confirmation
+        if (customerEmail) {
+            sendOrderConfirmation(customerEmail, emailPayload)
+                .catch(err => console.error('Customer email error (guest):', err.message));
+        }
+
+        // Admin new-order alert
+        sendNewOrderNotification(emailPayload)
+            .catch(err => console.error('Admin email error (guest):', err.message));
+
     } catch (error) {
         await pool.query('ROLLBACK');
         console.error('Guest order error:', error);
@@ -52,24 +116,38 @@ router.post('/', async (req, res) => {
     }
 });
 
-// GET - Guest order by ID (no authentication)
+/* ─────────────────────────────────────────────────────────────
+ * GET /guest-orders/:id  — fetch guest order (no auth)
+ * ───────────────────────────────────────────────────────────── */
 router.get('/:id', async (req, res) => {
     try {
         await ensureOrderCustomerColumns(pool);
 
         const orderId = req.params.id;
+
         const orderResult = await pool.query(
             `SELECT o.*,
-                    o.customer_name as user_name,
-                    o.customer_email as user_email,
-                    o.customer_phone as user_phone,
-                    (SELECT json_agg(json_build_object('name', oi.product_name, 'quantity', oi.quantity, 'price', oi.price, 'total', oi.total, 'size', oi.size, 'color', oi.color, 'image', oi.image_url))
-                     FROM order_items oi WHERE oi.order_id = o.id) as items
+                    o.customer_name  AS user_name,
+                    o.customer_email AS user_email,
+                    o.customer_phone AS user_phone,
+                    o.advance_payment,
+                    (SELECT json_agg(json_build_object(
+                        'name',     oi.product_name,
+                        'quantity', oi.quantity,
+                        'price',    oi.price,
+                        'total',    oi.total,
+                        'size',     oi.size,
+                        'color',    oi.color,
+                        'image',    oi.image_url
+                    ))
+                    FROM order_items oi WHERE oi.order_id = o.id) AS items
              FROM orders o
              WHERE o.id = $1`,
             [orderId]
         );
+
         if (orderResult.rows.length === 0) return sendError(res, 'Order not found', 404);
+
         sendSuccess(res, orderResult.rows[0]);
     } catch (error) {
         console.error(error);
