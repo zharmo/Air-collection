@@ -1,23 +1,35 @@
 const express = require('express');
 const pool = require('../config/db');
 const { sendSuccess, sendError } = require('../utils/responseHandler');
+const { ensureOrderCustomerColumns, normalizeCheckoutCustomer } = require('../utils/orderCustomerFields');
 const router = express.Router();
 
 // POST - Guest checkout (create order)
 router.post('/', async (req, res) => {
     try {
         const { customer, items, subtotal, deliveryFee, total, paymentMethod } = req.body;
+        await ensureOrderCustomerColumns(pool);
+
         const orderNumber = `GUEST-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
         const shippingAddress = `${customer.address}, ${customer.location === 'inside' ? 'Inside Hargeisa' : 'Outside Hargeisa'}`;
         const billingAddress = shippingAddress;
+        const { customerName, customerEmail, customerPhone } = normalizeCheckoutCustomer(customer);
 
         await pool.query('BEGIN');
 
         // Insert order with user_id = NULL for guests
         const orderResult = await pool.query(
-            `INSERT INTO orders (user_id, order_number, total_amount, shipping_address, billing_address, payment_method, payment_status, status, delivery_fee)
-             VALUES (NULL, $1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-            [orderNumber, total, shippingAddress, billingAddress, paymentMethod, 'pending', 'pending', deliveryFee]
+            `INSERT INTO orders (
+                user_id, order_number, total_amount, shipping_address, billing_address,
+                payment_method, payment_status, status, delivery_fee,
+                customer_name, customer_email, customer_phone
+             )
+             VALUES (NULL, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
+            [
+                orderNumber, total, shippingAddress, billingAddress,
+                paymentMethod, 'pending', 'pending', deliveryFee,
+                customerName, customerEmail, customerPhone
+            ]
         );
         const order = orderResult.rows[0];
 
@@ -43,9 +55,14 @@ router.post('/', async (req, res) => {
 // GET - Guest order by ID (no authentication)
 router.get('/:id', async (req, res) => {
     try {
+        await ensureOrderCustomerColumns(pool);
+
         const orderId = req.params.id;
         const orderResult = await pool.query(
-            `SELECT o.*, 
+            `SELECT o.*,
+                    o.customer_name as user_name,
+                    o.customer_email as user_email,
+                    o.customer_phone as user_phone,
                     (SELECT json_agg(json_build_object('name', oi.product_name, 'quantity', oi.quantity, 'price', oi.price, 'total', oi.total, 'size', oi.size, 'color', oi.color, 'image', oi.image_url))
                      FROM order_items oi WHERE oi.order_id = o.id) as items
              FROM orders o

@@ -30,8 +30,14 @@ interface Order {
     status: 'pending' | 'processing' | 'packed' | 'shipped' | 'delivered' | 'cancelled';
     payment_status?: 'paid' | 'unpaid' | 'refunded' | 'partial';
     payment_method?: string;
+    customer_name?: string;
     customer_email?: string;
     customer_phone?: string;
+    user_email?: string;
+    user_phone?: string;
+    name?: string;
+    email?: string;
+    phone?: string;
     shipping_region?: string;
     customer_type?: 'new' | 'returning' | 'vip';
     created_at: string;
@@ -84,6 +90,15 @@ const PAYMENT_CONFIG: Record<string, { label: string; color: string; bg: string 
 };
 
 const PAGE_SIZE = 15;
+
+const getCustomerName = (order: Order) =>
+    order.user_name || order.customer_name || order.name || '';
+
+const getCustomerEmail = (order: Order) =>
+    order.customer_email || order.user_email || order.email || '';
+
+const getCustomerPhone = (order: Order) =>
+    order.customer_phone || order.user_phone || order.phone || '';
 
 /* ══════════════════════════════════════════
    MOCK DATA GENERATOR (replace with real API)
@@ -304,9 +319,9 @@ export default function AdminOrdersPage() {
         const q = searchTerm.toLowerCase().trim();
         if (q) out = out.filter(o =>
             o.order_number.toLowerCase().includes(q) ||
-            (o.user_name || '').toLowerCase().includes(q) ||
-            (o.customer_email || '').toLowerCase().includes(q) ||
-            (o.customer_phone || '').toLowerCase().includes(q) ||
+            getCustomerName(o).toLowerCase().includes(q) ||
+            getCustomerEmail(o).toLowerCase().includes(q) ||
+            getCustomerPhone(o).toLowerCase().includes(q) ||
             (o.items || []).some(i => i.product_name.toLowerCase().includes(q))
         );
 
@@ -326,6 +341,7 @@ export default function AdminOrdersPage() {
             out.sort((a, b) => {
                 let av: unknown, bv: unknown;
                 if (sort.field === 'items') { av = a.items?.length || 0; bv = b.items?.length || 0; }
+                else if (sort.field === 'user_name') { av = getCustomerName(a); bv = getCustomerName(b); }
                 else { av = a[sort.field as keyof Order]; bv = b[sort.field as keyof Order]; }
                 if (typeof av === 'string' && typeof bv === 'string')
                     return sort.dir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
@@ -395,7 +411,7 @@ export default function AdminOrdersPage() {
         const rows = [
             ['Order #','Customer','Email','Items','Total','Payment','Method','Status','Date'],
             ...processed.map(o => [
-                o.order_number, o.user_name || '', o.customer_email || '',
+                o.order_number, getCustomerName(o), getCustomerEmail(o),
                 String(o.items?.length || 0), o.total_amount.toFixed(2),
                 o.payment_status || '', o.payment_method || '', o.status,
                 new Date(o.created_at).toLocaleDateString(),
@@ -688,7 +704,12 @@ export default function AdminOrdersPage() {
                                 <tbody>
                                     {pageOrders.length === 0 ? (
                                         <tr><td colSpan={11} style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8' }}>No orders match your filters.</td></tr>
-                                    ) : pageOrders.map(order => (
+                                    ) : pageOrders.map(order => {
+                                        const customerName = getCustomerName(order);
+                                        const customerEmail = getCustomerEmail(order);
+                                        const avatarLetter = (customerName || '?')[0].toUpperCase();
+
+                                        return (
                                         <tr key={order.id} className={selected.has(order.id) ? 'ao-row-selected' : ''}>
                                             <td>
                                                 <button className="ao-cb" onClick={() => toggleOne(order.id)}>
@@ -700,14 +721,14 @@ export default function AdminOrdersPage() {
                                             <td><span className="ao-order-num">#{order.order_number}</span></td>
                                             <td>
                                                 <div className="ao-customer">
-                                                    <div className="ao-avatar">{(order.user_name || 'G')[0].toUpperCase()}</div>
+                                                    <div className="ao-avatar">{avatarLetter}</div>
                                                     <div>
-                                                        <div className="ao-customer-name">{order.user_name || 'Guest'}</div>
+                                                        <div className="ao-customer-name">{customerName || '—'}</div>
                                                         {order.customer_type === 'vip' && <span className="ao-vip-badge">VIP</span>}
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td><span className="ao-email">{order.customer_email || '—'}</span></td>
+                                            <td><span className="ao-email">{customerEmail || '—'}</span></td>
                                             <td><span className="ao-item-count">{order.items?.length || 0} items</span></td>
                                             <td><span className="ao-amount">${order.total_amount.toFixed(2)}</span></td>
                                             <td><PaymentBadge status={order.payment_status}/></td>
@@ -747,7 +768,8 @@ export default function AdminOrdersPage() {
                                                 </div>
                                             </td>
                                         </tr>
-                                    ))}
+                                        );
+                                    })}
                                 </tbody>
                             </table>
                         </div>

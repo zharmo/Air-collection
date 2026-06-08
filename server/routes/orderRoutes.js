@@ -2,16 +2,28 @@ const express = require('express');
 const { protect, adminOnly } = require('../middleware/authMiddleware');
 const pool = require('../config/db');
 const { sendSuccess, sendError } = require('../utils/responseHandler');
+const { ensureOrderCustomerColumns, normalizeCheckoutCustomer } = require('../utils/orderCustomerFields');
 const router = express.Router();
 
 // Get orders – admin sees all (including guest orders), user sees only their own
 router.get('/', protect, async (req, res) => {
     try {
+        await ensureOrderCustomerColumns(pool);
+
         const userId = req.user.id;
         const userRole = req.user.role;
 
         let query = `
-            SELECT o.*, u.name as user_name,
+            SELECT o.*,
+                COALESCE(NULLIF(o.customer_name, ''), u.name) as user_name,
+                COALESCE(NULLIF(o.customer_email, ''), u.email) as customer_email,
+                NULLIF(o.customer_phone, '') as customer_phone,
+                CASE WHEN o.user_id IS NULL THEN 'new' ELSE 'returning' END as customer_type,
+                CASE
+                    WHEN o.shipping_address ILIKE '%Outside Hargeisa%' THEN 'Outside Hargeisa'
+                    WHEN o.shipping_address ILIKE '%Inside Hargeisa%' THEN 'Inside Hargeisa'
+                    ELSE NULL
+                END as shipping_region,
                 (SELECT json_agg(json_build_object(
                     'product_name', oi.product_name,
                     'quantity', oi.quantity,
@@ -43,17 +55,28 @@ router.get('/', protect, async (req, res) => {
 router.post('/', protect, async (req, res) => {
     try {
         const { customer, items, subtotal, deliveryFee, total, paymentMethod } = req.body;
+        await ensureOrderCustomerColumns(pool);
+
         const userId = req.user.id;
         const orderNumber = `AC-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
         const shippingAddress = `${customer.address}, ${customer.location === 'inside' ? 'Inside Hargeisa' : 'Outside Hargeisa'}`;
         const billingAddress = shippingAddress;
+        const { customerName, customerEmail, customerPhone } = normalizeCheckoutCustomer(customer);
 
         await pool.query('BEGIN');
 
         const orderResult = await pool.query(
-            `INSERT INTO orders (user_id, order_number, total_amount, shipping_address, billing_address, payment_method, payment_status, status, delivery_fee)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
-            [userId, orderNumber, total, shippingAddress, billingAddress, paymentMethod, 'pending', 'pending', deliveryFee]
+            `INSERT INTO orders (
+                user_id, order_number, total_amount, shipping_address, billing_address,
+                payment_method, payment_status, status, delivery_fee,
+                customer_name, customer_email, customer_phone
+             )
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
+            [
+                userId, orderNumber, total, shippingAddress, billingAddress,
+                paymentMethod, 'pending', 'pending', deliveryFee,
+                customerName, customerEmail, customerPhone
+            ]
         );
         const order = orderResult.rows[0];
 
@@ -78,6 +101,8 @@ router.post('/', protect, async (req, res) => {
 // Get a single order by ID (admin or owner)
 router.get('/:id', protect, async (req, res) => {
     try {
+        await ensureOrderCustomerColumns(pool);
+
         const orderId = req.params.id;
         const userId = req.user.id;
         const userRole = req.user.role;
@@ -95,7 +120,9 @@ router.get('/:id', protect, async (req, res) => {
                     'image', oi.image_url
                 ))
                 FROM order_items oi WHERE oi.order_id = o.id) as items,
-                u.name as user_name, u.email as user_email
+                COALESCE(NULLIF(o.customer_name, ''), u.name) as user_name,
+                COALESCE(NULLIF(o.customer_email, ''), u.email) as user_email,
+                NULLIF(o.customer_phone, '') as user_phone
             FROM orders o
             LEFT JOIN users u ON o.user_id = u.id
             WHERE o.id = $1
