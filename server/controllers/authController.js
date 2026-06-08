@@ -5,7 +5,7 @@ const { findUserByEmail, createUser, setResetToken, findByResetToken, updateUser
 const generateToken = require('../utils/generateToken');
 const { sendSuccess, sendError } = require('../utils/responseHandler');
 const { isValidEmail, isValidPassword } = require('../utils/validators');
-const { sendPasswordResetEmail } = require('../services/emailService');
+const { sendPasswordResetEmail, isEmailConfigured } = require('../services/emailService');
 
 // @desc    Register a new user
 // @route   POST /api/auth/register
@@ -100,6 +100,10 @@ const forgotPassword = async (req, res) => {
       return sendSuccess(res, null, 'If that email exists, a reset link has been sent');
     }
 
+    if (!isEmailConfigured()) {
+      return sendError(res, 'Email service is not configured. Add EMAIL_USER and EMAIL_PASS in server/.env.', 500);
+    }
+
     const resetToken = crypto.randomBytes(32).toString('hex');
     const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex');
     const expires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
@@ -111,8 +115,7 @@ const forgotPassword = async (req, res) => {
 
     if (!emailSent) {
       console.error(`Failed to send reset email to ${email}`);
-      // Still return success to avoid leaking existence
-      return sendSuccess(res, null, 'If that email exists, a reset link has been sent');
+      return sendError(res, 'Failed to send reset email. Check EMAIL_USER and EMAIL_PASS SMTP settings.', 500);
     }
 
     sendSuccess(res, null, 'Password reset link sent to your email');
@@ -126,7 +129,8 @@ const forgotPassword = async (req, res) => {
 // @route   POST /api/auth/reset-password
 const resetPassword = async (req, res) => {
   try {
-    const { token, newPassword } = req.body;
+    const token = typeof req.body.token === 'string' ? req.body.token.trim() : '';
+    const { newPassword } = req.body;
     if (!token || !newPassword) {
       return sendError(res, 'Token and new password are required', 400);
     }

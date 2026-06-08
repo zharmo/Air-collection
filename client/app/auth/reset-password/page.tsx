@@ -23,7 +23,7 @@ export default function ResetPassword() {
 function ResetPasswordContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const token = searchParams.get('token');
+  const token = searchParams.get('token')?.trim() || '';
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -184,7 +184,7 @@ function ResetPasswordContent() {
                 </div>
               </div>
 
-              <button type="submit" className="rp-submit" disabled={loading}>
+              <button type="submit" className="rp-submit" disabled={loading || !token}>
                 {loading
                   ? <><span className="rp-spinner" aria-hidden="true" /> Resetting…</>
                   : 'Reset Password'}
