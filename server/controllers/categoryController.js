@@ -6,9 +6,9 @@ const {
   deleteCategory,
 } = require('../models/Category');
 const { sendSuccess, sendError } = require('../utils/responseHandler');
-const { uploadImageToCloudinary } = require('../services/cloudinaryService');
+const { saveUploadedImage } = require('../services/localUploadService');
 
-const CATEGORY_IMAGE_FOLDER = process.env.CLOUDINARY_CATEGORY_FOLDER || 'air-collection/categories';
+const CATEGORY_UPLOAD_SUBDIR = process.env.CATEGORY_UPLOAD_SUBDIR || 'categories';
 
 // @desc    Get all categories
 // @route   GET /api/categories
@@ -48,8 +48,8 @@ const createCategoryHandler = async (req, res) => {
 
     let categoryImage = image || null;
     if (req.file) {
-      const upload = await uploadImageToCloudinary(req.file, CATEGORY_IMAGE_FOLDER);
-      categoryImage = upload.secureUrl;
+      const upload = await saveUploadedImage(req.file, CATEGORY_UPLOAD_SUBDIR);
+      categoryImage = upload.url;
     }
 
     const newCategory = await createCategory(name, slug, description, categoryImage, parent_id || null);
@@ -75,8 +75,8 @@ const updateCategoryHandler = async (req, res) => {
 
     let categoryImage = image;
     if (req.file) {
-      const upload = await uploadImageToCloudinary(req.file, CATEGORY_IMAGE_FOLDER);
-      categoryImage = upload.secureUrl;
+      const upload = await saveUploadedImage(req.file, CATEGORY_UPLOAD_SUBDIR);
+      categoryImage = upload.url;
     }
 
     const updated = await updateCategory(req.params.id, { name, slug, description, image: categoryImage, parent_id, is_active });

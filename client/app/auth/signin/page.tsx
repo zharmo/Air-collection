@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import { useAuth } from '@/context/AuthContext';
 import axiosInstance from '@/utils/axiosConfig';
 
-export default function SignIn() {
+function SignInContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [email, setEmail] = useState('');
@@ -265,6 +265,14 @@ export default function SignIn() {
 /* ═══════════════════════════════════════
    STYLES  (unchanged)
 ═══════════════════════════════════════ */
+export default function SignIn() {
+  return (
+    <Suspense fallback={<div className="container py-5 text-center">Loading sign in...</div>}>
+      <SignInContent />
+    </Suspense>
+  );
+}
+
 const STYLES = `
   @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Jost:wght@300;400;500;600&display=swap');
 

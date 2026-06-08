@@ -1,5 +1,8 @@
 import type { NextConfig } from 'next';
- 
+
+const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const apiOrigin = new URL(apiUrl).origin;
+
 const nextConfig: NextConfig = {
   turbopack: {
     root: __dirname,
@@ -9,7 +12,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source: '/uploads/:path*',
-        destination: 'http://localhost:5000/uploads/:path*',
+        destination: `${apiOrigin}/uploads/:path*`,
       },
     ];
   },
@@ -17,9 +20,9 @@ const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
       {
-        protocol: 'http',
-        hostname: 'localhost',
-        port: '5000',
+        protocol: new URL(apiOrigin).protocol.replace(':', '') as 'http' | 'https',
+        hostname: new URL(apiOrigin).hostname,
+        port: new URL(apiOrigin).port,
         pathname: '/uploads/**',
       },
     ],

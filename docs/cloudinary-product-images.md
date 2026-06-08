@@ -1,5 +1,7 @@
 # Cloudinary Product Images
 
+> Deprecated: this was the old upload flow. New deployments save product and category images on the Hostinger VPS instead. Use `docs/hostinger-deployment.md` for production setup.
+
 ## What This Adds
 
 - Admin users can upload product images from `Admin > Products > Add New Product`.

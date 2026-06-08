@@ -1,7 +1,9 @@
 const pool = require('../config/db');
 const { sendSuccess, sendError } = require('../utils/responseHandler');
 const { addProductColor, getProductColors, deleteProductColors, addProductSize, getProductSizes, deleteProductSizes } = require('../models/ProductVariant');
-const { uploadImageToCloudinary } = require('../services/cloudinaryService');
+const { saveUploadedImage } = require('../services/localUploadService');
+
+const PRODUCT_UPLOAD_SUBDIR = process.env.PRODUCT_UPLOAD_SUBDIR || 'products';
 
 const enrichProductWithVariants = async (product) => {
     try {
@@ -271,7 +273,7 @@ const uploadProductImage = async (req, res) => {
         if (!req.file) return sendError(res, 'No image file uploaded', 400);
         const is_primary = req.body.is_primary === 'true';
         const alt_text = req.body.alt_text || 'product image';
-        const upload = await uploadImageToCloudinary(req.file);
+        const upload = await saveUploadedImage(req.file, PRODUCT_UPLOAD_SUBDIR);
 
         if (is_primary) {
             await pool.query('UPDATE product_images SET is_primary = false WHERE product_id = $1', [id]);
@@ -280,7 +282,7 @@ const uploadProductImage = async (req, res) => {
         const result = await pool.query(
             `INSERT INTO product_images (product_id, image_url, is_primary, alt_text, color, cloudinary_public_id)
              VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-            [id, upload.secureUrl, is_primary, alt_text, color || null, upload.publicId]
+            [id, upload.url, is_primary, alt_text, color || null, upload.publicId]
         );
         sendSuccess(res, result.rows[0], 'Image uploaded', 201);
     } catch (error) {

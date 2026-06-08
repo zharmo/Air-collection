@@ -1,8 +1,8 @@
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
 const dotenv = require('dotenv');
 const session = require('express-session');
+const { getUploadRoot, getUploadUrlPrefix } = require('./utils/uploadPaths');
 
 dotenv.config();
 
@@ -23,10 +23,19 @@ const guestOrderRoutes = require('./routes/guestOrderRoutes');
 const { notFound, errorHandler } = require('./middleware/errorMiddleware');
 
 const app = express();
+const allowedOrigins = (process.env.FRONTEND_URL || process.env.SITE_URL || 'http://localhost:3000')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
 
 // ========== MIDDLEWARE ==========
 app.use(cors({
-    origin: 'http://localhost:3000', // frontend URL
+    origin(origin, callback) {
+        if (!origin || allowedOrigins.includes(origin)) {
+            return callback(null, true);
+        }
+        return callback(new Error('Not allowed by CORS'));
+    },
     credentials: true
 }));
 app.use(express.json());
@@ -37,7 +46,7 @@ app.use(session({
     secret: process.env.SESSION_SECRET || 'a-default-secret-change-this',
     resave: false,
     saveUninitialized: false,
-    cookie: { secure: false } // set to true if using HTTPS
+    cookie: { secure: process.env.NODE_ENV === 'production' }
 }));
 
 // Passport middleware
@@ -45,7 +54,7 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 // Serve static files for uploaded images
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use(getUploadUrlPrefix(), express.static(getUploadRoot()));
 
 // ========== HEALTH CHECK ==========
 app.get('/api/health', (req, res) => {
