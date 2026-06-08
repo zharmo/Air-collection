@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import { useAuth } from '@/context/AuthContext';
-import axiosInstance from '@/utils/axiosConfig';
 
 function SignInContent() {
   const searchParams = useSearchParams();
@@ -18,27 +17,42 @@ function SignInContent() {
   const [googleLoad, setGoogleLoad] = useState(false);
   const [error, setError] = useState('');
   const [tokenProcessing, setTokenProcessing] = useState(false);
-  const { login } = useAuth();
+  const { login, fetchUser } = useAuth();
 
-  // Handle Google redirect token
+  // Handle Google redirect: token (success) or error param
   useEffect(() => {
     const token = searchParams.get('token');
+    const oauthError = searchParams.get('error');
+
+    if (oauthError === 'google') {
+      setError('Google sign-in failed. Please try again.');
+      return;
+    }
+
+    if (oauthError === 'no_account') {
+      setError(
+        "No account found with that Google address. Please sign up first."
+      );
+      return;
+    }
+
     if (token) {
       setTokenProcessing(true);
       localStorage.setItem('token', token);
-      axiosInstance.get('/auth/me')
-        .then(res => {
-          const user = res.data.data;
-          localStorage.setItem('user', JSON.stringify(user));
+      // fetchUser() reads the token from localStorage and sets user in AuthContext,
+      // so the navbar/profile show correctly the moment we land on the home page.
+      fetchUser()
+        .then(() => {
           router.push('/');
         })
         .catch(err => {
           console.error('Token validation error:', err);
-          setError('Google login failed. Please try again.');
+          localStorage.removeItem('token');
+          setError('Google sign-in failed. Please try again.');
           setTokenProcessing(false);
         });
     }
-  }, [searchParams, router]);
+  }, [searchParams, router, fetchUser]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,7 +81,8 @@ function SignInContent() {
       return;
     }
     setGoogleLoad(true);
-    window.location.href = `${base}/auth/google`;
+    // Pass intent=login so the backend callback knows this came from sign-in
+    window.location.href = `${base}/auth/google?intent=login`;
   };
 
   if (tokenProcessing) {
@@ -135,12 +150,23 @@ function SignInContent() {
 
             {error && (
               <div className="auth-error" role="alert">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true" style={{ flexShrink: 0, marginTop: 1 }}>
                   <circle cx="12" cy="12" r="10" />
                   <line x1="12" y1="8" x2="12" y2="12" />
                   <line x1="12" y1="16" x2="12.01" y2="16" />
                 </svg>
-                {error}
+                <span>
+                  {error}
+                  {/* Deep-link to sign-up when no account found */}
+                  {error.includes('sign up first') && (
+                    <>
+                      {' '}
+                      <Link href="/auth/signup" className="auth-error-link">
+                        Create account →
+                      </Link>
+                    </>
+                  )}
+                </span>
               </div>
             )}
 
@@ -254,7 +280,6 @@ function SignInContent() {
               <span aria-hidden="true">·</span>
               <span>© 2025 Air Collection</span>
             </footer>
-
           </div>
         </main>
       </div>
@@ -262,9 +287,6 @@ function SignInContent() {
   );
 }
 
-/* ═══════════════════════════════════════
-   STYLES  (unchanged)
-═══════════════════════════════════════ */
 export default function SignIn() {
   return (
     <Suspense fallback={<div className="container py-5 text-center">Loading sign in...</div>}>
@@ -431,7 +453,7 @@ const STYLES = `
   /* Error */
   .auth-error {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 9px;
     background: #fff5f5;
     border: 1px solid #fecaca;
@@ -442,6 +464,12 @@ const STYLES = `
     padding: 12px 14px;
     margin-bottom: 20px;
     animation: auth-shake 0.35s ease;
+  }
+  .auth-error-link {
+    color: #b91c1c;
+    font-weight: 700;
+    text-decoration: underline;
+    text-underline-offset: 2px;
   }
   @keyframes auth-shake { 0%,100% { transform: translateX(0); } 20% { transform: translateX(-4px); } 40% { transform: translateX(4px); } 60% { transform: translateX(-3px); } 80% { transform: translateX(3px); } }
 

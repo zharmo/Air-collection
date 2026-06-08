@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import { useAuth } from '@/context/AuthContext';
-import axiosInstance from '@/utils/axiosConfig';
 
 export default function SignUp() {
   return (
@@ -34,27 +33,42 @@ function SignUpContent() {
   const [error,      setError     ] = useState('');
   const [pwStrength, setPwStrength] = useState(0);
   const [tokenProcessing, setTokenProcessing] = useState(false);
-  const { register } = useAuth();
+  const { register, fetchUser } = useAuth();
 
-  // Handle Google redirect token
+  // Handle Google redirect: token (success) or error (account_exists, etc.)
   useEffect(() => {
     const token = searchParams.get('token');
+    const oauthError = searchParams.get('error');
+
+    if (oauthError === 'account_exists') {
+      setError(
+        'An account with that Google address already exists. Please sign in instead.'
+      );
+      return;
+    }
+
+    if (oauthError === 'google') {
+      setError('Google sign-up failed. Please try again.');
+      return;
+    }
+
     if (token) {
       setTokenProcessing(true);
       localStorage.setItem('token', token);
-      axiosInstance.get('/auth/me')
-        .then(res => {
-          const user = res.data.data;
-          localStorage.setItem('user', JSON.stringify(user));
+      // fetchUser() reads the token from localStorage and sets user in AuthContext,
+      // so the navbar/profile show correctly the moment we land on the home page.
+      fetchUser()
+        .then(() => {
           router.push('/');
         })
         .catch(err => {
           console.error('Token validation error:', err);
+          localStorage.removeItem('token');
           setError('Google sign-up failed. Please try again.');
           setTokenProcessing(false);
         });
     }
-  }, [searchParams, router]);
+  }, [searchParams, router, fetchUser]);
 
   /* Password strength – 0 (empty) … 4 (strong) */
   const evaluateStrength = (pw: string): number => {
@@ -70,7 +84,6 @@ function SignUpContent() {
   const STRENGTH_LABEL = ['', 'Weak', 'Fair', 'Good', 'Strong'];
   const STRENGTH_COLOR = ['', '#ef4444', '#f59e0b', '#3b82f6', '#22c55e'];
 
-  /* ── Email / password registration ── */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!agreeTerms) {
@@ -90,14 +103,6 @@ function SignUpContent() {
     }
   };
 
-  /*
-   * ── Google OAuth ──
-   * Same pattern as SignIn – redirect browser to backend OAuth entry point.
-   * Backend redirects to /auth/callback?token=<JWT> after success.
-   *
-   * We intentionally do NOT reset googleLoad here because the page is
-   * navigating away; showing a spinner until the page unloads is correct UX.
-   */
   const handleGoogleSignup = () => {
     const base = process.env.NEXT_PUBLIC_API_URL;
     if (!base) {
@@ -105,8 +110,8 @@ function SignUpContent() {
       return;
     }
     setGoogleLoad(true);
-    // Full-page navigation – required for OAuth redirects
-    window.location.href = `${base}/auth/google`;
+    // Pass intent=register so the backend callback knows this is a signup attempt
+    window.location.href = `${base}/auth/google?intent=register`;
   };
 
   if (tokenProcessing) {
@@ -138,7 +143,6 @@ function SignUpContent() {
               </h2>
             </div>
 
-            {/* Collection grid */}
             <div className="auth-collection-grid">
               <div
                 className="auth-col-block auth-col-block-tall"
@@ -162,7 +166,6 @@ function SignUpContent() {
               </div>
             </div>
 
-            {/* Stats */}
             <div className="auth-stats">
               <div className="auth-stat">
                 <div className="auth-stat-val">2,400+</div>
@@ -186,14 +189,12 @@ function SignUpContent() {
         <main className="auth-form-side">
           <div className="auth-form-wrap">
 
-            {/* Mobile-only brand (panel is hidden on small screens) */}
             <div className="auth-mobile-brand">AIR COLLECTION</div>
 
             <div className="auth-eyebrow">New member</div>
             <h1 className="auth-heading">Create account</h1>
             <p className="auth-sub">Join the collection. Free to join, exclusive by nature.</p>
 
-            {/* Error banner */}
             {error && (
               <div className="auth-error" role="alert">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
@@ -201,11 +202,21 @@ function SignUpContent() {
                   <line x1="12" y1="8"  x2="12"    y2="12" />
                   <line x1="12" y1="16" x2="12.01" y2="16" />
                 </svg>
-                {error}
+                <span>
+                  {error}
+                  {/* Deep-link to sign-in when the account already exists */}
+                  {error.includes('already exists') && (
+                    <>
+                      {' '}
+                      <Link href="/auth/signin" className="auth-error-link">
+                        Sign in instead →
+                      </Link>
+                    </>
+                  )}
+                </span>
               </div>
             )}
 
-            {/* ── Google OAuth button ── */}
             <button
               type="button"
               className="auth-google-btn"
@@ -234,7 +245,6 @@ function SignUpContent() {
 
             <div className="auth-divider"><span>or register with email</span></div>
 
-            {/* ── Email / password form ── */}
             <form onSubmit={handleSubmit} noValidate>
 
               <div className="auth-field">
@@ -295,7 +305,6 @@ function SignUpContent() {
                   </button>
                 </div>
 
-                {/* Strength meter – only shown while user is typing */}
                 {password.length > 0 && (
                   <div className="auth-strength" aria-live="polite">
                     <div
@@ -326,7 +335,6 @@ function SignUpContent() {
                 )}
               </div>
 
-              {/* Terms – the visual checkbox span MUST be the immediate next sibling of the hidden input */}
               <div className="auth-terms-field">
                 <label className="auth-check-label" htmlFor="su-terms">
                   <input
@@ -384,9 +392,6 @@ function SignUpContent() {
   );
 }
 
-/* ═══════════════════════════════════════
-   STYLES
-═══════════════════════════════════════ */
 const STYLES = `
   @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Jost:wght@300;400;500;600&display=swap');
 
@@ -399,7 +404,6 @@ const STYLES = `
     background: #faf9f7;
   }
 
-  /* ── Left panel ── */
   .auth-panel-left {
     flex: 0 0 46%;
     background: #0a0a0a;
@@ -460,7 +464,6 @@ const STYLES = `
   }
   .auth-panel-headline em { font-style: italic; color: #b49a7a; }
 
-  /* Collection grid */
   .auth-collection-grid {
     display: flex;
     gap: 10px;
@@ -493,7 +496,6 @@ const STYLES = `
     font-weight: 500;
   }
 
-  /* Stats */
   .auth-stats {
     display: flex;
     align-items: center;
@@ -521,7 +523,6 @@ const STYLES = `
     background: rgba(255,255,255,0.10);
   }
 
-  /* ── Right form side ── */
   .auth-form-side {
     flex: 1;
     display: flex;
@@ -542,7 +543,6 @@ const STYLES = `
     to   { opacity: 1; transform: translateY(0); }
   }
 
-  /* Shown only on mobile when left panel is hidden */
   .auth-mobile-brand {
     display: none;
     font-family: 'Cormorant Garamond', serif;
@@ -579,10 +579,9 @@ const STYLES = `
     font-weight: 300;
   }
 
-  /* Error */
   .auth-error {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 9px;
     background: #fff5f5;
     border: 1px solid #fecaca;
@@ -594,6 +593,13 @@ const STYLES = `
     margin-bottom: 20px;
     animation: auth-shake 0.35s ease;
   }
+  .auth-error svg { flex-shrink: 0; margin-top: 1px; }
+  .auth-error-link {
+    color: #b91c1c;
+    font-weight: 700;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
   @keyframes auth-shake {
     0%,100% { transform: translateX(0); }
     20%     { transform: translateX(-4px); }
@@ -602,7 +608,6 @@ const STYLES = `
     80%     { transform: translateX(3px); }
   }
 
-  /* Google button */
   .auth-google-btn {
     width: 100%;
     height: 50px;
@@ -629,7 +634,6 @@ const STYLES = `
   .auth-google-btn:active:not(:disabled) { transform: translateY(0); box-shadow: none; }
   .auth-google-btn:disabled { opacity: 0.60; cursor: not-allowed; }
 
-  /* Divider */
   .auth-divider {
     display: flex;
     align-items: center;
@@ -649,7 +653,6 @@ const STYLES = `
     background: #e8e5e1;
   }
 
-  /* Fields */
   .auth-field { margin-bottom: 16px; }
   .auth-label {
     display: block;
@@ -692,7 +695,6 @@ const STYLES = `
   }
   .auth-pw-toggle:hover { color: #1a1a1a; }
 
-  /* Strength meter */
   .auth-strength {
     display: flex;
     align-items: center;
@@ -709,7 +711,6 @@ const STYLES = `
     text-align: right;
   }
 
-  /* Terms – the visual checkbox span MUST be the immediate next sibling of the hidden input */
   .auth-terms-field { margin-bottom: 24px; }
   .auth-check-label {
     display: inline-flex;
@@ -756,7 +757,6 @@ const STYLES = `
   }
   .auth-inline-link:hover { text-decoration-color: #0e0e0e; }
 
-  /* Submit */
   .auth-submit-btn {
     width: 100%;
     height: 52px;
@@ -785,7 +785,6 @@ const STYLES = `
   .auth-submit-btn:active:not(:disabled) { transform: translateY(0); box-shadow: none; }
   .auth-submit-btn:disabled { opacity: 0.55; cursor: not-allowed; }
 
-  /* Spinner */
   .auth-spinner {
     display: inline-block;
     width: 16px; height: 16px;
@@ -829,7 +828,6 @@ const STYLES = `
   .auth-footer a { color: inherit; text-decoration: none; transition: color 0.15s; }
   .auth-footer a:hover { color: #6b6762; }
 
-  /* ── Responsive ── */
   @media (max-width: 900px) {
     .auth-panel-left   { display: none; }
     .auth-mobile-brand { display: block; }
