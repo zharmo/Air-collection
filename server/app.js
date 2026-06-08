@@ -1,10 +1,11 @@
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
+const path = require('path');
 const session = require('express-session');
 const { getUploadRoot, getUploadUrlPrefix } = require('./utils/uploadPaths');
 
-dotenv.config();
+dotenv.config({ path: path.join(__dirname, '.env') });
 
 const passport = require('./config/passport');
 
@@ -23,6 +24,7 @@ const guestOrderRoutes = require('./routes/guestOrderRoutes');
 const { notFound, errorHandler } = require('./middleware/errorMiddleware');
 
 const app = express();
+app.set('trust proxy', 1);
 const allowedOrigins = (process.env.FRONTEND_URL || process.env.SITE_URL || 'http://localhost:3000')
     .split(',')
     .map((origin) => origin.trim())
