@@ -1,6 +1,10 @@
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
+const path = require('path');
+const dotenv = require('dotenv');
 const pool = require('../config/db');
+
+dotenv.config({ path: path.join(__dirname, '../.env') });
 
 const hasGoogleOAuthConfig = Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
 

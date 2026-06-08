@@ -1,201 +1,221 @@
-'use client';
+"use client";
 
-import { Suspense, useEffect, useState } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { FaArrowLeft, FaArrowRight, FaSearch } from 'react-icons/fa';
-import { useCart } from '@/context/CartContext';
-import axiosInstance from '@/utils/axiosConfig';
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import Link from "next/link";
+import { FaArrowLeft, FaArrowRight, FaSearch } from "react-icons/fa";
+import { useCart } from "@/context/CartContext";
+import axiosInstance from "@/utils/axiosConfig";
 
 interface Product {
-    id: number;
-    name: string;
-    price: number;
-    compare_price?: number;
-    images: { image_url: string; is_primary: boolean }[];
-    category_name: string;
-    stock_quantity: number;
+  id: number;
+  name: string;
+  price: number;
+  compare_price?: number;
+  images: { image_url: string; is_primary: boolean }[];
+  category_name: string;
+  stock_quantity: number;
 }
 
 function SearchResultsContent() {
-    const searchParams = useSearchParams();
-    const router = useRouter();
-    const query = searchParams.get('q') || '';
-    const { addToCart } = useCart();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const query = searchParams.get("q") || "";
+  const { addToCart } = useCart();
 
-    const [products, setProducts] = useState<Product[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000';
+  const backendUrl =
+    process.env.NEXT_PUBLIC_API_URL?.replace("/api", "") ||
+    "http://localhost:5000";
 
-    useEffect(() => {
-        if (!query) {
-            setLoading(false);
-            return;
-        }
+  useEffect(() => {
+    if (!query) {
+      setLoading(false);
+      return;
+    }
 
-        const fetchSearchResults = async () => {
-            setLoading(true);
-            setError(null);
-            try {
-                const res = await axiosInstance.get(`/products?search=${encodeURIComponent(query)}`);
-                setProducts(res.data.data);
-            } catch (err) {
-                console.error(err);
-                setError('Failed to load search results');
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchSearchResults();
-    }, [query]);
-
-    const getPrimaryImage = (product: Product) => {
-        const primary = product.images?.find((img) => img.is_primary);
-        const imagePath = primary?.image_url || product.images?.[0]?.image_url;
-        if (!imagePath) return '/images/placeholders/placeholder.jpg';
-        if (imagePath.startsWith('/uploads')) return `${backendUrl}${imagePath}`;
-        return imagePath;
+    const fetchSearchResults = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await axiosInstance.get(
+          `/products?search=${encodeURIComponent(query)}`,
+        );
+        setProducts(res.data.data);
+      } catch (err) {
+        console.error(err);
+        setError("Failed to load search results");
+      } finally {
+        setLoading(false);
+      }
     };
 
-    const handleAddToCart = (product: Product) => {
-        addToCart(product.id, 1, {
-            name: product.name,
-            price: Number(product.price),
-            image: getPrimaryImage(product),
-        });
-    };
+    fetchSearchResults();
+  }, [query]);
 
-    const getDiscount = (product: Product) => {
-        const price = Number(product.price);
-        const comparePrice = Number(product.compare_price);
-        if (!comparePrice || comparePrice <= price) return null;
-        return Math.round(((comparePrice - price) / comparePrice) * 100);
-    };
+  const getPrimaryImage = (product: Product) => {
+    const primary = product.images?.find((img) => img.is_primary);
+    const imagePath = primary?.image_url || product.images?.[0]?.image_url;
+    if (!imagePath) return "/images/placeholders/placeholder.jpg";
+    if (imagePath.startsWith("/uploads")) return `${backendUrl}${imagePath}`;
+    return imagePath;
+  };
 
-    return (
-        <>
-            <SearchStyles />
-            <div className="search-page">
-                <button onClick={() => router.back()} className="search-back" aria-label="Go back">
-                    <FaArrowLeft size={14} />
-                </button>
+  const handleAddToCart = (product: Product) => {
+    addToCart(product.id, 1, {
+      name: product.name,
+      price: Number(product.price),
+      image: getPrimaryImage(product),
+    });
+  };
 
-                <header className="ap-header">
-                    <p className="ap-header-eyebrow">The Collection</p>
-                    <h1>Search Results</h1>
-                    <p className="ap-header-sub">
-                        {query
-                            ? `${products.length} ${products.length === 1 ? 'result' : 'results'} for "${query}"`
-                            : 'Please enter a product name to search.'}
-                    </p>
-                </header>
+  const getDiscount = (product: Product) => {
+    const price = Number(product.price);
+    const comparePrice = Number(product.compare_price);
+    if (!comparePrice || comparePrice <= price) return null;
+    return Math.round(((comparePrice - price) / comparePrice) * 100);
+  };
 
-                {!query ? (
-                    <div className="ap-empty">
-                        <div className="ap-empty-icon">
-                            <FaSearch size={22} />
-                        </div>
-                        <h3>No search term entered</h3>
-                        <p>Please enter a product name to search.</p>
-                        <Link href="/" className="ap-empty-btn">
-                            Back to Home <FaArrowRight size={10} />
-                        </Link>
-                    </div>
-                ) : loading ? (
-                    <div className="search-loading">
-                        <div className="spinner-border text-dark" role="status" />
-                        <p>Searching for "{query}"...</p>
-                    </div>
-                ) : error ? (
-                    <div className="ap-empty">
-                        <h3>Something went wrong</h3>
-                        <p>{error}</p>
-                        <Link href="/" className="ap-empty-btn">
-                            Back to Home <FaArrowRight size={10} />
-                        </Link>
-                    </div>
-                ) : products.length === 0 ? (
-                    <div className="ap-empty">
-                        <div className="ap-empty-icon">
-                            <FaSearch size={22} />
-                        </div>
-                        <h3>No products found</h3>
-                        <p>We couldn't find any products matching "{query}".</p>
-                        <Link href="/categories" className="ap-empty-btn">
-                            Browse Categories <FaArrowRight size={10} />
-                        </Link>
-                    </div>
-                ) : (
-                    <div className="ap-grid">
-                        {products.map((product, idx) => {
-                            const discount = getDiscount(product);
-                            const outOfStock = product.stock_quantity === 0;
+  return (
+    <>
+      <SearchStyles />
+      <div className="search-page">
+        <button
+          onClick={() => router.back()}
+          className="search-back"
+          aria-label="Go back"
+        >
+          <FaArrowLeft size={11} /> <span>Back</span>
+        </button>
 
-                            return (
-                                <div
-                                    key={product.id}
-                                    className="ap-card"
-                                    style={{ animationDelay: `${idx * 0.04}s` }}
-                                >
-                                    <div className="ap-card-img">
-                                        <div className="ap-badge-wrap">
-                                            {outOfStock && (
-                                                <span className="ap-badge ap-badge-sold">Sold Out</span>
-                                            )}
-                                            {discount && !outOfStock && (
-                                                <span className="ap-badge ap-badge-sale">-{discount}%</span>
-                                            )}
-                                        </div>
+        <header className="ap-header">
+          <p className="ap-header-eyebrow">The Collection</p>
+          <h1>Search Results</h1>
+          <p className="ap-header-sub">
+            {query
+              ? `${products.length} ${products.length === 1 ? "result" : "results"} for "${query}"`
+              : "Please enter a product name to search."}
+          </p>
+        </header>
 
-                                        <Link href={`/products/${product.id}`} style={{ display: 'contents' }}>
-                                            <img src={getPrimaryImage(product)} alt={product.name} />
-                                        </Link>
-
-                                        <div className="ap-card-overlay">
-                                            <button
-                                                className="ap-overlay-btn"
-                                                onClick={() => handleAddToCart(product)}
-                                                disabled={outOfStock}
-                                            >
-                                                {outOfStock ? (
-                                                    'Out of Stock'
-                                                ) : (
-                                                    <>
-                                                        Add to Cart <FaArrowRight size={9} />
-                                                    </>
-                                                )}
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    <div className="ap-card-body">
-                                        <p className="ap-card-cat">{product.category_name || 'Collection'}</p>
-                                        <Link href={`/products/${product.id}`} className="ap-card-name">
-                                            {product.name}
-                                        </Link>
-                                        <div className="ap-card-price-row">
-                                            <span className="ap-card-price">${product.price}</span>
-                                            {product.compare_price && (
-                                                <span className="ap-card-compare">${product.compare_price}</span>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                )}
+        {!query ? (
+          <div className="ap-empty">
+            <div className="ap-empty-icon">
+              <FaSearch size={22} />
             </div>
-        </>
-    );
+            <h3>No search term entered</h3>
+            <p>Please enter a product name to search.</p>
+            <Link href="/" className="ap-empty-btn">
+              Back to Home <FaArrowRight size={10} />
+            </Link>
+          </div>
+        ) : loading ? (
+          <div className="search-loading">
+            <div className="spinner-border text-dark" role="status" />
+            <p>Searching for "{query}"...</p>
+          </div>
+        ) : error ? (
+          <div className="ap-empty">
+            <h3>Something went wrong</h3>
+            <p>{error}</p>
+            <Link href="/" className="ap-empty-btn">
+              Back to Home <FaArrowRight size={10} />
+            </Link>
+          </div>
+        ) : products.length === 0 ? (
+          <div className="ap-empty">
+            <div className="ap-empty-icon">
+              <FaSearch size={22} />
+            </div>
+            <h3>No products found</h3>
+            <p>We couldn't find any products matching "{query}".</p>
+            <Link href="/categories" className="ap-empty-btn">
+              Browse Categories <FaArrowRight size={10} />
+            </Link>
+          </div>
+        ) : (
+          <div className="ap-grid">
+            {products.map((product, idx) => {
+              const discount = getDiscount(product);
+              const outOfStock = product.stock_quantity === 0;
+
+              return (
+                <div
+                  key={product.id}
+                  className="ap-card"
+                  style={{ animationDelay: `${idx * 0.04}s` }}
+                >
+                  <div className="ap-card-img">
+                    <div className="ap-badge-wrap">
+                      {outOfStock && (
+                        <span className="ap-badge ap-badge-sold">Sold Out</span>
+                      )}
+                      {discount && !outOfStock && (
+                        <span className="ap-badge ap-badge-sale">
+                          -{discount}%
+                        </span>
+                      )}
+                    </div>
+
+                    <Link
+                      href={`/products/${product.id}`}
+                      style={{ display: "contents" }}
+                    >
+                      <img src={getPrimaryImage(product)} alt={product.name} />
+                    </Link>
+
+                    <div className="ap-card-overlay">
+                      <button
+                        className="ap-overlay-btn"
+                        onClick={() => handleAddToCart(product)}
+                        disabled={outOfStock}
+                      >
+                        {outOfStock ? (
+                          "Out of Stock"
+                        ) : (
+                          <>
+                            Add to Cart <FaArrowRight size={9} />
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="ap-card-body">
+                    <p className="ap-card-cat">
+                      {product.category_name || "Collection"}
+                    </p>
+                    <Link
+                      href={`/products/${product.id}`}
+                      className="ap-card-name"
+                    >
+                      {product.name}
+                    </Link>
+                    <div className="ap-card-price-row">
+                      <span className="ap-card-price">${product.price}</span>
+                      {product.compare_price && (
+                        <span className="ap-card-compare">
+                          ${product.compare_price}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </>
+  );
 }
 
 function SearchStyles() {
-    return (
-        <style>{`
+  return (
+    <style>{`
             @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Jost:wght@300;400;500;600&display=swap');
 
             *, *::before, *::after { box-sizing: border-box; }
@@ -225,18 +245,23 @@ function SearchStyles() {
                 position: absolute;
                 top: 52px;
                 left: 28px;
-                width: 38px;
-                height: 38px;
                 border: 1px solid var(--border-md);
                 background: var(--white);
-                color: var(--ink);
                 display: flex;
+                gap: 6px;
+                border: 1px solid #e2e8f0;
+                border-radius: 8px; 
+                padding: 7px 13px;
+                font-family: 'Jost', sans-serif;
+                font-size: 0.78rem; 
+                font-weight: 500; 
+                color: #64748b;
                 align-items: center;
                 justify-content: center;
                 cursor: pointer;
                 transition: border-color .2s;
             }
-            .search-back:hover { border-color: var(--ink); }
+            .search-back:hover { border-color: #94a3b8; color: #1e293b; }
 
             .ap-header {
                 text-align: center;
@@ -479,13 +504,19 @@ function SearchStyles() {
                 .ap-card-price { font-size: 18px; }
             }
         `}</style>
-    );
+  );
 }
 
 export default function SearchPage() {
-    return (
-        <Suspense fallback={<div className="container py-5 text-center"><div className="spinner-border text-dark" /></div>}>
-            <SearchResultsContent />
-        </Suspense>
-    );
+  return (
+    <Suspense
+      fallback={
+        <div className="container py-5 text-center">
+          <div className="spinner-border text-dark" />
+        </div>
+      }
+    >
+      <SearchResultsContent />
+    </Suspense>
+  );
 }

@@ -45,7 +45,10 @@ router.get('/google',
 // Google callback – after user approves
 router.get('/google/callback',
     requireGoogleOAuth,
-    passport.authenticate('google', { failureRedirect: '/auth/signin' }),
+    passport.authenticate('google', {
+        failureRedirect: `${process.env.FRONTEND_URL || process.env.SITE_URL || 'http://localhost:3000'}/auth/signin?error=google`,
+        session: false,
+    }),
     (req, res) => {
         const user = req.user;
         const token = generateToken(user.id, user.role);

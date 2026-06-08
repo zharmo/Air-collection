@@ -432,7 +432,7 @@ export default function AllProductsPage() {
                 /* hover overlay */
                 .ap-card-overlay {
                     position: absolute; bottom: 0; left: 0; right: 0;
-                    background: var(--ink); padding: 14px 20px;
+                    background: var(--ink); padding: 14px 10px;
                     transform: translateY(100%);
                     transition: transform .32s cubic-bezier(.16,1,.3,1);
                     z-index: 3;
@@ -588,12 +588,12 @@ export default function AllProductsPage() {
                     .ap-layout { grid-template-columns: 1fr; padding: 20px 16px 60px; }
                     .ap-sidebar { display: none; }
                     .ap-mobile-filter-btn { display: flex; }
-                    .ap-grid   { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+                    .ap-grid   { grid-template-columns: repeat(2, 1fr); gap: 18px; }
                     .ap-skeleton-grid { grid-template-columns: repeat(2, 1fr); }
                     .ap-header { padding: 32px 20px 24px; }
                 }
                 @media (max-width: 480px) {
-                    .ap-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+                    .ap-grid { grid-template-columns: 1fr 1fr; gap: 15px; }
                     .ap-card-img img { padding: 0; }
                 }
             `}</style>

@@ -18,6 +18,7 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
+import { HiMenuAlt2, HiOutlineMenu } from "react-icons/hi";
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -437,9 +438,7 @@ export default function Navbar() {
               onClick={() => setIsMenuOpen((prev) => !prev)}
               aria-label="Toggle navigation"
             >
-              <span className="ac-burger-line" />
-              <span className="ac-burger-line" />
-              <span className="ac-burger-line" />
+              <HiOutlineMenu size={20} />
             </button>
           </div>
 
@@ -463,14 +462,14 @@ export default function Navbar() {
               }}
               aria-label="Search"
             >
-              <FaSearch size={14} />
+              <FaSearch size={15} />
             </button>
 
             <span className="ac-divider" />
 
             {/* Wishlist */}
             <Link href="/wishlist" className="ac-icon" aria-label="Wishlist">
-              <FaHeart size={14} />
+              <FaHeart size={15} />
               {wishlistCount > 0 && (
                 <span className="ac-badge">
                   {wishlistCount > 9 ? "9+" : wishlistCount}
@@ -480,7 +479,7 @@ export default function Navbar() {
 
             {/* Cart */}
             <Link href="/cart" className="ac-icon" aria-label="Cart">
-              <FaShoppingCart size={14} />
+              <FaShoppingCart size={15} />
               {cartCount > 0 && (
                 <span className="ac-badge">
                   {cartCount > 9 ? "9+" : cartCount}
@@ -495,7 +494,7 @@ export default function Navbar() {
                 onClick={() => setShowUserMenu((prev) => !prev)}
                 aria-label="Account"
               >
-                <FaUser size={14} />
+                <FaUser size={15} />
               </button>
 
               {showUserMenu && (
