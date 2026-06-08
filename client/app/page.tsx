@@ -1020,7 +1020,7 @@ export default function HomePage() {
               View All <FaArrowRight size={10} />
             </Link>
           </div>
-          <div className="product-grid-3">
+          <div className="product-grid-4">
             {newArrivals.map((product) => (
               <div key={product.id} className="product-card">
                 <div className="product-card-image">

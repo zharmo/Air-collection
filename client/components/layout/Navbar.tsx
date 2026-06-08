@@ -407,7 +407,6 @@ export default function Navbar() {
                     .ac-bar   { padding: 0 10px; }
                     .ac-icon  { width: 30px; height: 30px; }
                     .ac-icons { gap: 0; }
-                    .ac-divider { display: none; }
                 }
             `}</style>
 
