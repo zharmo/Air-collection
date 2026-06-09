@@ -40,15 +40,16 @@ function SignUpContent() {
     const token = searchParams.get('token');
     const oauthError = searchParams.get('error');
 
-    if (oauthError === 'account_exists') {
-      setError(
-        'An account with that Google address already exists. Please sign in instead.'
-      );
-      return;
-    }
-
-    if (oauthError === 'google') {
-      setError('Google sign-up failed. Please try again.');
+    if (oauthError) {
+      if (oauthError === 'account_exists') {
+        setError('An account with that Google address already exists. Please sign in instead.');
+      } else if (oauthError === 'google') {
+        setError('Google sign-up failed. Please try again.');
+      } else {
+        setError(oauthError);
+      }
+      setGoogleLoad(false);
+      setTokenProcessing(false);
       return;
     }
 
@@ -112,6 +113,7 @@ function SignUpContent() {
     setGoogleLoad(true);
     // Pass intent=register so the backend callback knows this is a signup attempt
     window.location.href = `${base}/auth/google?intent=register`;
+    // Full-page navigation – required for OAuth redirects
   };
 
   if (tokenProcessing) {

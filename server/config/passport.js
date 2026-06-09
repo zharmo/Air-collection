@@ -20,12 +20,22 @@ if (hasGoogleOAuthConfig) {
             },
             async (req, accessToken, refreshToken, profile, done) => {
                 try {
-                    const email = profile.emails[0].value;
+                    const email = profile.emails?.[0]?.value;
                     const googleId = profile.id;
                     const name = profile.displayName;
 
+                    if (!email) {
+                        return done(null, false, { message: 'Google account email was not provided.' });
+                    }
+
                     // Parse intent ('login' | 'register') from OAuth state
                     let intent = 'login';
+                    const rawState = req.query.state;
+                    if (rawState === 'signup') {
+                        intent = 'register';
+                    } else if (rawState === 'signin') {
+                        intent = 'login';
+                    }
                     try {
                         if (req.query.state) {
                             const stateData = JSON.parse(
@@ -36,6 +46,8 @@ if (hasGoogleOAuthConfig) {
                     } catch {
                         // Malformed state — default to login
                     }
+
+                    const isSignup = intent === 'register';
 
                     const existingUser = await pool.query(
                         `SELECT * FROM users WHERE email = $1 OR google_id = $2`,
@@ -57,6 +69,12 @@ if (hasGoogleOAuthConfig) {
                         user = newUser.rows[0];
                         isNew = true;
                     } else {
+                        if (isSignup) {
+                            return done(null, false, {
+                                message: 'This Gmail is already registered. Please sign in instead.',
+                            });
+                        }
+
                         user = existingUser.rows[0];
                         isNew = false;
 

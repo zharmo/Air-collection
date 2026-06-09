@@ -17,19 +17,30 @@ const requireGoogleOAuth = (req, res, next) => {
 const frontendUrl = () =>
     process.env.FRONTEND_URL || process.env.SITE_URL || 'http://localhost:3000';
 
-/**
- * Encode intent as a base64 JSON string to pass through OAuth `state`.
- * Google OAuth preserves the `state` param and returns it unchanged in the callback.
- */
 const buildOAuthState = (intent) =>
     Buffer.from(JSON.stringify({ intent })).toString('base64');
+
+const getOAuthIntent = (state) => {
+    if (state === 'signup') return 'register';
+    if (state === 'signin') return 'login';
+
+    try {
+        if (state) {
+            const stateData = JSON.parse(Buffer.from(state, 'base64').toString('utf8'));
+            return stateData.intent || 'login';
+        }
+    } catch {
+        return 'login';
+    }
+
+    return 'login';
+};
 
 router.post('/register', registerUser);
 router.post('/login', loginUser);
 router.post('/forgot-password', forgotPassword);
 router.post('/reset-password', resetPassword);
 
-// Get current logged-in user info
 router.get('/me', protect, async (req, res) => {
     try {
         const result = await pool.query(
@@ -44,13 +55,13 @@ router.get('/me', protect, async (req, res) => {
     }
 });
 
-// ─── Google OAuth — Sign In ────────────────────────────────────────────────
-// Passes intent=login in state so the callback knows this came from sign-in.
 router.get(
     '/google',
     requireGoogleOAuth,
     (req, res, next) => {
-        const intent = req.query.intent || 'login'; // ?intent=login or ?intent=register
+        const legacyModeIntent = req.query.mode === 'signup' ? 'register' : 'login';
+        const intent = req.query.intent || legacyModeIntent;
+
         passport.authenticate('google', {
             scope: ['profile', 'email'],
             state: buildOAuthState(intent),
@@ -58,46 +69,36 @@ router.get(
     }
 );
 
-// ─── Google OAuth — Callback ───────────────────────────────────────────────
 router.get(
     '/google/callback',
     requireGoogleOAuth,
-    passport.authenticate('google', {
-        failureRedirect: `${frontendUrl()}/auth/signin?error=google`,
-        session: false,
-    }),
-    (req, res) => {
-        const user = req.user;
+    (req, res, next) => {
         const base = frontendUrl();
+        const intent = getOAuthIntent(req.query.state);
+        const failurePath = intent === 'register' ? '/auth/signup' : '/auth/signin';
 
-        /**
-         * Block re-registration: if the user came from the sign-up page
-         * (intent=register) but the account already existed (isNew=false),
-         * redirect back to sign-in with an `account_exists` error so the
-         * signup page can show a helpful message.
-         */
-        if (user.oauthIntent === 'register' && !user.isNew) {
-            return res.redirect(`${base}/auth/signup?error=account_exists`);
-        }
+        passport.authenticate('google', { session: false }, (err, user, info) => {
+            if (err) {
+                console.error('Google OAuth callback error:', err);
+                return res.redirect(`${base}${failurePath}?error=google`);
+            }
 
-        /**
-         * Block login with unregistered account: if the user came from
-         * sign-in (intent=login) but no account existed before this request,
-         * that means they were auto-created above. That's fine — just log them
-         * in. If you'd rather force them to the signup flow, uncomment below:
-         *
-         * if (user.oauthIntent === 'login' && user.isNew) {
-         *     return res.redirect(`${base}/auth/signin?error=no_account`);
-         * }
-         */
+            if (!user) {
+                const message = info?.message || 'Google authentication failed. Please try again.';
+                const error = message.toLowerCase().includes('already registered')
+                    ? 'account_exists'
+                    : message;
+                return res.redirect(`${base}${failurePath}?error=${encodeURIComponent(error)}`);
+            }
 
-        const token = generateToken(user.id, user.role);
+            const token = generateToken(user.id, user.role);
 
-        // Redirect to the appropriate page depending on which form triggered this
-        if (user.oauthIntent === 'register') {
-            return res.redirect(`${base}/auth/signup?token=${token}`);
-        }
-        return res.redirect(`${base}/auth/signin?token=${token}`);
+            if (user.oauthIntent === 'register') {
+                return res.redirect(`${base}/auth/signup?token=${token}`);
+            }
+
+            return res.redirect(`${base}/auth/signin?token=${token}`);
+        })(req, res, next);
     }
 );
 

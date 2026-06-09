@@ -25,7 +25,7 @@ const registerUser = async (req, res) => {
 
     const userExists = await findUserByEmail(email);
     if (userExists) {
-      return sendError(res, 'User already exists', 400);
+      return sendError(res, 'This email is already registered. Please sign in instead.', 400);
     }
 
     const salt = await bcrypt.genSalt(10);
@@ -95,9 +95,8 @@ const forgotPassword = async (req, res) => {
     if (!email) return sendError(res, 'Email is required', 400);
 
     const user = await findUserByEmail(email);
-    // For security, always return success message even if email doesn't exist
     if (!user) {
-      return sendSuccess(res, null, 'If that email exists, a reset link has been sent');
+      return sendError(res, 'No account found with this email. Please register first.', 404);
     }
 
     if (!isEmailConfigured()) {

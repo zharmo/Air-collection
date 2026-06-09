@@ -1,30 +1,48 @@
+const path = require('path');
+const dotenv = require('dotenv');
 const nodemailer = require('nodemailer');
+
+dotenv.config({ path: path.join(__dirname, '../.env') });
 
 /* ─────────────────────────────────────────────────────────────
  * Transporter
  * ───────────────────────────────────────────────────────────── */
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 465,
-  secure: true,
+const isEmailConfigured = () => Boolean(process.env.EMAIL_USER && process.env.EMAIL_PASS);
+const getAdminEmail = () => (process.env.ADMIN_EMAIL || process.env.EMAIL_USER || '').trim();
+
+const createTransporter = () => nodemailer.createTransport({
+  host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+  port: Number(process.env.EMAIL_PORT || 465),
+  secure: String(process.env.EMAIL_SECURE || 'true') === 'true',
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
   },
-  tls: { rejectUnauthorized: false },
 });
 
 /* ─────────────────────────────────────────────────────────────
  * Base send helper
  * ───────────────────────────────────────────────────────────── */
-const sendEmail = async (to, subject, html) => {
+const sendEmail = async (to, subject, html, options = {}) => {
   try {
-    const info = await transporter.sendMail({
-      from: `"Air Collection" <${process.env.EMAIL_USER}>`,
+    if (!isEmailConfigured()) {
+      console.error('Email service is not configured. Set EMAIL_USER and EMAIL_PASS in server/.env.');
+      return false;
+    }
+
+    const transporter = createTransporter();
+    const mailOptions = {
+      from: process.env.EMAIL_FROM || `"Air Collection" <${process.env.EMAIL_USER}>`,
       to,
       subject,
       html,
-    });
+    };
+
+    if (options.replyTo) {
+      mailOptions.replyTo = options.replyTo;
+    }
+
+    const info = await transporter.sendMail(mailOptions);
     console.log(`✅ Email sent to ${to}: ${info.messageId}`);
     return true;
   } catch (error) {
@@ -32,6 +50,13 @@ const sendEmail = async (to, subject, html) => {
     return false;
   }
 };
+
+const escapeHtml = (value = '') => String(value)
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;')
+  .replace(/'/g, '&#039;');
 
 /* ─────────────────────────────────────────────────────────────
  * Shared design tokens (inline — email clients ignore <style>)
@@ -394,7 +419,7 @@ const sendOrderConfirmation = async (to, order) => {
  * 2.  ADMIN — New Order Alert
  * ───────────────────────────────────────────────────────────── */
 const sendNewOrderNotification = async (order) => {
-  const adminEmail = process.env.ADMIN_EMAIL;
+  const adminEmail = getAdminEmail();
   if (!adminEmail) {
     console.warn('⚠️  ADMIN_EMAIL not set — skipping admin notification');
     return false;
@@ -552,7 +577,8 @@ const sendNewOrderNotification = async (order) => {
  * 3.  Password reset  (unchanged logic, updated style)
  * ───────────────────────────────────────────────────────────── */
 const sendPasswordResetEmail = async (to, resetToken) => {
-  const resetUrl = `${process.env.SITE_URL}/auth/reset-password?token=${resetToken}`;
+  const siteUrl = process.env.FRONTEND_URL || process.env.SITE_URL || 'http://localhost:3000';
+  const resetUrl = `${siteUrl}/auth/reset-password?token=${resetToken}`;
 
   const content = `
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
@@ -603,11 +629,21 @@ const sendPasswordResetEmail = async (to, resetToken) => {
  * 4.  Contact form notification  (unchanged logic, updated style)
  * ───────────────────────────────────────────────────────────── */
 const sendContactNotification = async (name, email, subject, message) => {
-  const adminEmail = process.env.ADMIN_EMAIL;
+  const adminEmail = getAdminEmail();
   if (!adminEmail) {
     console.warn('⚠️  ADMIN_EMAIL not set in .env — contact notification skipped');
     return false;
   }
+
+  const contactName = String(name || '').trim();
+  const contactEmail = String(email || '').trim();
+  const contactSubject = String(subject || '').trim() || 'General Inquiry';
+  const contactMessage = String(message || '').trim();
+
+  const safeName = escapeHtml(contactName);
+  const safeEmail = escapeHtml(contactEmail);
+  const safeSubject = escapeHtml(contactSubject);
+  const safeMessage = escapeHtml(contactMessage).replace(/\n/g, '<br/>');
 
   const content = `
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
@@ -624,8 +660,8 @@ const sendContactNotification = async (name, email, subject, message) => {
           </h1>
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
                  style="margin-bottom:24px;">
-            ${infoRow('From',    `${name} &lt;${email}&gt;`)}
-            ${infoRow('Subject', subject, true)}
+            ${infoRow('From',    `${safeName} &lt;${safeEmail}&gt;`)}
+            ${infoRow('Subject', safeSubject, true)}
           </table>
           <p style="font-family:${T.sansStack};font-size:10px;font-weight:700;
                      letter-spacing:0.12em;text-transform:uppercase;
@@ -635,7 +671,7 @@ const sendContactNotification = async (name, email, subject, message) => {
           <div style="background:${T.bg};border:1px solid ${T.border};
                        padding:16px 20px;font-family:${T.sansStack};
                        font-size:13.5px;color:${T.text};line-height:1.7;">
-            ${message.replace(/\n/g, '<br/>')}
+            ${safeMessage}
           </div>
         </td>
       </tr>
@@ -643,8 +679,9 @@ const sendContactNotification = async (name, email, subject, message) => {
 
   return sendEmail(
     adminEmail,
-    `✉️ Contact: ${subject} — from ${name}`,
-    shell(content, `New message from ${name}: ${subject}`)
+    `Contact: ${contactSubject} - from ${contactName}`,
+    shell(content, `New message from ${contactName}: ${contactSubject}`),
+    { replyTo: contactEmail }
   );
 };
 
@@ -653,6 +690,8 @@ const sendContactNotification = async (name, email, subject, message) => {
  * ───────────────────────────────────────────────────────────── */
 module.exports = {
   sendEmail,
+  isEmailConfigured,
+  getAdminEmail,
   sendPasswordResetEmail,
   sendOrderConfirmation,
   sendNewOrderNotification,
