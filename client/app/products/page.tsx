@@ -128,7 +128,11 @@ export default function AllProductsPage() {
   };
 
   const handleAddToCart = (product: Product) => {
-    addToCart(product.id, 1);
+    addToCart(product.id, 1, {
+      name: product.name,
+      price: Number(product.price),
+      image: getPrimaryImage(product),
+    });
   };
 
   const getPrimaryImage = (product: Product) => {
