@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState, useEffect } from 'react';
+import { Suspense, useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
@@ -17,6 +17,7 @@ function SignInContent() {
   const [googleLoad, setGoogleLoad] = useState(false);
   const [error, setError] = useState('');
   const [tokenProcessing, setTokenProcessing] = useState(false);
+  const oauthHandledRef = useRef(false);
   const { login, fetchUser } = useAuth();
 
   // Handle Google redirect: token (success) or error param
@@ -24,15 +25,22 @@ function SignInContent() {
     const token = searchParams.get('token');
     const oauthError = searchParams.get('error');
 
-    if (oauthError === 'google') {
-      setError('Google sign-in failed. Please try again.');
+    if (oauthHandledRef.current || (!token && !oauthError)) {
       return;
     }
 
-    if (oauthError === 'no_account') {
-      setError(
-        "No account found with that Google address. Please sign up first."
-      );
+    oauthHandledRef.current = true;
+
+    if (oauthError) {
+      if (oauthError === 'google') {
+        setError('Google sign-in failed. Please try again.');
+      } else if (oauthError === 'no_account') {
+        setError("No account found with that Google address. Please sign up first.");
+      } else {
+        setError(oauthError);
+      }
+      setGoogleLoad(false);
+      setTokenProcessing(false);
       return;
     }
 
@@ -43,7 +51,7 @@ function SignInContent() {
       // so the navbar/profile show correctly the moment we land on the home page.
       fetchUser()
         .then(() => {
-          router.push('/');
+          router.replace('/');
         })
         .catch(err => {
           console.error('Token validation error:', err);

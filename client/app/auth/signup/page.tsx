@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState, useEffect } from 'react';
+import { Suspense, useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
@@ -33,12 +33,19 @@ function SignUpContent() {
   const [error,      setError     ] = useState('');
   const [pwStrength, setPwStrength] = useState(0);
   const [tokenProcessing, setTokenProcessing] = useState(false);
+  const oauthHandledRef = useRef(false);
   const { register, fetchUser } = useAuth();
 
   // Handle Google redirect: token (success) or error (account_exists, etc.)
   useEffect(() => {
     const token = searchParams.get('token');
     const oauthError = searchParams.get('error');
+
+    if (oauthHandledRef.current || (!token && !oauthError)) {
+      return;
+    }
+
+    oauthHandledRef.current = true;
 
     if (oauthError) {
       if (oauthError === 'account_exists') {
@@ -60,7 +67,7 @@ function SignUpContent() {
       // so the navbar/profile show correctly the moment we land on the home page.
       fetchUser()
         .then(() => {
-          router.push('/');
+          router.replace('/');
         })
         .catch(err => {
           console.error('Token validation error:', err);

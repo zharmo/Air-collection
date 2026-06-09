@@ -1,5 +1,5 @@
 'use client';
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from 'react';
 import axiosInstance from '@/utils/axiosConfig';
 
 interface User {
@@ -31,7 +31,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
 
-    const fetchUser = async () => {
+    const fetchUser = useCallback(async () => {
         const token = localStorage.getItem('token');
         if (!token) {
             setUser(null);
@@ -49,13 +49,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
     useEffect(() => {
         fetchUser();
-    }, []);
+    }, [fetchUser]);
 
-    const login = async (email: string, password: string) => {
+    const login = useCallback(async (email: string, password: string) => {
         try {
             const res = await axiosInstance.post('/auth/login', { email, password });
             const { user, token } = res.data.data;
@@ -66,9 +66,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         } catch (error: any) {
             return { success: false, message: error.response?.data?.message || 'Login failed' };
         }
-    };
+    }, []);
 
-    const register = async (name: string, email: string, password: string) => {
+    const register = useCallback(async (name: string, email: string, password: string) => {
         try {
             const res = await axiosInstance.post('/auth/register', { name, email, password });
             const { user, token } = res.data.data;
@@ -79,16 +79,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         } catch (error: any) {
             return { success: false, message: error.response?.data?.message || 'Registration failed' };
         }
-    };
+    }, []);
 
-    const logout = () => {
+    const logout = useCallback(() => {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         setUser(null);
-    };
+    }, []);
+
+    const value = useMemo(
+        () => ({ user, loading, login, register, logout, fetchUser }),
+        [user, loading, login, register, logout, fetchUser]
+    );
 
     return (
-        <AuthContext.Provider value={{ user, loading, login, register, logout, fetchUser }}>
+        <AuthContext.Provider value={value}>
             {children}
         </AuthContext.Provider>
     );
