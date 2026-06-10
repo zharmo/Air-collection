@@ -74,9 +74,9 @@ export default function HomePage() {
         ]);
         const allProducts = productsRes.data.data;
         const allCategories = categoriesRes.data.data;
-        setFeaturedProducts(allProducts.slice(0, 2));
-        setBestSellers(allProducts.slice(2, 5));
-        setNewArrivals(allProducts.slice(5, 8));
+        setFeaturedProducts(allProducts.slice(0, 6));
+        setBestSellers(allProducts.slice(0, 6));
+        setNewArrivals(allProducts.slice(0, 6));
         setAiRecommended(allProducts.slice(8, 12));
         setDbCategories(allCategories);
       } catch (error) {
@@ -97,12 +97,11 @@ export default function HomePage() {
     }
   };
 
-  // FIXED: Convert price to number to ensure it appears in cart
   const handleAddToCart = (product: Product) => {
     const imageUrl = getPrimaryImage(product);
     addToCart(product.id, 1, {
       name: product.name,
-      price: Number(product.price), // ensure numeric value
+      price: Number(product.price),
       image: imageUrl,
     });
   };
@@ -226,7 +225,6 @@ export default function HomePage() {
 
                 body { background: var(--surface); }
 
-                /* ── Typography helpers ── */
                 .h-display {
                     font-family: 'Cormorant Garamond', serif;
                     font-weight: 500;
@@ -427,21 +425,9 @@ export default function HomePage() {
                 }
 
                 /* ── Product Cards ── */
-                .product-grid-2 {
-                    display: grid;
-                    grid-template-columns: 1fr 1fr;
-                    gap: 24px;
-                }
-
-                .product-grid-3 {
-                    display: grid;
-                    grid-template-columns: repeat(3, 1fr);
-                    gap: 24px;
-                }
-
                 .product-grid-4 {
                     display: grid;
-                    grid-template-columns: repeat(4, 1fr);
+                    grid-template-columns: repeat(3, 1fr);
                     gap: 15px;
                 }
 
@@ -458,7 +444,7 @@ export default function HomePage() {
 
                 .product-card-image {
                     background: var(--product-bg);
-                    aspect-ratio: 1/1;
+                    aspect-ratio: 3/4;
                     display: flex;
                     align-items: center;
                     justify-content: center;
@@ -754,8 +740,6 @@ export default function HomePage() {
                 }
 
                 @media (max-width: 768px) {
-                    .product-grid-2 { grid-template-columns: 1fr; }
-                    .product-grid-3 { grid-template-columns: 1fr 1fr; }
                     .hero-title { font-size: clamp(52px, 13vw, 80px); }
                     .section { padding-top: 64px; padding-bottom: 64px; }
                     .category-section { padding-top: 64px; padding-bottom: 64px; }
@@ -767,7 +751,6 @@ export default function HomePage() {
                 }
 
                 @media (max-width: 480px) {
-                    .product-grid-3 { grid-template-columns: 1fr 1fr; }
                     .product-grid-4 { grid-template-columns: 1fr 1fr; }
                     .category-grid { grid-template-columns: 1fr 1fr; }
                 }
@@ -895,7 +878,7 @@ export default function HomePage() {
               View All <FaArrowRight size={10} />
             </Link>
           </div>
-          <div className="product-grid-2">
+          <div className="product-grid-4">
             {featuredProducts.map((product) => (
               <div key={product.id} className="product-card">
                 <div className="product-card-image">
@@ -943,7 +926,6 @@ export default function HomePage() {
         <div className="category-grid">
           {displayCategories.map((cat) => {
             const categoryImage = getCategoryImage(cat);
-
             return (
               <Link
                 key={cat.slug}
@@ -1055,57 +1037,6 @@ export default function HomePage() {
           </div>
         </section>
       )}
-
-      {/* ── AI RECOMMENDED ── */}
-      {/* {aiRecommended.length > 0 && (
-        <section className="section">
-          <div className="section-header">
-            <div>
-              <div
-                className="label-caps"
-                style={{
-                  marginBottom: 10,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                }}
-              >
-                <span style={{ color: "var(--accent)" }}>✦</span> AI Picks
-              </div>
-              <h2 className="h-section">Recommended for You</h2>
-            </div>
-          </div>
-          <div className="product-grid-4">
-            {aiRecommended.map((product) => (
-              <div key={product.id} className="product-card">
-                <div className="product-card-image">
-                  <div className="product-card-badge ai">AI Pick</div>
-                  <Link href={`/products/${product.id}`}>
-                    <img src={getPrimaryImage(product)} alt={product.name} />
-                  </Link>
-                  <div className="product-card-overlay">
-                    <button onClick={() => handleAddToCart(product)}>
-                      Add to Cart <FaArrowRight size={10} />
-                    </button>
-                  </div>
-                </div>
-                <div className="product-card-body">
-                  <Link
-                    href={`/products/${product.id}`}
-                    className="product-card-name"
-                    style={{ fontSize: 13 }}
-                  >
-                    {product.name}
-                  </Link>
-                  <span className="product-card-price" style={{ fontSize: 18 }}>
-                    ${product.price}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      )} */}
 
       {/* ── REVIEW ── */}
       <section className="review-section">

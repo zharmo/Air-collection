@@ -48,7 +48,7 @@ const getProduct = async (req, res) => {
     try {
         const { id } = req.params;
         const productResult = await pool.query(
-            `SELECT p.*, c.name as category_name
+            `SELECT p.*, p.size_description, c.name as category_name
              FROM products p
              LEFT JOIN categories c ON p.category_id = c.id
              WHERE p.id = $1`,
@@ -75,12 +75,12 @@ const getProduct = async (req, res) => {
 // @desc    Create basic product
 const createProduct = async (req, res) => {
     try {
-        const { name, slug, description, price, compare_price, stock_quantity, sku, category_id, is_featured } = req.body;
+        const { name, slug, description, price, compare_price, stock_quantity, sku, category_id, is_featured, size_description } = req.body;
         if (!name || !slug || !price) return sendError(res, 'Name, slug and price are required', 400);
         const result = await pool.query(
-            `INSERT INTO products (name, slug, description, price, compare_price, stock_quantity, sku, category_id, is_featured)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
-            [name, slug, description, price, compare_price, stock_quantity, sku, category_id, is_featured || false]
+            `INSERT INTO products (name, slug, description, price, compare_price, stock_quantity, sku, category_id, is_featured, size_description)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+            [name, slug, description, price, compare_price, stock_quantity, sku, category_id, is_featured || false, size_description || null]
         );
         sendSuccess(res, result.rows[0], 'Product created', 201);
     } catch (error) {
@@ -94,23 +94,23 @@ const createProduct = async (req, res) => {
 const createFullProduct = async (req, res) => {
     let client;
     try {
-        const { name, slug, description, price, compare_price, stock_quantity, sku, category_id, is_featured, colors, sizes } = req.body;
+        const { name, slug, description, price, compare_price, stock_quantity, sku, category_id, is_featured, size_description, colors, sizes } = req.body;
         if (!name || !slug || !price) return sendError(res, 'Name, slug and price are required', 400);
-        
+
         console.log('🔵 createFullProduct - colors:', JSON.stringify(colors, null, 2));
         console.log('🔵 createFullProduct - sizes:', JSON.stringify(sizes, null, 2));
-        
+
         client = await pool.connect();
         await client.query('BEGIN');
-        
+
         // Insert product
         const productRes = await client.query(
-            `INSERT INTO products (name, slug, description, price, compare_price, stock_quantity, sku, category_id, is_featured)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
-            [name, slug, description, price, compare_price, stock_quantity, sku, category_id, is_featured || false]
+            `INSERT INTO products (name, slug, description, price, compare_price, stock_quantity, sku, category_id, is_featured, size_description)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+            [name, slug, description, price, compare_price, stock_quantity, sku, category_id, is_featured || false, size_description || null]
         );
         const product = productRes.rows[0];
-        
+
         // Map color names to IDs
         const colorIdMap = new Map();
         if (colors && colors.length) {
@@ -125,13 +125,12 @@ const createFullProduct = async (req, res) => {
                 }
             }
         }
-        
+
         // Insert sizes
         if (sizes && sizes.length) {
             for (let i = 0; i < sizes.length; i++) {
                 const s = sizes[i];
                 let colorId = null;
-                // Support both colorName and colorId
                 if (s.colorName && s.colorName.trim() !== '') {
                     colorId = colorIdMap.get(s.colorName);
                     if (!colorId) console.warn(`⚠️ Color "${s.colorName}" not found`);
@@ -145,9 +144,9 @@ const createFullProduct = async (req, res) => {
                 );
             }
         }
-        
+
         await client.query('COMMIT');
-        
+
         const fullProduct = await enrichProductWithVariants(product);
         sendSuccess(res, fullProduct, 'Product created', 201);
     } catch (error) {
@@ -163,11 +162,11 @@ const createFullProduct = async (req, res) => {
 const updateProduct = async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, slug, description, price, compare_price, stock_quantity, sku, category_id, is_featured } = req.body;
+        const { name, slug, description, price, compare_price, stock_quantity, sku, category_id, is_featured, size_description } = req.body;
         const result = await pool.query(
-            `UPDATE products SET name=$1, slug=$2, description=$3, price=$4, compare_price=$5, stock_quantity=$6, sku=$7, category_id=$8, is_featured=$9, updated_at=NOW()
-             WHERE id=$10 RETURNING *`,
-            [name, slug, description, price, compare_price, stock_quantity, sku, category_id, is_featured, id]
+            `UPDATE products SET name=$1, slug=$2, description=$3, price=$4, compare_price=$5, stock_quantity=$6, sku=$7, category_id=$8, is_featured=$9, size_description=$10, updated_at=NOW()
+             WHERE id=$11 RETURNING *`,
+            [name, slug, description, price, compare_price, stock_quantity, sku, category_id, is_featured, size_description || null, id]
         );
         if (result.rows.length === 0) return sendError(res, 'Product not found', 404);
         sendSuccess(res, result.rows[0], 'Product updated');
@@ -182,29 +181,29 @@ const updateFullProduct = async (req, res) => {
     let client;
     try {
         const { id } = req.params;
-        const { name, slug, description, price, compare_price, stock_quantity, sku, category_id, is_featured, colors, sizes } = req.body;
-        
+        const { name, slug, description, price, compare_price, stock_quantity, sku, category_id, is_featured, size_description, colors, sizes } = req.body;
+
         console.log('🟡 updateFullProduct - colors:', JSON.stringify(colors, null, 2));
         console.log('🟡 updateFullProduct - sizes:', JSON.stringify(sizes, null, 2));
-        
+
         client = await pool.connect();
         await client.query('BEGIN');
-        
+
         // Update product
         const productRes = await client.query(
-            `UPDATE products SET name=$1, slug=$2, description=$3, price=$4, compare_price=$5, stock_quantity=$6, sku=$7, category_id=$8, is_featured=$9, updated_at=NOW()
-             WHERE id=$10 RETURNING *`,
-            [name, slug, description, price, compare_price, stock_quantity, sku, category_id, is_featured, id]
+            `UPDATE products SET name=$1, slug=$2, description=$3, price=$4, compare_price=$5, stock_quantity=$6, sku=$7, category_id=$8, is_featured=$9, size_description=$10, updated_at=NOW()
+             WHERE id=$11 RETURNING *`,
+            [name, slug, description, price, compare_price, stock_quantity, sku, category_id, is_featured, size_description || null, id]
         );
         if (productRes.rows.length === 0) {
             await client.query('ROLLBACK');
             return sendError(res, 'Product not found', 404);
         }
-        
+
         // Delete existing colors and sizes
         await client.query(`DELETE FROM product_colors WHERE product_id = $1`, [id]);
         await client.query(`DELETE FROM product_sizes WHERE product_id = $1`, [id]);
-        
+
         // Re-insert colors
         const colorIdMap = new Map();
         if (colors && colors.length) {
@@ -219,7 +218,7 @@ const updateFullProduct = async (req, res) => {
                 }
             }
         }
-        
+
         // Re-insert sizes
         if (sizes && sizes.length) {
             for (let i = 0; i < sizes.length; i++) {
@@ -238,9 +237,9 @@ const updateFullProduct = async (req, res) => {
                 );
             }
         }
-        
+
         await client.query('COMMIT');
-        
+
         const updatedProduct = await enrichProductWithVariants(productRes.rows[0]);
         sendSuccess(res, updatedProduct, 'Product updated');
     } catch (error) {

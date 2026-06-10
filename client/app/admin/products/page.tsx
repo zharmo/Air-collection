@@ -20,7 +20,7 @@ import {
 } from "react-icons/fa";
 import axiosInstance from "@/utils/axiosConfig";
 
-/* ── Types (unchanged) ── */
+/* ── Types ── */
 interface Category {
   id: number;
   name: string;
@@ -64,6 +64,7 @@ interface Product {
   colors?: ColorVariant[];
   sizes?: SizeVariant[];
   is_active: boolean;
+  size_description?: string;
 }
 
 /* ── Skeleton block ── */
@@ -283,7 +284,7 @@ function FormSection({
 }
 
 export default function ProductsManagement() {
-  /* ── All state (unchanged) ── */
+  /* ── State ── */
   const [products, setProducts] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -304,6 +305,7 @@ export default function ProductsManagement() {
     regularPrice: "",
     discountPrice: "",
     initialStock: "",
+    sizeDescription: "",
   });
   const [colors, setColors] = useState<ColorVariant[]>([]);
   const [productImages, setProductImages] = useState<ProductImageUpload[]>([]);
@@ -341,7 +343,7 @@ export default function ProductsManagement() {
     };
   }, [showModal]);
 
-  /* ── All handlers (logic unchanged) ── */
+  /* ── Handlers ── */
   const fetchProducts = async () => {
     try {
       const r = await axiosInstance.get("/products");
@@ -506,6 +508,7 @@ export default function ProductsManagement() {
         stock_quantity: parseInt(formData.initialStock) || 0,
         category_id: parseInt(formData.categoryId),
         is_featured: false,
+        size_description: formData.sizeDescription || null,
       };
       if (editingProduct) {
         await axiosInstance.put(`/products/${editingProduct.id}`, payload);
@@ -539,7 +542,8 @@ export default function ProductsManagement() {
       const sizesPayload = sizes.map((s) => ({
         colorName: s.colorName || "",
         sizeName: s.sizeName,
-        sizeType: categoryType,
+        // Use the size's own sizeType (set when loaded or added), fall back to current categoryType
+        sizeType: s.sizeType || categoryType,
         measurements: s.measurements,
         stock: s.stock,
         isAvailable: s.isAvailable,
@@ -572,6 +576,7 @@ export default function ProductsManagement() {
       regularPrice: "",
       discountPrice: "",
       initialStock: "",
+      sizeDescription: "",
     });
     setProductImages([]);
     setColors([]);
@@ -579,20 +584,34 @@ export default function ProductsManagement() {
     setSelectedCategoryId("");
     setCategoryType("");
   };
-  const handleEdit = (p: Product) => {
-    setEditingProduct(p);
+  const handleEdit = async (p: Product) => {
+    // Always fetch the full single product so colors and sizes are guaranteed present
+    let full: any = p;
+    try {
+      const r = await axiosInstance.get(`/products/${p.id}`);
+      full = r.data.data;
+    } catch (e) {
+      console.error("Failed to fetch full product for edit, using list data", e);
+    }
+
+    const catId = full.category_id.toString();
+    const catType = getCategoryType(catId);
+
+    setEditingProduct(full);
     setFormData({
-      name: p.name,
-      categoryId: p.category_id.toString(),
-      description: (p as any).description || "",
-      regularPrice: p.price.toString(),
-      discountPrice: p.compare_price?.toString() || "",
-      initialStock: p.stock_quantity.toString(),
+      name: full.name,
+      categoryId: catId,
+      description: full.description || "",
+      regularPrice: full.price.toString(),
+      discountPrice: full.compare_price?.toString() || "",
+      initialStock: full.stock_quantity.toString(),
+      sizeDescription: full.size_description || "",
     });
-    setSelectedCategoryId(p.category_id.toString());
-    setCategoryType(getCategoryType(p.category_id.toString()));
+    setSelectedCategoryId(catId);
+    setCategoryType(catType);
+
     setProductImages(
-      p.images?.map((img: any) => ({
+      full.images?.map((img: any) => ({
         id: img.id,
         imageUrl: img.image_url,
         imagePreview: getFullImageUrl(img.image_url),
@@ -600,33 +619,38 @@ export default function ProductsManagement() {
         isPrimary: img.is_primary,
       })) || [],
     );
+
+    const loadedColors = full.colors || [];
     setColors(
-      p.colors?.map((c: any) => ({
+      loadedColors.map((c: any) => ({
         id: c.id,
         colorName: c.color_name,
         imageUrl: c.image_url,
-        imagePreview: c.image_url,
+        imagePreview: getFullImageUrl(c.image_url),
         imageFile: null,
-      })) || [],
+      })),
     );
+
     setSizes(
-      p.sizes?.map((s: any) => ({
-        id: s.id,
-        colorName:
-          (s.color_id
-            ? p.colors?.find((c: any) => c.id === s.color_id)?.color_name
-            : "") || "",
-        sizeName: s.size_name,
-        sizeType: s.size_type,
-        measurements: s.measurements,
-        stock: s.stock,
-        isAvailable: s.is_available,
-      })) || [],
+      (full.sizes || []).map((s: any) => {
+        // Look up color name from the freshly loaded colors
+        const matchedColor = loadedColors.find((c: any) => c.id === s.color_id);
+        return {
+          id: s.id,
+          colorName: matchedColor?.color_name || "",
+          sizeName: s.size_name,
+          sizeType: s.size_type || catType,
+          measurements: s.measurements || {},
+          stock: s.stock ?? 0,
+          isAvailable: s.is_available ?? true,
+        };
+      }),
     );
+
     setShowModal(true);
   };
 
-  /* ── Size rows renderer (logic unchanged, UI improved) ── */
+  /* ── Size rows renderer ── */
   const renderSizeRows = () => {
     const inputStyle = {
       width: "100%",
@@ -944,32 +968,26 @@ export default function ProductsManagement() {
                 input, select, textarea { font-family:'Inter',sans-serif !important; }
                 input:focus, select:focus, textarea:focus { outline:none; border-color:var(--pm-indigo) !important; box-shadow:0 0 0 3px rgba(99,102,241,.12) !important; }
 
-                /* cards */
                 .pm-card { background:var(--pm-white); border:1px solid var(--pm-border); border-radius:var(--pm-radius); box-shadow:var(--pm-shadow); transition:box-shadow .25s, transform .25s; }
                 .pm-card:hover { box-shadow:var(--pm-shadow-h); transform:translateY(-2px); }
 
-                /* product card */
                 .pm-product-card { background:var(--pm-white); border:1px solid var(--pm-border); border-radius:var(--pm-radius); box-shadow:var(--pm-shadow); overflow:hidden; display:flex; align-items:stretch; transition:box-shadow .25s, transform .22s; animation: pmFadeUp .35s ease both; }
                 .pm-product-card:hover { box-shadow:var(--pm-shadow-h); transform:translateY(-2px); }
                 .pm-product-img-wrap { width:120px; min-height:100%; align-self:stretch; background:#f7f6f3; flex-shrink:0; display:flex; align-items:center; justify-content:center; overflow:hidden; position:relative; }
                 .pm-product-img-wrap img { width:100%; height:100%; object-fit:cover; padding:0; transition:transform .4s ease; }
                 .pm-product-card:hover .pm-product-img-wrap img { transform:scale(1.06); }
 
-                /* action button */
                 .pm-action-btn { width:32px; height:32px; border-radius:8px; border:1px solid var(--pm-border); background:var(--pm-white); display:flex; align-items:center; justify-content:center; cursor:pointer; transition:all .18s; color:var(--pm-soft); }
                 .pm-action-btn:hover.edit  { background:rgba(99,102,241,.08); border-color:rgba(99,102,241,.3); color:#6366f1; }
                 .pm-action-btn:hover.del   { background:rgba(239,68,68,.08); border-color:rgba(239,68,68,.3); color:#dc2626; }
 
-                /* filter chip */
                 .pm-chip { display:inline-flex; align-items:center; gap:6px; padding:7px 16px; border-radius:20px; font-family:'Inter',sans-serif; font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; cursor:pointer; border:1px solid var(--pm-border); background:var(--pm-white); color:var(--pm-soft); transition:all .18s; }
                 .pm-chip:hover { border-color:var(--pm-indigo); color:var(--pm-indigo); }
                 .pm-chip.active { background:var(--pm-indigo); color:#fff; border-color:var(--pm-indigo); }
 
-                /* add button (FAB) */
                 .pm-fab { position:fixed; bottom:28px; right:28px; z-index:800; width:52px; height:52px; border-radius:50%; background:var(--pm-indigo); color:#fff; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 16px rgba(99,102,241,.45); transition:transform .2s, box-shadow .2s; }
                 .pm-fab:hover { transform:scale(1.08); box-shadow:0 8px 28px rgba(99,102,241,.5); }
 
-                /* modal overlay */
                 .pm-modal-overlay { position:fixed; inset:0; z-index:1000; background:rgba(10,15,30,.5); backdrop-filter:blur(6px); display:flex; align-items:flex-start; justify-content:center; padding:32px 20px; overflow-y:auto; animation:pmFadeIn .22s ease; }
                 .pm-modal { background:var(--pm-bg); border-radius:16px; width:100%; max-width:960px; box-shadow:0 24px 80px rgba(0,0,0,.2); animation:pmSlideUp .3s cubic-bezier(.16,1,.3,1); overflow:hidden; }
                 .pm-modal-head { background:var(--pm-white); border-bottom:1px solid var(--pm-border); padding:24px 32px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:10; }
@@ -978,7 +996,6 @@ export default function ProductsManagement() {
                 .pm-modal-body::-webkit-scrollbar-thumb { background:var(--pm-border); border-radius:2px; }
                 .pm-modal-foot { background:var(--pm-white); border-top:1px solid var(--pm-border); padding:20px 28px; display:flex; align-items:center; justify-content:flex-end; gap:12px; position:sticky; bottom:0; z-index:10; }
 
-                /* input */
                 .pm-input { width:100%; height:40px; padding:0 12px; font-family:'Inter',sans-serif; font-size:13px; color:var(--pm-ink); background:var(--pm-muted); border:1px solid var(--pm-border); border-radius:8px; outline:none; transition:all .18s; }
                 .pm-input:focus { background:#fff; border-color:var(--pm-indigo); box-shadow:0 0 0 3px rgba(99,102,241,.12); }
                 .pm-input::placeholder { color:var(--pm-faint); }
@@ -987,21 +1004,17 @@ export default function ProductsManagement() {
                 .pm-select { width:100%; height:40px; padding:0 32px 0 12px; font-family:'Inter',sans-serif; font-size:13px; color:var(--pm-ink); background:var(--pm-muted) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2394a3b8' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 12px center; border:1px solid var(--pm-border); border-radius:8px; outline:none; appearance:none; cursor:pointer; transition:all .18s; }
                 .pm-select:focus { background-color:#fff; border-color:var(--pm-indigo); box-shadow:0 0 0 3px rgba(99,102,241,.12); }
 
-                /* upload zone */
                 .pm-upload-zone { border:2px dashed var(--pm-border); border-radius:10px; padding:28px; text-align:center; cursor:pointer; transition:all .22s; background:var(--pm-muted); }
                 .pm-upload-zone:hover, .pm-upload-zone.drag-over { border-color:var(--pm-indigo); background:rgba(99,102,241,.04); }
 
-                /* image thumb */
                 .pm-img-thumb { position:relative; border:1px solid var(--pm-border); border-radius:8px; overflow:hidden; background:#f7f6f3; width:100px; height:100px; flex-shrink:0; }
                 .pm-img-thumb img { width:100%; height:100%; object-fit:contain; padding:8px; }
                 .pm-img-thumb-actions { position:absolute; inset:0; background:rgba(10,15,30,.5); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; opacity:0; transition:opacity .2s; }
                 .pm-img-thumb:hover .pm-img-thumb-actions { opacity:1; }
                 .pm-img-thumb.primary-img { border-color:var(--pm-indigo); box-shadow:0 0 0 2px rgba(99,102,241,.35); }
 
-                /* color card */
                 .pm-color-card { background:var(--pm-muted); border:1px solid var(--pm-border); border-radius:10px; padding:16px; position:relative; }
 
-                /* btn styles */
                 .pm-btn { display:inline-flex; align-items:center; justify-content:center; gap:7px; padding:0 18px; height:38px; font-family:'Inter',sans-serif; font-size:12px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; border-radius:8px; cursor:pointer; transition:all .2s; border:none; }
                 .pm-btn-primary { background:var(--pm-indigo); color:#fff; box-shadow:0 2px 8px rgba(99,102,241,.35); }
                 .pm-btn-primary:hover:not(:disabled) { background:#4f46e5; box-shadow:0 4px 16px rgba(99,102,241,.45); }
@@ -1012,10 +1025,8 @@ export default function ProductsManagement() {
                 .pm-btn-outline:hover { background:rgba(99,102,241,.06); border-color:var(--pm-indigo); }
                 .pm-btn-sm { height:30px; padding:0 12px; font-size:10px; border-radius:6px; }
 
-                /* empty / mono */
                 .pm-mono { font-family:'JetBrains Mono',monospace; }
 
-                /* grid */
                 .pm-product-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
 
                 @media (max-width:900px)  { .pm-product-grid { grid-template-columns:1fr; } }
@@ -2179,6 +2190,35 @@ export default function ProductsManagement() {
                       <FaPlus size={9} /> Add Size
                     </button>
                   </div>
+                </FormSection>
+              )}
+
+              {/* ── Size Guide Description ── */}
+              {selectedCategoryId && (
+                <FormSection icon={FaRuler} title="Size Guide Description">
+                  <Field
+                    label="Size Guide / Fit Notes"
+                    hint="Shown to customers below the size selector on the product page. Describe how sizes fit, measurement tips, or a full size chart in plain text."
+                  >
+                    <textarea
+                      className="pm-textarea"
+                      style={{ minHeight: 130 }}
+                      placeholder={
+                        categoryType === "pants"
+                          ? "e.g. Waist measured at the natural waistline. For a relaxed fit, go up one size.\n\nS  = W28–30\"\nM  = W30–32\"\nL  = W32–34\"\nXL = W34–36\""
+                          : categoryType === "footwear"
+                            ? "e.g. True to size. If between sizes, size up.\n\nEU 39 = UK 6  = US 7\nEU 40 = UK 7  = US 8\nEU 41 = UK 8  = US 9\nEU 42 = UK 9  = US 10"
+                            : "e.g. Measured flat across the chest. For a relaxed fit, size up one.\n\nXS = 34–36\"\nS  = 36–38\"\nM  = 38–40\"\nL  = 40–42\"\nXL = 42–44\""
+                      }
+                      value={formData.sizeDescription}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          sizeDescription: e.target.value,
+                        })
+                      }
+                    />
+                  </Field>
                 </FormSection>
               )}
 
