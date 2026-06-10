@@ -291,12 +291,12 @@ export default function Footer() {
               </Link>
               <span className="ft-pipe" aria-hidden="true" />
               <Link
-                href="https://www.softixel.com/"
+                href="#"
                 className="ft-blink"
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                Developed by SOFTIXEL Solutions
+                London
               </Link>
             </div>
           </div>
