@@ -8,13 +8,11 @@ import { useAuth } from '@/context/AuthContext';
 
 export default function SignUp() {
   return (
-    <Suspense
-      fallback={
-        <div className="container py-5 text-center">
-          <div className="spinner-border text-dark" role="status"></div>
-        </div>
-      }
-    >
+    <Suspense fallback={
+      <div className="container py-5 text-center">
+        <div className="spinner-border text-dark" role="status"></div>
+      </div>
+    }>
       <SignUpContent />
     </Suspense>
   );
@@ -36,39 +34,24 @@ function SignUpContent() {
   const oauthHandledRef = useRef(false);
   const { register, fetchUser } = useAuth();
 
-  // Handle Google redirect: token (success) or error (account_exists, etc.)
   useEffect(() => {
     const token = searchParams.get('token');
     const oauthError = searchParams.get('error');
-
-    if (oauthHandledRef.current || (!token && !oauthError)) {
-      return;
-    }
-
+    if (oauthHandledRef.current || (!token && !oauthError)) return;
     oauthHandledRef.current = true;
-
     if (oauthError) {
-      if (oauthError === 'account_exists') {
-        setError('An account with that Google address already exists. Please sign in instead.');
-      } else if (oauthError === 'google') {
-        setError('Google sign-up failed. Please try again.');
-      } else {
-        setError(oauthError);
-      }
+      if (oauthError === 'account_exists') setError('An account with that Google address already exists. Please sign in instead.');
+      else if (oauthError === 'google') setError('Google sign-up failed. Please try again.');
+      else setError(oauthError);
       setGoogleLoad(false);
       setTokenProcessing(false);
       return;
     }
-
     if (token) {
       setTokenProcessing(true);
       localStorage.setItem('token', token);
-      // fetchUser() reads the token from localStorage and sets user in AuthContext,
-      // so the navbar/profile show correctly the moment we land on the home page.
       fetchUser()
-        .then(() => {
-          router.replace('/');
-        })
+        .then(() => router.replace('/'))
         .catch(err => {
           console.error('Token validation error:', err);
           localStorage.removeItem('token');
@@ -78,7 +61,6 @@ function SignUpContent() {
     }
   }, [searchParams, router, fetchUser]);
 
-  /* Password strength – 0 (empty) … 4 (strong) */
   const evaluateStrength = (pw: string): number => {
     if (!pw) return 0;
     let s = 0;
@@ -94,10 +76,7 @@ function SignUpContent() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!agreeTerms) {
-      setError('You must agree to the Terms of Service and Privacy Policy.');
-      return;
-    }
+    if (!agreeTerms) { setError('You must agree to the Terms of Service and Privacy Policy.'); return; }
     setError('');
     setLoading(true);
     try {
@@ -113,14 +92,9 @@ function SignUpContent() {
 
   const handleGoogleSignup = () => {
     const base = process.env.NEXT_PUBLIC_API_URL;
-    if (!base) {
-      setError('Google sign-up is not configured. Please contact support.');
-      return;
-    }
+    if (!base) { setError('Google sign-up is not configured. Please contact support.'); return; }
     setGoogleLoad(true);
-    // Pass intent=register so the backend callback knows this is a signup attempt
     window.location.href = `${base}/auth/google?intent=register`;
-    // Full-page navigation – required for OAuth redirects
   };
 
   if (tokenProcessing) {
@@ -141,40 +115,52 @@ function SignUpContent() {
         {/* ══ LEFT PANEL ══ */}
         <aside className="auth-panel-left">
           <div className="auth-panel-inner">
-            <div className="auth-brand-mark">AIR COLLECTION</div>
 
-            <div className="auth-panel-hero">
-              <div className="auth-panel-year">SS&apos;25</div>
-              <h2 className="auth-panel-headline">
-                The new<br />
-                <em>arrivals</em><br />
-                await.
-              </h2>
+            {/* Logo */}
+            <div className="auth-logo-wrap">
+              <img src="/images/about/story-image.jpg" alt="Air Collection" className="auth-logo-img" />
             </div>
 
-            <div className="auth-collection-grid">
-              <div
-                className="auth-col-block auth-col-block-tall"
-                style={{ background: 'linear-gradient(160deg,#1c1c1c 0%,#3a3230 100%)' }}
-              >
-                <div className="auth-col-tag">Outerwear</div>
-              </div>
-              <div className="auth-col-right">
-                <div
-                  className="auth-col-block"
-                  style={{ background: 'linear-gradient(140deg,#c8b89a 0%,#a89070 100%)' }}
-                >
-                  <div className="auth-col-tag">Knitwear</div>
+            {/* Divider */}
+            <div className="auth-panel-divider" />
+
+            {/* Label */}
+            <div className="auth-panel-label">Latest Arrivals</div>
+
+            {/* 3 Product Cards */}
+            <div className="auth-products">
+              <div className="auth-product-card" style={{ animationDelay: '0s' }}>
+                <div className="auth-product-img" style={{ background: 'linear-gradient(135deg,#2a2520 0%,#4a3f35 100%)' }}>
+                  <div className="auth-product-img-shine" />
                 </div>
-                <div
-                  className="auth-col-block"
-                  style={{ background: 'linear-gradient(140deg,#2c2c2c 0%,#505050 100%)' }}
-                >
-                  <div className="auth-col-tag">Essentials</div>
+                <div className="auth-product-info">
+                  <div className="auth-product-name">Linen Overshirt</div>
+                  <div className="auth-product-price">$240</div>
+                </div>
+              </div>
+
+              <div className="auth-product-card" style={{ animationDelay: '2s' }}>
+                <div className="auth-product-img" style={{ background: 'linear-gradient(135deg,#1a1a1a 0%,#3a3a3a 100%)' }}>
+                  <div className="auth-product-img-shine" />
+                </div>
+                <div className="auth-product-info">
+                  <div className="auth-product-name">Shadow Trench</div>
+                  <div className="auth-product-price">$680</div>
+                </div>
+              </div>
+
+              <div className="auth-product-card" style={{ animationDelay: '4s' }}>
+                <div className="auth-product-img" style={{ background: 'linear-gradient(135deg,#c8b89a 0%,#8a7560 100%)' }}>
+                  <div className="auth-product-img-shine" />
+                </div>
+                <div className="auth-product-info">
+                  <div className="auth-product-name">Silk Slip Dress</div>
+                  <div className="auth-product-price">$395</div>
                 </div>
               </div>
             </div>
 
+            {/* Bottom stats */}
             <div className="auth-stats">
               <div className="auth-stat">
                 <div className="auth-stat-val">2,400+</div>
@@ -183,14 +169,15 @@ function SignUpContent() {
               <div className="auth-stat-divider" />
               <div className="auth-stat">
                 <div className="auth-stat-val">340+</div>
-                <div className="auth-stat-label">Curated pieces</div>
+                <div className="auth-stat-label">Pieces</div>
               </div>
               <div className="auth-stat-divider" />
               <div className="auth-stat">
                 <div className="auth-stat-val">4.9★</div>
-                <div className="auth-stat-label">Avg. rating</div>
+                <div className="auth-stat-label">Rating</div>
               </div>
             </div>
+
           </div>
         </aside>
 
@@ -199,7 +186,6 @@ function SignUpContent() {
           <div className="auth-form-wrap">
 
             <div className="auth-mobile-brand">AIR COLLECTION</div>
-
             <div className="auth-eyebrow">New member</div>
             <h1 className="auth-heading">Create account</h1>
             <p className="auth-sub">Join the collection. Free to join, exclusive by nature.</p>
@@ -213,32 +199,21 @@ function SignUpContent() {
                 </svg>
                 <span>
                   {error}
-                  {/* Deep-link to sign-in when the account already exists */}
                   {error.includes('already exists') && (
-                    <>
-                      {' '}
-                      <Link href="/auth/signin" className="auth-error-link">
-                        Sign in instead →
-                      </Link>
-                    </>
+                    <> <Link href="/auth/signin" className="auth-error-link">Sign in instead →</Link></>
                   )}
                 </span>
               </div>
             )}
 
             <button
-              type="button"
-              className="auth-google-btn"
+              type="button" className="auth-google-btn"
               onClick={handleGoogleSignup}
               disabled={googleLoad || loading}
-              aria-busy={googleLoad}
-              aria-label="Continue with Google"
+              aria-busy={googleLoad} aria-label="Continue with Google"
             >
               {googleLoad ? (
-                <>
-                  <span className="auth-spinner" aria-hidden="true" />
-                  Redirecting to Google…
-                </>
+                <><span className="auth-spinner" aria-hidden="true" />Redirecting to Google…</>
               ) : (
                 <>
                   <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -255,89 +230,46 @@ function SignUpContent() {
             <div className="auth-divider"><span>or register with email</span></div>
 
             <form onSubmit={handleSubmit} noValidate>
-
               <div className="auth-field">
                 <label className="auth-label" htmlFor="su-name">Full name</label>
-                <input
-                  id="su-name"
-                  type="text"
-                  className="auth-input"
-                  placeholder="Evelyn Thorne"
-                  value={name}
+                <input id="su-name" type="text" className="auth-input"
+                  placeholder="Evelyn Thorne" value={name}
                   onChange={e => setName(e.target.value)}
-                  required
-                  autoComplete="name"
-                  disabled={loading || googleLoad}
-                />
+                  required autoComplete="name" disabled={loading || googleLoad} />
               </div>
 
               <div className="auth-field">
                 <label className="auth-label" htmlFor="su-email">Email address</label>
-                <input
-                  id="su-email"
-                  type="email"
-                  className="auth-input"
-                  placeholder="evelyn@example.com"
-                  value={email}
+                <input id="su-email" type="email" className="auth-input"
+                  placeholder="evelyn@example.com" value={email}
                   onChange={e => setEmail(e.target.value)}
-                  required
-                  autoComplete="email"
-                  disabled={loading || googleLoad}
-                />
+                  required autoComplete="email" disabled={loading || googleLoad} />
               </div>
 
               <div className="auth-field">
                 <label className="auth-label" htmlFor="su-password">Password</label>
                 <div className="auth-pw-wrap">
-                  <input
-                    id="su-password"
-                    type={showPw ? 'text' : 'password'}
+                  <input id="su-password" type={showPw ? 'text' : 'password'}
                     className="auth-input auth-input-pw"
-                    placeholder="Create a strong password"
-                    value={password}
-                    onChange={e => {
-                      setPassword(e.target.value);
-                      setPwStrength(evaluateStrength(e.target.value));
-                    }}
-                    required
-                    autoComplete="new-password"
-                    disabled={loading || googleLoad}
-                  />
-                  <button
-                    type="button"
-                    className="auth-pw-toggle"
-                    onClick={() => setShowPw(v => !v)}
-                    tabIndex={-1}
-                    aria-label={showPw ? 'Hide password' : 'Show password'}
-                  >
+                    placeholder="Create a strong password" value={password}
+                    onChange={e => { setPassword(e.target.value); setPwStrength(evaluateStrength(e.target.value)); }}
+                    required autoComplete="new-password" disabled={loading || googleLoad} />
+                  <button type="button" className="auth-pw-toggle"
+                    onClick={() => setShowPw(v => !v)} tabIndex={-1}
+                    aria-label={showPw ? 'Hide password' : 'Show password'}>
                     {showPw ? <FaEyeSlash size={15} /> : <FaEye size={15} />}
                   </button>
                 </div>
-
                 {password.length > 0 && (
                   <div className="auth-strength" aria-live="polite">
-                    <div
-                      className="auth-strength-bars"
-                      role="progressbar"
-                      aria-valuenow={pwStrength}
-                      aria-valuemin={0}
-                      aria-valuemax={4}
-                    >
+                    <div className="auth-strength-bars"
+                      role="progressbar" aria-valuenow={pwStrength} aria-valuemin={0} aria-valuemax={4}>
                       {[1, 2, 3, 4].map(i => (
-                        <div
-                          key={i}
-                          className="auth-strength-bar"
-                          style={{
-                            background: i <= pwStrength ? STRENGTH_COLOR[pwStrength] : '#e4e2de',
-                            transition: 'background 0.25s',
-                          }}
-                        />
+                        <div key={i} className="auth-strength-bar"
+                          style={{ background: i <= pwStrength ? STRENGTH_COLOR[pwStrength] : '#e4e2de', transition: 'background 0.25s' }} />
                       ))}
                     </div>
-                    <span
-                      className="auth-strength-label"
-                      style={{ color: STRENGTH_COLOR[pwStrength] }}
-                    >
+                    <span className="auth-strength-label" style={{ color: STRENGTH_COLOR[pwStrength] }}>
                       {STRENGTH_LABEL[pwStrength]}
                     </span>
                   </div>
@@ -346,13 +278,8 @@ function SignUpContent() {
 
               <div className="auth-terms-field">
                 <label className="auth-check-label" htmlFor="su-terms">
-                  <input
-                    id="su-terms"
-                    type="checkbox"
-                    className="auth-check-input"
-                    checked={agreeTerms}
-                    onChange={e => setAgreeTerms(e.target.checked)}
-                  />
+                  <input id="su-terms" type="checkbox" className="auth-check-input"
+                    checked={agreeTerms} onChange={e => setAgreeTerms(e.target.checked)} />
                   <span className="auth-check-box" aria-hidden="true" />
                   <span className="auth-check-text">
                     I agree to the{' '}
@@ -363,20 +290,11 @@ function SignUpContent() {
                 </label>
               </div>
 
-              <button
-                type="submit"
-                className="auth-submit-btn"
-                disabled={loading || googleLoad}
-                aria-busy={loading}
-              >
-                {loading ? (
-                  <>
-                    <span className="auth-spinner auth-spinner-white" aria-hidden="true" />
-                    Creating account…
-                  </>
-                ) : (
-                  'Create Account'
-                )}
+              <button type="submit" className="auth-submit-btn"
+                disabled={loading || googleLoad} aria-busy={loading}>
+                {loading
+                  ? <><span className="auth-spinner auth-spinner-white" aria-hidden="true" />Creating account…</>
+                  : 'Create Account'}
               </button>
             </form>
 
@@ -413,6 +331,7 @@ const STYLES = `
     background: #faf9f7;
   }
 
+  /* ── Left panel ── */
   .auth-panel-left {
     flex: 0 0 46%;
     background: #0a0a0a;
@@ -421,94 +340,155 @@ const STYLES = `
     display: flex;
     align-items: stretch;
   }
+
   .auth-panel-left::before {
     content: '';
-    position: absolute; inset: 0;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
-    pointer-events: none; z-index: 1;
+    position: absolute;
+    width: 560px; height: 560px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(200,169,110,0.13) 0%, transparent 65%);
+    top: -160px; right: -160px;
+    pointer-events: none;
+    z-index: 1;
   }
+
   .auth-panel-left::after {
     content: '';
     position: absolute;
-    width: 400px; height: 400px; border-radius: 50%;
-    background: radial-gradient(circle, rgba(180,154,100,0.12) 0%, transparent 70%);
-    bottom: -80px; left: -80px;
-    pointer-events: none; z-index: 1;
+    width: 400px; height: 400px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(200,169,110,0.08) 0%, transparent 70%);
+    bottom: -100px; left: -100px;
+    pointer-events: none;
+    z-index: 1;
   }
 
   .auth-panel-inner {
     display: flex;
     flex-direction: column;
-    padding: 48px 52px;
+    align-items: center;
+    padding: 52px 44px 48px;
     width: 100%;
     position: relative;
     z-index: 2;
   }
 
-  .auth-brand-mark {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 0.7rem;
-    font-weight: 600;
-    letter-spacing: 0.38em;
-    color: rgba(255,255,255,0.3);
-    text-transform: uppercase;
-    margin-bottom: 52px;
-  }
-
-  .auth-panel-hero { margin-bottom: 44px; }
-  .auth-panel-year {
-    font-size: 0.7rem;
-    letter-spacing: 0.2em;
-    color: #b49a7a;
-    font-weight: 500;
-    margin-bottom: 12px;
-  }
-  .auth-panel-headline {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: clamp(2.6rem, 3.8vw, 3.8rem);
-    font-weight: 400;
-    line-height: 1.1;
-    color: #f5f0eb;
-    letter-spacing: -0.02em;
-  }
-  .auth-panel-headline em { font-style: italic; color: #b49a7a; }
-
-  .auth-collection-grid {
+  /* ── Logo ── */
+  .auth-logo-wrap {
+    width: 100%;
     display: flex;
-    gap: 10px;
-    margin-bottom: 44px;
-    height: 200px;
-    flex: 1;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 36px;
   }
-  .auth-col-block-tall { flex: 1.2; }
-  .auth-col-right {
-    flex: 1;
+
+  .auth-logo-img {
+    width: 180px;
+    height: auto;
+    display: block;
+    filter: drop-shadow(0 0 32px rgba(200,169,110,0.25));
+    transition: filter 0.4s ease, transform 0.4s ease;
+  }
+
+  .auth-logo-img:hover {
+    filter: drop-shadow(0 0 48px rgba(200,169,110,0.4));
+    transform: scale(1.03);
+  }
+
+  /* ── Divider ── */
+  .auth-panel-divider {
+    width: 100%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(200,169,110,0.35), transparent);
+    margin-bottom: 32px;
+  }
+
+  /* ── Label ── */
+  .auth-panel-label {
+    font-family: 'Jost', sans-serif;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: rgba(200,169,110,0.6);
+    margin-bottom: 24px;
+    align-self: flex-start;
+  }
+
+  /* ── Product cards ── */
+  .auth-products {
+    width: 100%;
     display: flex;
     flex-direction: column;
-    gap: 10px;
-  }
-  .auth-col-block {
+    gap: 12px;
     flex: 1;
-    border-radius: 12px;
-    position: relative;
-    overflow: hidden;
-    transition: transform 0.25s;
-  }
-  .auth-col-block:hover { transform: scale(1.02); }
-  .auth-col-tag {
-    position: absolute;
-    bottom: 12px; left: 12px;
-    font-size: 0.65rem;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: rgba(255,255,255,0.5);
-    font-weight: 500;
   }
 
+  .auth-product-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 10px;
+    padding: 12px 14px;
+    animation: auth-float-card 6s ease-in-out infinite;
+    transition: background 0.25s, border-color 0.25s;
+  }
+
+  .auth-product-card:hover {
+    background: rgba(255,255,255,0.07);
+    border-color: rgba(200,169,110,0.2);
+  }
+
+  @keyframes auth-float-card {
+    0%, 100% { transform: translateY(0px); }
+    50%       { transform: translateY(-5px); }
+  }
+
+  .auth-product-img {
+    width: 52px;
+    height: 52px;
+    border-radius: 8px;
+    flex-shrink: 0;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .auth-product-img-shine {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, transparent 60%);
+  }
+
+  .auth-product-info { flex: 1; min-width: 0; }
+
+  .auth-product-name {
+    font-family: 'Jost', sans-serif;
+    font-size: 13px;
+    font-weight: 400;
+    color: rgba(255,255,255,0.82);
+    letter-spacing: 0.02em;
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .auth-product-price {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 16px;
+    font-weight: 500;
+    color: rgba(200,169,110,0.9);
+    letter-spacing: 0.02em;
+  }
+
+  /* ── Bottom stats ── */
   .auth-stats {
     display: flex;
     align-items: center;
-    margin-top: auto;
+    width: 100%;
+    margin-top: 32px;
     padding-top: 24px;
     border-top: 1px solid rgba(255,255,255,0.07);
   }
@@ -532,6 +512,7 @@ const STYLES = `
     background: rgba(255,255,255,0.10);
   }
 
+  /* ── Right form ── */
   .auth-form-side {
     flex: 1;
     display: flex;
@@ -547,6 +528,7 @@ const STYLES = `
     max-width: 420px;
     animation: auth-fade-up 0.45s ease both;
   }
+
   @keyframes auth-fade-up {
     from { opacity: 0; transform: translateY(16px); }
     to   { opacity: 1; transform: translateY(0); }
@@ -564,283 +546,128 @@ const STYLES = `
     text-transform: uppercase;
   }
 
-  .auth-eyebrow {
-    font-size: 0.72rem;
-    font-weight: 600;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: #b49a7a;
-    margin-bottom: 10px;
-  }
-  .auth-heading {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 2.8rem;
-    font-weight: 400;
-    color: #0e0e0e;
-    letter-spacing: -0.03em;
-    line-height: 1;
-    margin-bottom: 8px;
-  }
-  .auth-sub {
-    font-size: 0.88rem;
-    color: #8a8680;
-    margin-bottom: 28px;
-    font-weight: 300;
-  }
+  .auth-eyebrow { font-size: 0.72rem; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; color: #b49a7a; margin-bottom: 10px; }
+  .auth-heading { font-family: 'Cormorant Garamond', serif; font-size: 2.8rem; font-weight: 400; color: #0e0e0e; letter-spacing: -0.03em; line-height: 1; margin-bottom: 8px; }
+  .auth-sub { font-size: 0.88rem; color: #8a8680; margin-bottom: 28px; font-weight: 300; }
 
   .auth-error {
-    display: flex;
-    align-items: flex-start;
-    gap: 9px;
-    background: #fff5f5;
-    border: 1px solid #fecaca;
-    border-radius: 10px;
-    color: #b91c1c;
-    font-size: 0.82rem;
-    font-weight: 500;
-    padding: 12px 14px;
-    margin-bottom: 20px;
+    display: flex; align-items: flex-start; gap: 9px;
+    background: #fff5f5; border: 1px solid #fecaca; border-radius: 10px;
+    color: #b91c1c; font-size: 0.82rem; font-weight: 500;
+    padding: 12px 14px; margin-bottom: 20px;
     animation: auth-shake 0.35s ease;
   }
   .auth-error svg { flex-shrink: 0; margin-top: 1px; }
-  .auth-error-link {
-    color: #b91c1c;
-    font-weight: 700;
-    text-decoration: underline;
-    text-underline-offset: 2px;
-  }
+  .auth-error-link { color: #b91c1c; font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }
   @keyframes auth-shake {
-    0%,100% { transform: translateX(0); }
-    20%     { transform: translateX(-4px); }
-    40%     { transform: translateX(4px); }
-    60%     { transform: translateX(-3px); }
-    80%     { transform: translateX(3px); }
+    0%,100% { transform: translateX(0); } 20% { transform: translateX(-4px); }
+    40% { transform: translateX(4px); }   60% { transform: translateX(-3px); }
+    80% { transform: translateX(3px); }
   }
 
   .auth-google-btn {
-    width: 100%;
-    height: 50px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    background: #ffffff;
-    border: 1.5px solid #e4e2de;
-    border-radius: 12px;
-    font-size: 0.88rem;
-    font-weight: 600;
-    color: #1a1a1a;
-    cursor: pointer;
-    font-family: 'Jost', sans-serif;
-    letter-spacing: 0.01em;
+    width: 100%; height: 50px;
+    display: flex; align-items: center; justify-content: center; gap: 12px;
+    background: #ffffff; border: 1.5px solid #e4e2de; border-radius: 12px;
+    font-size: 0.88rem; font-weight: 600; color: #1a1a1a;
+    cursor: pointer; font-family: 'Jost', sans-serif; letter-spacing: 0.01em;
     transition: border-color 0.15s, box-shadow 0.15s, transform 0.12s;
   }
-  .auth-google-btn:hover:not(:disabled) {
-    border-color: #c8c5c0;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.07);
-    transform: translateY(-1px);
-  }
+  .auth-google-btn:hover:not(:disabled) { border-color: #c8c5c0; box-shadow: 0 4px 16px rgba(0,0,0,0.07); transform: translateY(-1px); }
   .auth-google-btn:active:not(:disabled) { transform: translateY(0); box-shadow: none; }
   .auth-google-btn:disabled { opacity: 0.60; cursor: not-allowed; }
 
   .auth-divider {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    margin: 20px 0;
-    color: #c5c1bc;
-    font-size: 0.74rem;
-    font-weight: 500;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
+    display: flex; align-items: center; gap: 14px; margin: 20px 0;
+    color: #c5c1bc; font-size: 0.74rem; font-weight: 500;
+    letter-spacing: 0.05em; text-transform: uppercase;
   }
-  .auth-divider::before,
-  .auth-divider::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: #e8e5e1;
-  }
+  .auth-divider::before, .auth-divider::after { content: ''; flex: 1; height: 1px; background: #e8e5e1; }
 
   .auth-field { margin-bottom: 16px; }
-  .auth-label {
-    display: block;
-    font-size: 0.72rem;
-    font-weight: 600;
-    letter-spacing: 0.10em;
-    text-transform: uppercase;
-    color: #6b6762;
-    margin-bottom: 7px;
-  }
+  .auth-label { display: block; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.10em; text-transform: uppercase; color: #6b6762; margin-bottom: 7px; }
   .auth-input {
-    width: 100%;
-    height: 50px;
-    padding: 0 16px;
-    border: 1.5px solid #e4e2de;
-    border-radius: 12px;
-    background: #ffffff;
-    color: #1a1a1a;
-    font-size: 0.9rem;
-    font-family: 'Jost', sans-serif;
-    outline: none;
+    width: 100%; height: 50px; padding: 0 16px;
+    border: 1.5px solid #e4e2de; border-radius: 12px;
+    background: #ffffff; color: #1a1a1a; font-size: 0.9rem;
+    font-family: 'Jost', sans-serif; outline: none;
     transition: border-color 0.15s, box-shadow 0.15s;
   }
-  .auth-input:focus        { border-color: #1a1a1a; box-shadow: 0 0 0 3px rgba(26,26,26,0.07); }
+  .auth-input:focus { border-color: #1a1a1a; box-shadow: 0 0 0 3px rgba(26,26,26,0.07); }
   .auth-input::placeholder { color: #c0bdb9; }
-  .auth-input:disabled     { opacity: 0.55; cursor: not-allowed; background: #f5f4f2; }
+  .auth-input:disabled { opacity: 0.55; cursor: not-allowed; background: #f5f4f2; }
 
   .auth-pw-wrap { position: relative; }
   .auth-input-pw { padding-right: 48px; }
   .auth-pw-toggle {
-    position: absolute;
-    right: 14px; top: 50%;
-    transform: translateY(-50%);
-    background: none; border: none;
-    color: #a09c98; cursor: pointer;
-    display: flex; align-items: center;
-    padding: 4px;
-    line-height: 1;
-    transition: color 0.15s;
+    position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+    background: none; border: none; color: #a09c98; cursor: pointer;
+    display: flex; align-items: center; padding: 4px; line-height: 1; transition: color 0.15s;
   }
   .auth-pw-toggle:hover { color: #1a1a1a; }
 
-  .auth-strength {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-top: 8px;
-  }
+  .auth-strength { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
   .auth-strength-bars { display: flex; gap: 4px; flex: 1; }
-  .auth-strength-bar  { height: 3px; flex: 1; border-radius: 100px; }
-  .auth-strength-label {
-    font-size: 0.72rem;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    min-width: 44px;
-    text-align: right;
-  }
+  .auth-strength-bar { height: 3px; flex: 1; border-radius: 100px; }
+  .auth-strength-label { font-size: 0.72rem; font-weight: 600; letter-spacing: 0.04em; min-width: 44px; text-align: right; }
 
   .auth-terms-field { margin-bottom: 24px; }
-  .auth-check-label {
-    display: inline-flex;
-    align-items: flex-start;
-    gap: 10px;
-    cursor: pointer;
-    user-select: none;
-  }
+  .auth-check-label { display: inline-flex; align-items: flex-start; gap: 10px; cursor: pointer; user-select: none; }
   .auth-check-input { display: none; }
   .auth-check-box {
     width: 18px; height: 18px; min-width: 18px;
-    border: 1.5px solid #d4d1cc;
-    border-radius: 5px;
-    background: #fff;
-    flex-shrink: 0;
-    display: flex; align-items: center; justify-content: center;
-    transition: background 0.15s, border-color 0.15s;
-    position: relative;
-    margin-top: 1px;
+    border: 1.5px solid #d4d1cc; border-radius: 5px; background: #fff;
+    flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s, border-color 0.15s; position: relative; margin-top: 1px;
   }
-  .auth-check-input:checked + .auth-check-box {
-    background: #0e0e0e;
-    border-color: #0e0e0e;
-  }
+  .auth-check-input:checked + .auth-check-box { background: #0e0e0e; border-color: #0e0e0e; }
   .auth-check-input:checked + .auth-check-box::after {
-    content: '';
-    width: 4px; height: 7px;
-    border-right: 2px solid #fff;
-    border-bottom: 2px solid #fff;
+    content: ''; width: 4px; height: 7px;
+    border-right: 2px solid #fff; border-bottom: 2px solid #fff;
     transform: rotate(42deg) translate(-1px,-1px);
   }
-  .auth-check-text {
-    font-size: 0.83rem;
-    color: #6b6762;
-    line-height: 1.5;
-  }
+  .auth-check-text { font-size: 0.83rem; color: #6b6762; line-height: 1.5; }
   .auth-inline-link {
-    color: #0e0e0e;
-    font-weight: 600;
-    text-decoration: underline;
-    text-underline-offset: 2px;
-    text-decoration-color: rgba(14,14,14,0.3);
+    color: #0e0e0e; font-weight: 600; text-decoration: underline;
+    text-underline-offset: 2px; text-decoration-color: rgba(14,14,14,0.3);
     transition: text-decoration-color 0.15s;
   }
   .auth-inline-link:hover { text-decoration-color: #0e0e0e; }
 
   .auth-submit-btn {
-    width: 100%;
-    height: 52px;
-    background: #0e0e0e;
-    color: #fff;
-    border: none;
-    border-radius: 12px;
-    font-size: 0.88rem;
-    font-weight: 600;
-    letter-spacing: 0.05em;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    font-family: 'Jost', sans-serif;
-    transition: background 0.2s, transform 0.12s, box-shadow 0.2s;
-    box-shadow: 0 4px 20px rgba(14,14,14,0.20);
-    margin-bottom: 20px;
+    width: 100%; height: 52px; background: #0e0e0e; color: #fff; border: none;
+    border-radius: 12px; font-size: 0.88rem; font-weight: 600; letter-spacing: 0.05em;
+    cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+    font-family: 'Jost', sans-serif; transition: background 0.2s, transform 0.12s, box-shadow 0.2s;
+    box-shadow: 0 4px 20px rgba(14,14,14,0.20); margin-bottom: 20px;
   }
-  .auth-submit-btn:hover:not(:disabled) {
-    background: #2a2a2a;
-    transform: translateY(-1px);
-    box-shadow: 0 8px 28px rgba(14,14,14,0.25);
-  }
+  .auth-submit-btn:hover:not(:disabled) { background: #2a2a2a; transform: translateY(-1px); box-shadow: 0 8px 28px rgba(14,14,14,0.25); }
   .auth-submit-btn:active:not(:disabled) { transform: translateY(0); box-shadow: none; }
   .auth-submit-btn:disabled { opacity: 0.55; cursor: not-allowed; }
 
   .auth-spinner {
-    display: inline-block;
-    width: 16px; height: 16px;
-    border: 2px solid rgba(0,0,0,0.15);
-    border-top-color: #1a1a1a;
-    border-radius: 50%;
-    animation: auth-spin 0.7s linear infinite;
-    flex-shrink: 0;
+    display: inline-block; width: 16px; height: 16px;
+    border: 2px solid rgba(0,0,0,0.15); border-top-color: #1a1a1a;
+    border-radius: 50%; animation: auth-spin 0.7s linear infinite; flex-shrink: 0;
   }
-  .auth-spinner-white {
-    border-color: rgba(255,255,255,0.25);
-    border-top-color: #ffffff;
-  }
+  .auth-spinner-white { border-color: rgba(255,255,255,0.25); border-top-color: #ffffff; }
   @keyframes auth-spin { to { transform: rotate(360deg); } }
 
-  .auth-switch {
-    text-align: center;
-    font-size: 0.83rem;
-    color: #8a8680;
-    margin-bottom: 32px;
-  }
-  .auth-switch-link {
-    color: #0e0e0e;
-    font-weight: 600;
-    text-decoration: none;
-    border-bottom: 1px solid #0e0e0e;
-    padding-bottom: 1px;
-    transition: opacity 0.15s;
-  }
+  .auth-switch { text-align: center; font-size: 0.83rem; color: #8a8680; margin-bottom: 32px; }
+  .auth-switch-link { color: #0e0e0e; font-weight: 600; text-decoration: none; border-bottom: 1px solid #0e0e0e; padding-bottom: 1px; transition: opacity 0.15s; }
   .auth-switch-link:hover { opacity: 0.6; }
 
   .auth-footer {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
-    font-size: 0.72rem;
-    color: #b5b1ac;
+    display: flex; justify-content: center; align-items: center;
+    gap: 10px; flex-wrap: wrap; font-size: 0.72rem; color: #b5b1ac;
   }
   .auth-footer a { color: inherit; text-decoration: none; transition: color 0.15s; }
   .auth-footer a:hover { color: #6b6762; }
 
   @media (max-width: 900px) {
-    .auth-panel-left   { display: none; }
+    .auth-panel-left { display: none; }
     .auth-mobile-brand { display: block; }
-    .auth-form-side    { padding: 32px 20px; }
+    .auth-form-side { padding: 32px 20px; }
   }
   @media (max-width: 480px) {
     .auth-heading { font-size: 2.2rem; }

@@ -206,7 +206,7 @@ export default function Footer() {
                     <span className="ft-contact-ico">
                       <IconMail />
                     </span>
-                    support@aircollection.com
+                    zharmoabdi@gmail.com
                   </a>
                 </li>
                 <li>
@@ -214,7 +214,7 @@ export default function Footer() {
                     <span className="ft-contact-ico">
                       <IconPhone />
                     </span>
-                    +1 234 567 890
+                    +252 63 3484616
                   </a>
                 </li>
               </ul>
@@ -282,21 +282,13 @@ export default function Footer() {
               © {new Date().getFullYear()} Air Collection. All rights reserved.
             </p>
             <div className="ft-bottom-right">
-              <Link href="/privacy" className="ft-blink">
-                Privacy Policy
-              </Link>
-              <span className="ft-pipe" aria-hidden="true" />
-              <Link href="/terms" className="ft-blink">
-                Terms of Service
-              </Link>
-              <span className="ft-pipe" aria-hidden="true" />
               <Link
-                href="#"
+                href="https://github.com/zharmo"
                 className="ft-blink"
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                London
+                Developed by Sharmarke Abdi
               </Link>
             </div>
           </div>

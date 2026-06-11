@@ -20,39 +20,24 @@ function SignInContent() {
   const oauthHandledRef = useRef(false);
   const { login, fetchUser } = useAuth();
 
-  // Handle Google redirect: token (success) or error param
   useEffect(() => {
     const token = searchParams.get('token');
     const oauthError = searchParams.get('error');
-
-    if (oauthHandledRef.current || (!token && !oauthError)) {
-      return;
-    }
-
+    if (oauthHandledRef.current || (!token && !oauthError)) return;
     oauthHandledRef.current = true;
-
     if (oauthError) {
-      if (oauthError === 'google') {
-        setError('Google sign-in failed. Please try again.');
-      } else if (oauthError === 'no_account') {
-        setError("No account found with that Google address. Please sign up first.");
-      } else {
-        setError(oauthError);
-      }
+      if (oauthError === 'google') setError('Google sign-in failed. Please try again.');
+      else if (oauthError === 'no_account') setError("No account found with that Google address. Please sign up first.");
+      else setError(oauthError);
       setGoogleLoad(false);
       setTokenProcessing(false);
       return;
     }
-
     if (token) {
       setTokenProcessing(true);
       localStorage.setItem('token', token);
-      // fetchUser() reads the token from localStorage and sets user in AuthContext,
-      // so the navbar/profile show correctly the moment we land on the home page.
       fetchUser()
-        .then(() => {
-          router.replace('/');
-        })
+        .then(() => router.replace('/'))
         .catch(err => {
           console.error('Token validation error:', err);
           localStorage.removeItem('token');
@@ -84,12 +69,8 @@ function SignInContent() {
 
   const handleGoogleLogin = () => {
     const base = process.env.NEXT_PUBLIC_API_URL;
-    if (!base) {
-      setError('Google login is not configured. Please contact support.');
-      return;
-    }
+    if (!base) { setError('Google login is not configured. Please contact support.'); return; }
     setGoogleLoad(true);
-    // Pass intent=login so the backend callback knows this came from sign-in
     window.location.href = `${base}/auth/google?intent=login`;
   };
 
@@ -107,44 +88,55 @@ function SignInContent() {
       <style>{STYLES}</style>
 
       <div className="auth-root">
+
         {/* ── LEFT PANEL ── */}
         <aside className="auth-panel-left">
           <div className="auth-panel-inner">
-            <div className="auth-brand-mark">AC</div>
-            <h2 className="auth-panel-headline">
-              Every piece.<br />A statement.
-            </h2>
-            <p className="auth-panel-sub">
-              Air Collection curates fashion that moves between art and wardrobe. Rare. Intentional. Yours.
-            </p>
-            <div className="auth-cards">
-              <div className="auth-float-card auth-float-card-1">
-                <div className="auth-float-img" style={{ background: 'linear-gradient(135deg,#e8e0d8,#c9bfb5)' }} />
-                <div className="auth-float-info">
-                  <div className="auth-float-name">Linen Overshirt</div>
-                  <div className="auth-float-price">$240</div>
+
+            {/* Logo */}
+            <div className="auth-logo-wrap">
+              <img src="/images/about/story-image.jpg" alt="Air Collection" className="auth-logo-img" />
+            </div>
+
+            {/* Divider */}
+            <div className="auth-panel-divider" />
+
+            {/* Label */}
+            <div className="auth-panel-label">Latest Arrivals</div>
+
+            {/* 3 Product Cards */}
+            <div className="auth-products">
+              <div className="auth-product-card" style={{ animationDelay: '0s' }}>
+                <div className="auth-product-img" style={{ background: 'linear-gradient(135deg,#2a2520 0%,#4a3f35 100%)' }}>
+                  <div className="auth-product-img-shine" />
+                </div>
+                <div className="auth-product-info">
+                  <div className="auth-product-name">Linen Overshirt</div>
+                  <div className="auth-product-price">$240</div>
                 </div>
               </div>
-              <div className="auth-float-card auth-float-card-2">
-                <div className="auth-float-img" style={{ background: 'linear-gradient(135deg,#1a1a1a,#3a3a3a)' }} />
-                <div className="auth-float-info">
-                  <div className="auth-float-name">Shadow Trench</div>
-                  <div className="auth-float-price">$680</div>
+
+              <div className="auth-product-card" style={{ animationDelay: '2s' }}>
+                <div className="auth-product-img" style={{ background: 'linear-gradient(135deg,#1a1a1a 0%,#3a3a3a 100%)' }}>
+                  <div className="auth-product-img-shine" />
+                </div>
+                <div className="auth-product-info">
+                  <div className="auth-product-name">Shadow Trench</div>
+                  <div className="auth-product-price">$680</div>
                 </div>
               </div>
-              <div className="auth-float-card auth-float-card-3">
-                <div className="auth-float-img" style={{ background: 'linear-gradient(135deg,#d4c4b0,#a89880)' }} />
-                <div className="auth-float-info">
-                  <div className="auth-float-name">Silk Slip Dress</div>
-                  <div className="auth-float-price">$395</div>
+
+              <div className="auth-product-card" style={{ animationDelay: '4s' }}>
+                <div className="auth-product-img" style={{ background: 'linear-gradient(135deg,#c8b89a 0%,#8a7560 100%)' }}>
+                  <div className="auth-product-img-shine" />
+                </div>
+                <div className="auth-product-info">
+                  <div className="auth-product-name">Silk Slip Dress</div>
+                  <div className="auth-product-price">$395</div>
                 </div>
               </div>
             </div>
-            <div className="auth-trust-row">
-              <span className="auth-trust-item">✦ Free shipping</span>
-              <span className="auth-trust-item">✦ 30-day returns</span>
-              <span className="auth-trust-item">✦ Authenticated pieces</span>
-            </div>
+
           </div>
         </aside>
 
@@ -165,14 +157,8 @@ function SignInContent() {
                 </svg>
                 <span>
                   {error}
-                  {/* Deep-link to sign-up when no account found */}
                   {error.includes('sign up first') && (
-                    <>
-                      {' '}
-                      <Link href="/auth/signup" className="auth-error-link">
-                        Create account →
-                      </Link>
-                    </>
+                    <> <Link href="/auth/signup" className="auth-error-link">Create account →</Link></>
                   )}
                 </span>
               </div>
@@ -187,10 +173,7 @@ function SignInContent() {
               aria-label="Continue with Google"
             >
               {googleLoad ? (
-                <>
-                  <span className="auth-spinner" aria-hidden="true" />
-                  Redirecting to Google…
-                </>
+                <><span className="auth-spinner" aria-hidden="true" />Redirecting to Google…</>
               ) : (
                 <>
                   <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -210,15 +193,10 @@ function SignInContent() {
               <div className="auth-field">
                 <label className="auth-label" htmlFor="si-email">Email address</label>
                 <input
-                  id="si-email"
-                  type="email"
-                  className="auth-input"
-                  placeholder="name@example.com"
-                  value={email}
+                  id="si-email" type="email" className="auth-input"
+                  placeholder="name@example.com" value={email}
                   onChange={e => setEmail(e.target.value)}
-                  required
-                  autoComplete="email"
-                  disabled={loading || googleLoad}
+                  required autoComplete="email" disabled={loading || googleLoad}
                 />
               </div>
 
@@ -229,23 +207,15 @@ function SignInContent() {
                 </div>
                 <div className="auth-pw-wrap">
                   <input
-                    id="si-password"
-                    type={showPw ? 'text' : 'password'}
+                    id="si-password" type={showPw ? 'text' : 'password'}
                     className="auth-input auth-input-pw"
-                    placeholder="Enter your password"
-                    value={password}
+                    placeholder="Enter your password" value={password}
                     onChange={e => setPassword(e.target.value)}
-                    required
-                    autoComplete="current-password"
-                    disabled={loading || googleLoad}
+                    required autoComplete="current-password" disabled={loading || googleLoad}
                   />
-                  <button
-                    type="button"
-                    className="auth-pw-toggle"
-                    onClick={() => setShowPw(v => !v)}
-                    tabIndex={-1}
-                    aria-label={showPw ? 'Hide password' : 'Show password'}
-                  >
+                  <button type="button" className="auth-pw-toggle"
+                    onClick={() => setShowPw(v => !v)} tabIndex={-1}
+                    aria-label={showPw ? 'Hide password' : 'Show password'}>
                     {showPw ? <FaEyeSlash size={15} /> : <FaEye size={15} />}
                   </button>
                 </div>
@@ -253,24 +223,18 @@ function SignInContent() {
 
               <div className="auth-remember">
                 <label className="auth-check-label" htmlFor="si-remember">
-                  <input
-                    id="si-remember"
-                    type="checkbox"
-                    className="auth-check-input"
-                    checked={rememberMe}
-                    onChange={e => setRememberMe(e.target.checked)}
-                  />
+                  <input id="si-remember" type="checkbox" className="auth-check-input"
+                    checked={rememberMe} onChange={e => setRememberMe(e.target.checked)} />
                   <span className="auth-check-box" aria-hidden="true" />
                   <span className="auth-check-text">Remember me for 30 days</span>
                 </label>
               </div>
 
-              <button type="submit" className="auth-submit-btn" disabled={loading || googleLoad} aria-busy={loading}>
-                {loading ? (
-                  <><span className="auth-spinner auth-spinner-white" aria-hidden="true" /> Signing in…</>
-                ) : (
-                  'Sign In'
-                )}
+              <button type="submit" className="auth-submit-btn"
+                disabled={loading || googleLoad} aria-busy={loading}>
+                {loading
+                  ? <><span className="auth-spinner auth-spinner-white" aria-hidden="true" /> Signing in…</>
+                  : 'Sign In'}
               </button>
             </form>
 
@@ -318,28 +282,33 @@ const STYLES = `
   /* ── Left panel ── */
   .auth-panel-left {
     flex: 0 0 46%;
-    background: #0e0e0e;
+    background: #0a0a0a;
     position: relative;
     overflow: hidden;
     display: flex;
     align-items: stretch;
   }
+
+  /* Subtle radial gold glow top-right */
   .auth-panel-left::before {
     content: '';
     position: absolute;
-    inset: 0;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
-    opacity: 0.6;
+    width: 560px; height: 560px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(200,169,110,0.13) 0%, transparent 65%);
+    top: -160px; right: -160px;
     pointer-events: none;
     z-index: 1;
   }
+
+  /* Subtle radial gold glow bottom-left */
   .auth-panel-left::after {
     content: '';
     position: absolute;
-    width: 500px; height: 500px;
+    width: 400px; height: 400px;
     border-radius: 50%;
-    background: radial-gradient(circle, rgba(180,140,100,0.15) 0%, transparent 70%);
-    top: -100px; right: -150px;
+    background: radial-gradient(circle, rgba(200,169,110,0.08) 0%, transparent 70%);
+    bottom: -100px; left: -100px;
     pointer-events: none;
     z-index: 1;
   }
@@ -347,81 +316,127 @@ const STYLES = `
   .auth-panel-inner {
     display: flex;
     flex-direction: column;
-    padding: 48px 52px;
+    align-items: center;
+    padding: 52px 44px 48px;
     width: 100%;
     position: relative;
     z-index: 2;
     gap: 0;
   }
 
-  .auth-brand-mark {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 0.75rem;
-    font-weight: 600;
-    letter-spacing: 0.35em;
-    color: rgba(255,255,255,0.35);
-    text-transform: uppercase;
-    margin-bottom: 60px;
-  }
-
-  .auth-panel-headline {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: clamp(2.2rem, 3.5vw, 3.2rem);
-    font-weight: 400;
-    line-height: 1.15;
-    color: #f5f0eb;
-    letter-spacing: -0.02em;
-    margin-bottom: 20px;
-  }
-
-  .auth-panel-sub {
-    font-size: 0.88rem;
-    color: rgba(255,255,255,0.45);
-    line-height: 1.7;
-    max-width: 340px;
-    margin-bottom: 48px;
-    font-weight: 300;
-  }
-
-  /* Floating product cards */
-  .auth-cards {
-    position: relative;
-    height: 220px;
-    margin-bottom: 48px;
-    flex-shrink: 0;
-  }
-  .auth-float-card {
-    position: absolute;
-    background: rgba(255,255,255,0.06);
-    border: 1px solid rgba(255,255,255,0.10);
-    border-radius: 14px;
-    padding: 12px;
+  /* ── Logo ── */
+  .auth-logo-wrap {
+    width: 100%;
     display: flex;
     align-items: center;
-    gap: 12px;
-    backdrop-filter: blur(8px);
-    animation: auth-float 6s ease-in-out infinite;
+    justify-content: center;
+    margin-bottom: 36px;
   }
-  .auth-float-card-1 { top: 0; left: 0; width: 200px; animation-delay: 0s; }
-  .auth-float-card-2 { top: 70px; left: 80px; width: 215px; animation-delay: 2s; }
-  .auth-float-card-3 { top: 140px; left: 20px; width: 205px; animation-delay: 4s; }
-  @keyframes auth-float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
-  .auth-float-img { width: 40px; height: 40px; border-radius: 8px; flex-shrink: 0; }
-  .auth-float-name { font-size: 0.78rem; font-weight: 500; color: rgba(255,255,255,0.85); margin-bottom: 3px; }
-  .auth-float-price { font-size: 0.72rem; color: rgba(255,255,255,0.40); }
 
-  .auth-trust-row {
+  .auth-logo-img {
+    width: 180px;
+    height: auto;
+    display: block;
+    /* The logo has a black bg matching the panel — blends seamlessly */
+    filter: drop-shadow(0 0 32px rgba(200,169,110,0.25));
+    transition: filter 0.4s ease, transform 0.4s ease;
+  }
+
+  .auth-logo-img:hover {
+    filter: drop-shadow(0 0 48px rgba(200,169,110,0.4));
+    transform: scale(1.03);
+  }
+
+  /* ── Divider ── */
+  .auth-panel-divider {
+    width: 100%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(200,169,110,0.35), transparent);
+    margin-bottom: 32px;
+  }
+
+  /* ── Latest arrivals label ── */
+  .auth-panel-label {
+    font-family: 'Jost', sans-serif;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: rgba(200,169,110,0.6);
+    margin-bottom: 24px;
+    align-self: flex-start;
+  }
+
+  /* ── Product cards ── */
+  .auth-products {
+    width: 100%;
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    margin-top: auto;
-    padding-top: 24px;
+    gap: 12px;
+    flex: 1;
   }
-  .auth-trust-item {
-    font-size: 0.72rem;
-    color: rgba(255,255,255,0.3);
-    letter-spacing: 0.06em;
-    font-weight: 300;
+
+  .auth-product-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 10px;
+    padding: 12px 14px;
+    animation: auth-float-card 6s ease-in-out infinite;
+    transition: background 0.25s, border-color 0.25s;
+  }
+
+  .auth-product-card:hover {
+    background: rgba(255,255,255,0.07);
+    border-color: rgba(200,169,110,0.2);
+  }
+
+  @keyframes auth-float-card {
+    0%, 100% { transform: translateY(0px); }
+    50%       { transform: translateY(-5px); }
+  }
+
+  .auth-product-img {
+    width: 52px;
+    height: 52px;
+    border-radius: 8px;
+    flex-shrink: 0;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Shimmer shine overlay on product image placeholder */
+  .auth-product-img-shine {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, transparent 60%);
+  }
+
+  .auth-product-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .auth-product-name {
+    font-family: 'Jost', sans-serif;
+    font-size: 13px;
+    font-weight: 400;
+    color: rgba(255,255,255,0.82);
+    letter-spacing: 0.02em;
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .auth-product-price {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 16px;
+    font-weight: 500;
+    color: rgba(200,169,110,0.9);
+    letter-spacing: 0.02em;
   }
 
   /* ── Right form side ── */
@@ -440,7 +455,11 @@ const STYLES = `
     max-width: 420px;
     animation: auth-fade-up 0.45s ease both;
   }
-  @keyframes auth-fade-up { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+
+  @keyframes auth-fade-up {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
 
   .auth-mobile-brand {
     display: none;
@@ -454,11 +473,32 @@ const STYLES = `
     text-transform: uppercase;
   }
 
-  .auth-eyebrow { font-size: 0.72rem; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; color: #b49a7a; margin-bottom: 10px; }
-  .auth-heading { font-family: 'Cormorant Garamond', serif; font-size: 2.8rem; font-weight: 400; color: #0e0e0e; letter-spacing: -0.03em; line-height: 1; margin-bottom: 8px; }
-  .auth-sub { font-size: 0.88rem; color: #8a8680; margin-bottom: 32px; font-weight: 300; }
+  .auth-eyebrow {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #b49a7a;
+    margin-bottom: 10px;
+  }
 
-  /* Error */
+  .auth-heading {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 2.8rem;
+    font-weight: 400;
+    color: #0e0e0e;
+    letter-spacing: -0.03em;
+    line-height: 1;
+    margin-bottom: 8px;
+  }
+
+  .auth-sub {
+    font-size: 0.88rem;
+    color: #8a8680;
+    margin-bottom: 32px;
+    font-weight: 300;
+  }
+
   .auth-error {
     display: flex;
     align-items: flex-start;
@@ -479,9 +519,14 @@ const STYLES = `
     text-decoration: underline;
     text-underline-offset: 2px;
   }
-  @keyframes auth-shake { 0%,100% { transform: translateX(0); } 20% { transform: translateX(-4px); } 40% { transform: translateX(4px); } 60% { transform: translateX(-3px); } 80% { transform: translateX(3px); } }
+  @keyframes auth-shake {
+    0%,100% { transform: translateX(0); }
+    20% { transform: translateX(-4px); }
+    40% { transform: translateX(4px); }
+    60% { transform: translateX(-3px); }
+    80% { transform: translateX(3px); }
+  }
 
-  /* Google button */
   .auth-google-btn {
     width: 100%;
     height: 50px;
@@ -500,11 +545,14 @@ const STYLES = `
     letter-spacing: 0.01em;
     transition: border-color 0.15s, box-shadow 0.15s, transform 0.12s;
   }
-  .auth-google-btn:hover:not(:disabled) { border-color: #c8c5c0; box-shadow: 0 4px 16px rgba(0,0,0,0.07); transform: translateY(-1px); }
+  .auth-google-btn:hover:not(:disabled) {
+    border-color: #c8c5c0;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.07);
+    transform: translateY(-1px);
+  }
   .auth-google-btn:active:not(:disabled) { transform: translateY(0); box-shadow: none; }
   .auth-google-btn:disabled { opacity: 0.60; cursor: not-allowed; }
 
-  /* Divider */
   .auth-divider {
     display: flex;
     align-items: center;
@@ -516,9 +564,13 @@ const STYLES = `
     letter-spacing: 0.05em;
     text-transform: uppercase;
   }
-  .auth-divider::before, .auth-divider::after { content: ''; flex: 1; height: 1px; background: #e8e5e1; }
+  .auth-divider::before, .auth-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: #e8e5e1;
+  }
 
-  /* Fields */
   .auth-field { margin-bottom: 18px; }
   .auth-label {
     display: block;
@@ -569,10 +621,15 @@ const STYLES = `
   }
   .auth-pw-toggle:hover { color: #1a1a1a; }
 
-  .auth-forgot { font-size: 0.78rem; color: #b49a7a; text-decoration: none; font-weight: 500; transition: color 0.15s; }
+  .auth-forgot {
+    font-size: 0.78rem;
+    color: #b49a7a;
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.15s;
+  }
   .auth-forgot:hover { color: #8c7655; }
 
-  /* Checkbox */
   .auth-remember { margin-bottom: 24px; }
   .auth-check-label {
     display: inline-flex;
@@ -605,7 +662,6 @@ const STYLES = `
   }
   .auth-check-text { font-size: 0.83rem; color: #6b6762; }
 
-  /* Submit */
   .auth-submit-btn {
     width: 100%;
     height: 52px;
@@ -626,11 +682,14 @@ const STYLES = `
     box-shadow: 0 4px 20px rgba(14,14,14,0.20);
     margin-bottom: 20px;
   }
-  .auth-submit-btn:hover:not(:disabled) { background: #2a2a2a; transform: translateY(-1px); box-shadow: 0 8px 28px rgba(14,14,14,0.25); }
+  .auth-submit-btn:hover:not(:disabled) {
+    background: #2a2a2a;
+    transform: translateY(-1px);
+    box-shadow: 0 8px 28px rgba(14,14,14,0.25);
+  }
   .auth-submit-btn:active:not(:disabled) { transform: translateY(0); box-shadow: none; }
   .auth-submit-btn:disabled { opacity: 0.55; cursor: not-allowed; }
 
-  /* Spinner */
   .auth-spinner {
     display: inline-block;
     width: 16px; height: 16px;
@@ -646,8 +705,20 @@ const STYLES = `
   }
   @keyframes auth-spin { to { transform: rotate(360deg); } }
 
-  .auth-switch { text-align: center; font-size: 0.83rem; color: #8a8680; margin-bottom: 32px; }
-  .auth-switch-link { color: #0e0e0e; font-weight: 600; text-decoration: none; border-bottom: 1px solid #0e0e0e; padding-bottom: 1px; transition: opacity 0.15s; }
+  .auth-switch {
+    text-align: center;
+    font-size: 0.83rem;
+    color: #8a8680;
+    margin-bottom: 32px;
+  }
+  .auth-switch-link {
+    color: #0e0e0e;
+    font-weight: 600;
+    text-decoration: none;
+    border-bottom: 1px solid #0e0e0e;
+    padding-bottom: 1px;
+    transition: opacity 0.15s;
+  }
   .auth-switch-link:hover { opacity: 0.6; }
 
   .auth-footer {
@@ -662,7 +733,6 @@ const STYLES = `
   .auth-footer a { color: inherit; text-decoration: none; transition: color 0.15s; }
   .auth-footer a:hover { color: #6b6762; }
 
-  /* Responsive */
   @media (max-width: 900px) {
     .auth-panel-left { display: none; }
     .auth-mobile-brand { display: block; }

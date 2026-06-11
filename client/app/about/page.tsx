@@ -21,15 +21,15 @@ const aboutStyles = `
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
+  /* ── HERO ── */
   .about-hero {
-    min-height: auto;
     background: linear-gradient(135deg, #f5f0eb 0%, #e8dfd0 100%);
     display: flex;
     align-items: center;
     justify-content: center;
     position: relative;
     overflow: hidden;
-    padding: 72px 24px 76px;
+    padding: 80px 24px 88px;
     border-bottom: 1px solid var(--border);
   }
 
@@ -46,6 +46,7 @@ const aboutStyles = `
     position: relative;
     z-index: 1;
     max-width: 780px;
+    width: 100%;
   }
 
   .about-eyebrow {
@@ -72,7 +73,7 @@ const aboutStyles = `
 
   .about-hero-title {
     font-family: 'Cormorant Garamond', serif;
-    font-size: clamp(42px, 5vw, 72px);
+    font-size: clamp(38px, 6vw, 72px);
     font-weight: 500;
     line-height: 0.95;
     letter-spacing: -0.01em;
@@ -98,7 +99,7 @@ const aboutStyles = `
     background: var(--ink);
     color: #fff;
     border: 1.5px solid var(--ink);
-    padding: 18px 48px;
+    padding: 16px 40px;
     text-decoration: none;
     display: inline-flex;
     align-items: center;
@@ -121,7 +122,7 @@ const aboutStyles = `
     background: transparent;
     color: #fff;
     border: 1.5px solid rgba(255,255,255,0.5);
-    padding: 18px 48px;
+    padding: 16px 40px;
     text-decoration: none;
     display: inline-flex;
     align-items: center;
@@ -134,10 +135,6 @@ const aboutStyles = `
     background: #fff;
     color: var(--ink);
     border-color: #fff;
-  }
-
-  .about-section {
-    padding: 100px max(24px, calc((100vw - 1300px) / 2 + 40px));
   }
 
   .section-label {
@@ -159,11 +156,12 @@ const aboutStyles = `
     width: 28px;
     height: 1px;
     background: var(--accent);
+    flex-shrink: 0;
   }
 
   .section-title {
     font-family: 'Cormorant Garamond', serif;
-    font-size: clamp(36px, 5vw, 56px);
+    font-size: clamp(32px, 4vw, 56px);
     font-weight: 500;
     color: var(--ink);
     line-height: 1.05;
@@ -180,6 +178,7 @@ const aboutStyles = `
     margin-bottom: 18px;
   }
 
+  /* ── STORY ── */
   .story-section {
     background: var(--surface);
     padding: 100px max(24px, calc((100vw - 1300px) / 2 + 40px));
@@ -188,38 +187,111 @@ const aboutStyles = `
   .story-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 80px;
+    gap: 72px;
     align-items: center;
   }
 
-  .story-image-wrap {
-    background: var(--surface-muted);
-    aspect-ratio: 4/5;
-    overflow: hidden;
-    position: relative;
+  .story-text {
+    order: 1;
   }
 
-  .story-image-wrap img {
+  /* ── BRAND IDENTITY BLOCK ── */
+  .brand-block {
+    order: 2;
     width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+    background: #0a0a0a;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 56px 40px;
+    position: relative;
+    overflow: hidden;
   }
 
-  .story-image-wrap:hover img {
+  .brand-block::before {
+    content: '';
+    position: absolute;
+    inset: 20px;
+    border: 1px solid rgba(200,169,110,0.2);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .brand-block::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 55% 50% at 50% 48%, rgba(200,169,110,0.1) 0%, transparent 65%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .brand-block-inner {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 28px;
+    width: 100%;
+  }
+
+  .brand-logo-img {
+    width: 200px;
+    height: auto;
+    display: block;
+    transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .brand-block:hover .brand-logo-img {
     transform: scale(1.04);
   }
 
-  .story-image-placeholder {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 80px;
-    background: linear-gradient(135deg, #f0e8d8 0%, #e8dfd0 100%);
+  .brand-divider {
+    width: 48px;
+    height: 1px;
+    background: rgba(200,169,110,0.45);
   }
 
+  .brand-tagline {
+    font-family: 'Jost', sans-serif;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.35em;
+    text-transform: uppercase;
+    color: rgba(200,169,110,0.7);
+    text-align: center;
+  }
+
+  .brand-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+  }
+
+  .brand-pill {
+    font-family: 'Jost', sans-serif;
+    font-size: 9px;
+    font-weight: 500;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: rgba(200,169,110,0.55);
+    border: 1px solid rgba(200,169,110,0.2);
+    padding: 6px 16px;
+  }
+
+  .brand-est {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 13px;
+    font-weight: 400;
+    font-style: italic;
+    color: rgba(255,255,255,0.2);
+    letter-spacing: 0.12em;
+  }
+
+  /* ── VALUES ── */
   .values-section {
     background: var(--surface-muted);
     padding: 100px max(24px, calc((100vw - 1300px) / 2 + 40px));
@@ -227,7 +299,7 @@ const aboutStyles = `
 
   .values-header {
     text-align: center;
-    margin-bottom: 72px;
+    margin-bottom: 64px;
     border-bottom: 1px solid var(--border);
     padding-bottom: 40px;
   }
@@ -240,7 +312,7 @@ const aboutStyles = `
   }
 
   .value-card {
-    padding: 48px 32px 40px;
+    padding: 48px 28px 40px;
     text-align: center;
     border-right: 1px solid var(--border-strong);
     background: var(--surface);
@@ -310,6 +382,7 @@ const aboutStyles = `
     line-height: 1.7;
   }
 
+  /* ── QUOTE ── */
   .quote-section {
     background: var(--surface-warm);
     padding: 120px max(24px, calc((100vw - 1300px) / 2 + 40px));
@@ -341,7 +414,7 @@ const aboutStyles = `
 
   .quote-text {
     font-family: 'Cormorant Garamond', serif;
-    font-size: clamp(22px, 3.5vw, 34px);
+    font-size: clamp(20px, 3vw, 34px);
     font-weight: 400;
     font-style: italic;
     line-height: 1.55;
@@ -365,6 +438,7 @@ const aboutStyles = `
     color: var(--ink-soft);
   }
 
+  /* ── STATS ── */
   .stats-section {
     background: var(--surface);
     padding: 100px max(24px, calc((100vw - 1300px) / 2 + 40px));
@@ -379,7 +453,7 @@ const aboutStyles = `
   }
 
   .stat-cell {
-    padding: 56px 32px;
+    padding: 56px 24px;
     text-align: center;
     border-right: 1px solid var(--border-strong);
     border-bottom: 1px solid var(--border-strong);
@@ -388,7 +462,7 @@ const aboutStyles = `
 
   .stat-number {
     font-family: 'Cormorant Garamond', serif;
-    font-size: clamp(52px, 7vw, 80px);
+    font-size: clamp(44px, 6vw, 80px);
     font-weight: 500;
     color: var(--ink);
     line-height: 1;
@@ -415,6 +489,7 @@ const aboutStyles = `
     background: var(--accent);
   }
 
+  /* ── CTA ── */
   .cta-section {
     background: var(--ink);
     padding: 100px max(24px, calc((100vw - 1300px) / 2 + 40px));
@@ -426,7 +501,7 @@ const aboutStyles = `
 
   .cta-title {
     font-family: 'Cormorant Garamond', serif;
-    font-size: clamp(40px, 5vw, 64px);
+    font-size: clamp(36px, 4vw, 64px);
     font-weight: 500;
     color: #fff;
     line-height: 1.05;
@@ -452,31 +527,149 @@ const aboutStyles = `
     margin-bottom: 12px;
   }
 
+  /* ── TABLET (≤ 1024px) ── */
   @media (max-width: 1024px) {
-    .story-grid { grid-template-columns: 1fr; gap: 48px; }
-    .story-image-wrap { aspect-ratio: 16/9; }
-    .values-grid { grid-template-columns: 1fr 1fr; }
-    .value-card:nth-child(2) { border-right: none; }
-    .value-card:nth-child(3) { border-top: 1px solid var(--border-strong); border-right: 1px solid var(--border-strong); }
-    .value-card:nth-child(4) { border-top: 1px solid var(--border-strong); border-right: none; }
-    .stats-grid { grid-template-columns: 1fr 1fr; }
-    .cta-section { grid-template-columns: 1fr; gap: 40px; }
+    .story-section {
+      padding: 80px 40px;
+    }
+
+    .story-grid {
+      grid-template-columns: 1fr;
+      gap: 48px;
+    }
+
+    .story-text {
+      order: 1;
+    }
+
+    .story-image-wrap {
+      order: 2;
+    }
+
+    .values-grid {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .value-card:nth-child(1) { border-right: 1px solid var(--border-strong); border-bottom: 1px solid var(--border-strong); }
+    .value-card:nth-child(2) { border-right: none; border-bottom: 1px solid var(--border-strong); }
+    .value-card:nth-child(3) { border-right: 1px solid var(--border-strong); border-bottom: none; }
+    .value-card:nth-child(4) { border-right: none; border-bottom: none; }
+
+    .stats-grid {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .cta-section {
+      grid-template-columns: 1fr;
+      gap: 40px;
+      padding: 80px 40px;
+    }
   }
 
+  /* ── MOBILE (≤ 768px) ── */
   @media (max-width: 768px) {
-    .about-section, .story-section, .values-section,
-    .quote-section, .stats-section { padding: 64px 24px; }
-    .cta-section { padding: 64px 24px; }
-    .about-hero { padding: 48px 24px 56px; }
-    .values-grid { grid-template-columns: 1fr; }
-    .value-card { border-right: none !important; border-top: 1px solid var(--border-strong); }
-    .value-card:first-child { border-top: none; }
-    .stats-grid { grid-template-columns: 1fr 1fr; }
+    .about-hero {
+      padding: 56px 20px 64px;
+    }
+
+    .about-hero-title {
+      font-size: clamp(34px, 10vw, 52px);
+    }
+
+    .btn-primary-ink,
+    .btn-outline-light-ink {
+      padding: 14px 32px;
+      font-size: 11px;
+    }
+
+    .story-section,
+    .values-section,
+    .quote-section,
+    .stats-section {
+      padding: 64px 20px;
+    }
+
+    .cta-section {
+      padding: 64px 20px;
+    }
+
+    .story-grid {
+      grid-template-columns: 1fr;
+      gap: 36px;
+    }
+
+    /* brand block stays full width, no height override needed */
+
+    .story-text {
+      order: 1;
+    }
+
+    .values-grid {
+      grid-template-columns: 1fr;
+      border: 1px solid var(--border-strong);
+    }
+
+    .value-card {
+      border-right: none !important;
+      border-bottom: 1px solid var(--border-strong) !important;
+    }
+
+    .value-card:last-child {
+      border-bottom: none !important;
+    }
+
+    .quote-section {
+      padding: 80px 20px;
+    }
+
+    .quote-text {
+      font-size: clamp(18px, 5vw, 26px);
+    }
+
+    .stats-grid {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .stat-cell {
+      padding: 40px 16px;
+    }
+
+    .stat-number {
+      font-size: clamp(36px, 10vw, 56px);
+    }
+
+    .cta-section {
+      grid-template-columns: 1fr;
+      gap: 32px;
+    }
+
+    .section-title {
+      font-size: clamp(28px, 8vw, 44px);
+    }
   }
 
-  @media (max-width: 480px) {
-    .stats-grid { grid-template-columns: 1fr 1fr; }
-    .stat-cell { padding: 36px 16px; }
+  /* ── SMALL MOBILE (≤ 400px) ── */
+  @media (max-width: 400px) {
+    .about-hero {
+      padding: 48px 16px 56px;
+    }
+
+    .brand-logo-img {
+      width: 160px;
+    }
+
+    .stat-cell {
+      padding: 32px 12px;
+    }
+
+    .stat-number {
+      font-size: clamp(32px, 9vw, 48px);
+    }
+
+    .stat-label {
+      font-size: 10px;
+      letter-spacing: 0.12em;
+    }
   }
 `;
 
@@ -504,7 +697,7 @@ export default function AboutPage() {
       {/* ── STORY ── */}
       <div className="story-section">
         <div className="story-grid">
-          <div>
+          <div className="story-text">
             <div className="section-label">Our Story</div>
             <h2 className="section-title">Born from a<br />Simple Idea</h2>
             <p className="section-body">
@@ -517,18 +710,22 @@ export default function AboutPage() {
               Every garment is a testament to mindful production, ethical labor, and uncompromised comfort.
             </p>
           </div>
-          <div className="story-image-wrap">
-            <img
-              src="/images/about/story-image.jpg"
-              alt="Our atelier"
-              onError={(e) => {
-                (e.target as HTMLImageElement).style.display = 'none';
-                const placeholder = document.createElement('div');
-                placeholder.className = 'story-image-placeholder';
-                placeholder.textContent = '🪡';
-                (e.target as HTMLImageElement).parentElement!.appendChild(placeholder);
-              }}
-            />
+          <div className="brand-block">
+            <div className="brand-block-inner">
+              <img
+                src="/images/about/story-image.jpg"
+                alt="Air Collection logo"
+                className="brand-logo-img"
+              />
+              <div className="brand-divider" />
+              <p className="brand-tagline">Est. 2024 · Slow Fashion</p>
+              <div className="brand-pills">
+                <span className="brand-pill">Organic</span>
+                <span className="brand-pill">Ethical</span>
+                <span className="brand-pill">Timeless</span>
+              </div>
+              <p className="brand-est">Where Comfort Meets Conscience</p>
+            </div>
           </div>
         </div>
       </div>
@@ -541,30 +738,22 @@ export default function AboutPage() {
         </div>
         <div className="values-grid">
           <div className="value-card">
-            <div className="value-icon-wrap">
-              <FaLeaf />
-            </div>
+            <div className="value-icon-wrap"><FaLeaf /></div>
             <div className="value-title">Sustainable</div>
             <p className="value-desc">100% organic, biodegradable materials from ethical sources.</p>
           </div>
           <div className="value-card">
-            <div className="value-icon-wrap">
-              <FaFeatherAlt />
-            </div>
+            <div className="value-icon-wrap"><FaFeatherAlt /></div>
             <div className="value-title">Light as Air</div>
             <p className="value-desc">Weightless fabrics that move with you, never against you.</p>
           </div>
           <div className="value-card">
-            <div className="value-icon-wrap">
-              <FaRecycle />
-            </div>
+            <div className="value-icon-wrap"><FaRecycle /></div>
             <div className="value-title">Circular Design</div>
             <p className="value-desc">Garments made to last, repair, and eventually return to nature.</p>
           </div>
           <div className="value-card">
-            <div className="value-icon-wrap">
-              <FaHandsHelping />
-            </div>
+            <div className="value-icon-wrap"><FaHandsHelping /></div>
             <div className="value-title">Fair Craftsmanship</div>
             <p className="value-desc">Living wages and safe working conditions for all partners.</p>
           </div>

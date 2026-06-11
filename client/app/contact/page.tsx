@@ -309,8 +309,8 @@ export default function ContactPage() {
                           </div>
                           <div>
                             <div className="small text-muted">Customer Support</div>
-                            <a href="tel:+1234567890" className="text-dark text-decoration-none">+1 234 567 890</a>
-                            <div className="small text-muted">Mon – Fri, 9am – 6pm EST</div>
+                            <a href="tel:+252633484616" className="text-dark text-decoration-none">+252 63 3484616</a>
+                            <div className="small text-muted">Sat – Fri, 9am – 6pm EST</div>
                           </div>
                         </div>
                       </div>
@@ -332,12 +332,6 @@ export default function ContactPage() {
                       <div className="d-flex gap-4">
                         <a href="#" className="text-dark fs-4 social-icon" style={{ transition: 'all 0.2s' }} aria-label="Instagram">
                           <FaInstagram />
-                        </a>
-                        <a href="#" className="text-dark fs-4 social-icon" aria-label="Pinterest">
-                          <FaPinterest />
-                        </a>
-                        <a href="#" className="text-dark fs-4 social-icon" aria-label="LinkedIn">
-                          <FaLinkedin />
                         </a>
                       </div>
                       <p className="text-muted small mt-4 mb-0">We share daily inspiration, behind‑the‑scenes, and new collections.</p>

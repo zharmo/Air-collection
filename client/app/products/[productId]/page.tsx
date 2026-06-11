@@ -18,12 +18,27 @@ interface Product {
     id: number; name: string; price: number; compare_price?: number;
     description: string; sustainability?: string; rating: number; reviewCount: number;
     size_description?: string;
+    /* category fields — used for related products fetch */
+    category_id?: number;
+    category_name?: string;
     images: { id: number; image_url: string; is_primary: boolean; color?: string }[];
     colors: ColorVariant[]; sizes: SizeVariant[]; stock_quantity: number;
     deliveryBadges?: { text: string }[];
     reviews?: { id: number; author: string; rating: number; date: string; text: string }[];
     relatedProducts?: { id: number; name: string; price: number; image: string }[];
     recommendedProducts?: { id: number; name: string; price: number; image: string }[];
+}
+
+/* ── Related product shape returned from the list endpoint ── */
+interface RelatedProduct {
+    id: number;
+    name: string;
+    price: number | string;
+    compare_price?: number | string;
+    images?: { image_url: string; is_primary?: boolean }[];
+    colors?: { image_url: string }[];
+    category_id?: number;
+    category_name?: string;
 }
 
 export default function ProductDetailPage() {
@@ -44,6 +59,10 @@ export default function ProductDetailPage() {
     const [addedToCart, setAddedToCart]   = useState(false);
     const [sizeError, setSizeError]       = useState(false);
 
+    /* ── Related products state ── */
+    const [related, setRelated]           = useState<RelatedProduct[]>([]);
+    const [relatedLoading, setRelatedLoading] = useState(false);
+
     const backendUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000';
 
     const getFullImageUrl = (url: string) => {
@@ -52,6 +71,18 @@ export default function ProductDetailPage() {
         return url;
     };
 
+    /* ── Resolve the display image for a related product card ── */
+    const getRelatedCardImage = (prod: RelatedProduct): string => {
+        if (prod.colors?.length && prod.colors[0].image_url)
+            return getFullImageUrl(prod.colors[0].image_url);
+        if (prod.images?.length) {
+            const primary = prod.images.find(i => i.is_primary) || prod.images[0];
+            return getFullImageUrl(primary.image_url);
+        }
+        return '/images/placeholders/placeholder.jpg';
+    };
+
+    /* ── Fetch main product ── */
     useEffect(() => {
         const fetchProduct = async () => {
             try {
@@ -73,6 +104,55 @@ export default function ProductDetailPage() {
         };
         if (productId) fetchProduct();
     }, [productId]);
+
+    /* ── Fetch related products once the main product is loaded ──
+     *
+     * Strategy:
+     *   1. Try  GET /products?category_id=<id>&limit=9
+     *   2. Fall back to GET /products?limit=9  (no category filter)
+     *   3. Shuffle the results, exclude the current product, keep up to 4.
+     *
+     * This is fire-and-forget — any failure is silently swallowed so
+     * it never impacts the main product experience.
+     * ─────────────────────────────────────────────────────────── */
+    useEffect(() => {
+        if (!product) return;
+
+        const fetchRelated = async () => {
+            setRelatedLoading(true);
+            try {
+                let data: RelatedProduct[] = [];
+
+                if (product.category_id) {
+                    /* Preferred: filter by same category */
+                    const res = await axiosInstance.get(
+                        `/products?category_id=${product.category_id}&limit=9`
+                    );
+                    data = res.data.data || res.data || [];
+                }
+
+                /* If category filter returned nothing, fall back to all products */
+                if (data.length === 0) {
+                    const res = await axiosInstance.get('/products?limit=12');
+                    data = res.data.data || res.data || [];
+                }
+
+                /* Remove current product, shuffle, keep up to 4 */
+                const filtered = data.filter(
+                    (p: RelatedProduct) => Number(p.id) !== Number(productId)
+                );
+                const shuffled = filtered.sort(() => Math.random() - 0.5).slice(0, 4);
+                setRelated(shuffled);
+            } catch {
+                /* Silently ignore — related products are non-critical */
+                setRelated([]);
+            } finally {
+                setRelatedLoading(false);
+            }
+        };
+
+        fetchRelated();
+    }, [product, productId]);
 
     useEffect(() => {
         if (product && wishlist?.items)
@@ -400,10 +480,177 @@ export default function ProductDetailPage() {
                 .pd-accordion-body { font-family:'Jost',sans-serif; font-size:13px; font-weight:300; color:var(--ink-soft); line-height:1.75; max-height:0; overflow:hidden; transition:max-height .35s cubic-bezier(.16,1,.3,1), padding .3s; padding:0; }
                 .pd-accordion-body.open { max-height:300px; padding-bottom:18px; }
 
+                /* ══════════════════════════════════════════
+                   RELATED PRODUCTS SECTION
+                ══════════════════════════════════════════ */
+                .pd-related {
+                    margin-top: 80px;
+                    padding-top: 52px;
+                    border-top: 1px solid var(--border);
+                }
+
+                /* Section header — eyebrow + heading + rule */
+                .pd-related-header {
+                    display: flex;
+                    align-items: flex-end;
+                    justify-content: space-between;
+                    gap: 24px;
+                    margin-bottom: 40px;
+                    flex-wrap: wrap;
+                }
+                .pd-related-heading-group { display: flex; flex-direction: column; gap: 6px; }
+                .pd-related-eyebrow {
+                    font-family: 'Jost', sans-serif;
+                    font-size: 10px; font-weight: 600;
+                    letter-spacing: 0.26em; text-transform: uppercase;
+                    color: var(--accent);
+                }
+                .pd-related-title {
+                    font-family: 'Cormorant Garamond', serif;
+                    font-size: clamp(24px, 3vw, 34px);
+                    font-weight: 500; line-height: 1.05;
+                    color: var(--ink); margin: 0;
+                    letter-spacing: -0.01em;
+                }
+                .pd-related-view-all {
+                    font-family: 'Jost', sans-serif;
+                    font-size: 10px; font-weight: 600;
+                    letter-spacing: 0.22em; text-transform: uppercase;
+                    color: var(--ink); text-decoration: none;
+                    border-bottom: 1px solid var(--border-md);
+                    padding-bottom: 2px;
+                    white-space: nowrap;
+                    transition: border-color 0.2s, color 0.2s;
+                    display: flex; align-items: center; gap: 7px;
+                    margin-bottom: 4px;
+                }
+                .pd-related-view-all:hover { border-color: var(--ink); color: var(--ink); }
+
+                /* Responsive 4-column grid */
+                .pd-related-grid {
+                    display: grid;
+                    grid-template-columns: repeat(4, 1fr);
+                    gap: 20px;
+                }
+
+                /* ── Individual card ── */
+                .pd-rel-card {
+                    display: flex;
+                    flex-direction: column;
+                    text-decoration: none;
+                    color: var(--ink);
+                    /* hardware-accelerate hover transform */
+                    will-change: transform;
+                    transition: transform 0.28s cubic-bezier(.16,1,.3,1);
+                }
+                .pd-rel-card:hover { transform: translateY(-4px); }
+
+                /* Image container — square, same warm bg as main gallery */
+                .pd-rel-img-wrap {
+                    width: 100%;
+                    aspect-ratio: 3/4;
+                    background: var(--product-bg);
+                    overflow: hidden;
+                    position: relative;
+                }
+                .pd-rel-img-wrap img {
+                    width: 100%; height: 100%;
+                    object-fit: cover;
+                    transition: transform 0.52s cubic-bezier(.16,1,.3,1);
+                }
+                .pd-rel-card:hover .pd-rel-img-wrap img { transform: scale(1.06); }
+
+                /* Quick-shop overlay — fades in on hover */
+                .pd-rel-overlay {
+                    position: absolute; inset: 0;
+                    background: rgba(10,10,10,0);
+                    display: flex; align-items: flex-end;
+                    transition: background 0.28s;
+                    pointer-events: none;
+                }
+                .pd-rel-card:hover .pd-rel-overlay { background: rgba(10,10,10,0.12); }
+                .pd-rel-overlay-label {
+                    width: 100%;
+                    font-family: 'Jost', sans-serif;
+                    font-size: 10px; font-weight: 600;
+                    letter-spacing: 0.22em; text-transform: uppercase;
+                    color: #fff;
+                    background: var(--ink);
+                    padding: 12px 16px;
+                    opacity: 0;
+                    transform: translateY(6px);
+                    transition: opacity 0.26s, transform 0.26s cubic-bezier(.16,1,.3,1);
+                    text-align: center;
+                }
+                .pd-rel-card:hover .pd-rel-overlay-label {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+
+                /* Text block below image */
+                .pd-rel-info {
+                    padding: 14px 2px 0;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 5px;
+                }
+                .pd-rel-name {
+                    font-family: 'Cormorant Garamond', serif;
+                    font-size: 17px; font-weight: 500;
+                    color: var(--ink); line-height: 1.25;
+                    letter-spacing: -0.01em;
+                    /* clamp to 2 lines */
+                    display: -webkit-box;
+                    -webkit-line-clamp: 2;
+                    -webkit-box-orient: vertical;
+                    overflow: hidden;
+                }
+                .pd-rel-price-row {
+                    display: flex; align-items: baseline; gap: 8px;
+                }
+                .pd-rel-price {
+                    font-family: 'Jost', sans-serif;
+                    font-size: 13px; font-weight: 500;
+                    color: var(--ink);
+                }
+                .pd-rel-compare {
+                    font-family: 'Jost', sans-serif;
+                    font-size: 12px; font-weight: 300;
+                    color: var(--ink-faint);
+                    text-decoration: line-through;
+                }
+
+                /* Loading skeleton cards */
+                .pd-rel-skeleton {
+                    display: flex; flex-direction: column; gap: 12px;
+                }
+                .pd-rel-skel-img {
+                    width: 100%; aspect-ratio: 3/4;
+                    background: linear-gradient(90deg, var(--muted) 25%, var(--product-bg) 50%, var(--muted) 75%);
+                    background-size: 200% 100%;
+                    animation: pd-shimmer 1.4s infinite;
+                }
+                .pd-rel-skel-line {
+                    height: 14px; border-radius: 2px;
+                    background: linear-gradient(90deg, var(--muted) 25%, var(--product-bg) 50%, var(--muted) 75%);
+                    background-size: 200% 100%;
+                    animation: pd-shimmer 1.4s infinite;
+                }
+                .pd-rel-skel-line-sm { height: 11px; width: 55%; }
+                @keyframes pd-shimmer {
+                    0%   { background-position: 200% 0; }
+                    100% { background-position: -200% 0; }
+                }
+
                 @media (max-width: 1024px) {
                     .pd-grid { grid-template-columns:1fr; gap:40px; }
                     .pd-gallery { position:static; }
                     .pd-page { padding:28px 24px 80px; }
+                    .pd-related-grid { grid-template-columns: repeat(3, 1fr); gap: 16px; }
+                }
+                @media (max-width: 768px) {
+                    .pd-related-grid { grid-template-columns: repeat(2, 1fr); gap: 14px; }
+                    .pd-related { margin-top: 56px; padding-top: 40px; }
                 }
                 @media (max-width: 640px) {
                     .pd-page { padding:20px 16px 80px; }
@@ -413,6 +660,10 @@ export default function ProductDetailPage() {
                     .pd-del-item { min-width:0; align-items:center; padding:24px 20px; border-right:1px solid var(--border); border-bottom:1px solid var(--border); }
                     .pd-del-item:nth-child(2n) { border-right:none; }
                     .pd-del-item:last-child { grid-column:1 / -1; border-right:none; border-bottom:none; }
+                    /* Stack related grid to 2 cols on small screens */
+                    .pd-related-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+                    .pd-related-header { gap: 14px; }
+                    .pd-related-view-all { font-size: 9px; }
                 }
             `}</style>
 
@@ -577,14 +828,14 @@ export default function ProductDetailPage() {
                                 <FaTruck className="pd-del-icon" size={14} />
                                 <div>
                                     <div style={{ fontFamily:'Jost,sans-serif', fontSize:11, fontWeight:600, letterSpacing:'.1em', textTransform:'uppercase', color:'var(--ink)', marginBottom:2 }}>Free Shipping</div>
-                                    <div style={{ fontSize:11 }}>On orders over $80</div>
+                                    <div style={{ fontSize:11 }}>No Shipping Fee</div>
                                 </div>
                             </div>
                             <div className="pd-del-item">
                                 <FaUndo className="pd-del-icon" size={13} />
                                 <div>
                                     <div style={{ fontFamily:'Jost,sans-serif', fontSize:11, fontWeight:600, letterSpacing:'.1em', textTransform:'uppercase', color:'var(--ink)', marginBottom:2 }}>Easy Returns</div>
-                                    <div style={{ fontSize:11 }}>30-day hassle-free</div>
+                                    <div style={{ fontSize:11 }}>7-day hassle-free</div>
                                 </div>
                             </div>
                             <div className="pd-del-item">
@@ -612,12 +863,96 @@ export default function ProductDetailPage() {
                         </AccordionSection>
                     </div>
                 </div>
+
+                {/* ══════════════════════════════════════════════════
+                    RELATED PRODUCTS
+                    Only rendered when there is at least 1 result
+                    (or while loading).
+                ══════════════════════════════════════════════════ */}
+                {(relatedLoading || related.length > 0) && (
+                    <section className="pd-related" aria-label="You may also like">
+
+                        {/* Header */}
+                        <div className="pd-related-header">
+                            <div className="pd-related-heading-group">
+                                <span className="pd-related-eyebrow">
+                                    {product.category_name
+                                        ? `More from ${product.category_name}`
+                                        : 'You may also like'}
+                                </span>
+                                <h2 className="pd-related-title">Related Pieces</h2>
+                            </div>
+                            <Link href="/products" className="pd-related-view-all">
+                                View all <FaArrowRight size={9} />
+                            </Link>
+                        </div>
+
+                        {/* Grid */}
+                        <div className="pd-related-grid">
+                            {relatedLoading
+                                /* ── Skeleton placeholders while loading ── */
+                                ? [0,1,2,3].map(i => (
+                                    <div key={i} className="pd-rel-skeleton" aria-hidden="true">
+                                        <div className="pd-rel-skel-img" />
+                                        <div className="pd-rel-skel-line" style={{ width:'75%' }} />
+                                        <div className="pd-rel-skel-line pd-rel-skel-line-sm" />
+                                    </div>
+                                ))
+                                /* ── Actual cards ── */
+                                : related.map(rel => {
+                                    const cardImg    = getRelatedCardImage(rel);
+                                    const cardPrice  = Number(rel.price);
+                                    const cardCompare = rel.compare_price ? Number(rel.compare_price) : null;
+                                    return (
+                                        <Link
+                                            key={rel.id}
+                                            href={`/products/${rel.id}`}
+                                            className="pd-rel-card"
+                                            aria-label={`View ${rel.name}`}
+                                        >
+                                            <div className="pd-rel-img-wrap">
+                                                <img
+                                                    src={cardImg}
+                                                    alt={rel.name}
+                                                    loading="lazy"
+                                                    onError={e => {
+                                                        (e.target as HTMLImageElement).src =
+                                                            '/images/placeholders/placeholder.jpg';
+                                                    }}
+                                                />
+                                                {/* Hover overlay */}
+                                                <div className="pd-rel-overlay" aria-hidden="true">
+                                                    <span className="pd-rel-overlay-label">View Product</span>
+                                                </div>
+                                            </div>
+                                            <div className="pd-rel-info">
+                                                <span className="pd-rel-name">{rel.name}</span>
+                                                <div className="pd-rel-price-row">
+                                                    <span className="pd-rel-price">
+                                                        ${cardPrice.toFixed(2)}
+                                                    </span>
+                                                    {cardCompare && cardCompare > cardPrice && (
+                                                        <span className="pd-rel-compare">
+                                                            ${cardCompare.toFixed(2)}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </Link>
+                                    );
+                                })
+                            }
+                        </div>
+
+                    </section>
+                )}
+
             </div>
         </>
     );
 }
 
-/* ── Size Guide Panel ── */
+/* ── Size Guide Panel (unchanged) ── */
 function SizeGuidePanel({ description }: { description: string }) {
     const [open, setOpen] = useState(false);
     return (
@@ -628,7 +963,6 @@ function SizeGuidePanel({ description }: { description: string }) {
                 aria-expanded={open}
             >
                 <span className="pd-size-guide-label">
-                    {/* Ruler icon inline so no extra import needed */}
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M21 3H3v18h18V3z"/>
                         <path d="M9 3v18"/>
@@ -656,7 +990,7 @@ function SizeGuidePanel({ description }: { description: string }) {
     );
 }
 
-/* ── Accordion sub-component ── */
+/* ── Accordion sub-component (unchanged) ── */
 function AccordionSection({ title, children }: { title: string; children: React.ReactNode }) {
     const [open, setOpen] = useState(false);
     return (
