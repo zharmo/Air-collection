@@ -487,7 +487,7 @@ export default function HomePage() {
                     bottom: 0;
                     left: 0;
                     right: 0;
-                    padding: 10px;
+                    padding: 12px 10px;
                     background: var(--ink);
                     transform: translateY(100%);
                     transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);

@@ -712,7 +712,7 @@ export default function ProductDetailPage() {
                     letter-spacing: 0.22em; text-transform: uppercase;
                     color: #fff;
                     background: var(--ink);
-                    padding: 16px 18px;
+                    padding: 18px 10px;
                     opacity: 0;
                     transform: translateY(6px);
                     transition: opacity 0.26s, transform 0.26s cubic-bezier(.16,1,.3,1);

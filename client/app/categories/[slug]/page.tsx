@@ -1,200 +1,214 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { useParams, notFound } from 'next/navigation';
-import Link from 'next/link';
-import { FaArrowRight } from 'react-icons/fa';
-import axiosInstance from '@/utils/axiosConfig';
-import { useCart } from '@/context/CartContext';
+import { useEffect, useState } from "react";
+import { useParams, notFound } from "next/navigation";
+import Link from "next/link";
+import { FaArrowRight } from "react-icons/fa";
+import axiosInstance from "@/utils/axiosConfig";
+import { useCart } from "@/context/CartContext";
 
 interface Category {
-    id: number;
-    name: string;
-    slug: string;
-    description?: string;
+  id: number;
+  name: string;
+  slug: string;
+  description?: string;
 }
 
 interface Product {
-    id: number;
-    name: string;
-    price: number;
-    compare_price?: number;
-    images: { image_url: string; is_primary: boolean }[];
-    stock_quantity: number;
+  id: number;
+  name: string;
+  price: number;
+  compare_price?: number;
+  images: { image_url: string; is_primary: boolean }[];
+  stock_quantity: number;
 }
 
 export default function CategoryProductsPage() {
-    const params = useParams();
-    const slug = params.slug as string;
-    const { addToCart } = useCart();
+  const params = useParams();
+  const slug = params.slug as string;
+  const { addToCart } = useCart();
 
-    const [category, setCategory] = useState<Category | null>(null);
-    const [products, setProducts] = useState<Product[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+  const [category, setCategory] = useState<Category | null>(null);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000';
+  const backendUrl =
+    process.env.NEXT_PUBLIC_API_URL?.replace("/api", "") ||
+    "http://localhost:5000";
 
-    useEffect(() => {
-        const fetchCategoryAndProducts = async () => {
-            try {
-                const categoriesRes = await axiosInstance.get('/categories');
-                const categories = categoriesRes.data.data;
-                const found = categories.find((c: Category) => c.slug === slug);
-                if (!found) {
-                    setError('Category not found');
-                    setLoading(false);
-                    return;
-                }
-                setCategory(found);
-                const productsRes = await axiosInstance.get(`/products?categoryId=${found.id}`);
-                setProducts(productsRes.data.data);
-            } catch (err) {
-                console.error(err);
-                setError('Failed to load data');
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        if (slug) fetchCategoryAndProducts();
-    }, [slug]);
-
-    const getPrimaryImage = (product: Product) => {
-        const primary = product.images?.find((img) => img.is_primary);
-        const imagePath = primary?.image_url || product.images?.[0]?.image_url;
-        if (!imagePath) return '/images/placeholders/placeholder.jpg';
-        if (imagePath.startsWith('/uploads')) return `${backendUrl}${imagePath}`;
-        return imagePath;
-    };
-
-    const handleAddToCart = (product: Product) => {
-        addToCart(product.id, 1, {
-            name: product.name,
-            price: Number(product.price),
-            image: getPrimaryImage(product),
-        });
-    };
-
-    const formatPrice = (value?: number) => {
-        if (value === undefined || value === null) return '';
-        return Number(value).toFixed(2);
-    };
-
-    const getDiscount = (product: Product) => {
-        const price = Number(product.price);
-        const comparePrice = Number(product.compare_price);
-        if (!comparePrice || comparePrice <= price) return null;
-        return Math.round(((comparePrice - price) / comparePrice) * 100);
-    };
-
-    if (loading) {
-        return (
-            <>
-                <CategoryProductStyles />
-                <div className="cp-loading">
-                    <div className="spinner-border text-dark" />
-                </div>
-            </>
+  useEffect(() => {
+    const fetchCategoryAndProducts = async () => {
+      try {
+        const categoriesRes = await axiosInstance.get("/categories");
+        const categories = categoriesRes.data.data;
+        const found = categories.find((c: Category) => c.slug === slug);
+        if (!found) {
+          setError("Category not found");
+          setLoading(false);
+          return;
+        }
+        setCategory(found);
+        const productsRes = await axiosInstance.get(
+          `/products?categoryId=${found.id}`,
         );
-    }
+        setProducts(productsRes.data.data);
+      } catch (err) {
+        console.error(err);
+        setError("Failed to load data");
+      } finally {
+        setLoading(false);
+      }
+    };
 
-    if (error || !category) {
-        notFound();
-    }
+    if (slug) fetchCategoryAndProducts();
+  }, [slug]);
 
+  const getPrimaryImage = (product: Product) => {
+    const primary = product.images?.find((img) => img.is_primary);
+    const imagePath = primary?.image_url || product.images?.[0]?.image_url;
+    if (!imagePath) return "/images/placeholders/placeholder.jpg";
+    if (imagePath.startsWith("/uploads")) return `${backendUrl}${imagePath}`;
+    return imagePath;
+  };
+
+  const handleAddToCart = (product: Product) => {
+    addToCart(product.id, 1, {
+      name: product.name,
+      price: Number(product.price),
+      image: getPrimaryImage(product),
+    });
+  };
+
+  const formatPrice = (value?: number) => {
+    if (value === undefined || value === null) return "";
+    return Number(value).toFixed(2);
+  };
+
+  const getDiscount = (product: Product) => {
+    const price = Number(product.price);
+    const comparePrice = Number(product.compare_price);
+    if (!comparePrice || comparePrice <= price) return null;
+    return Math.round(((comparePrice - price) / comparePrice) * 100);
+  };
+
+  if (loading) {
     return (
-        <>
-            <CategoryProductStyles />
-            <div className="cp-page">
-                <div className="ap-header">
-                    <p className="ap-header-eyebrow">Category</p>
-                    <h1>{category.name}</h1>
-                    {category.description && <p>{category.description}</p>}
-                    <span>
-                        {products.length} {products.length === 1 ? 'item' : 'items'}
-                    </span>
-                </div>
-
-                {products.length === 0 ? (
-                    <div className="ap-empty">
-                        <div className="ap-empty-icon">...</div>
-                        <h3>No products yet</h3>
-                        <p>Check back soon for new arrivals in {category.name}.</p>
-                        <Link href="/products" className="ap-empty-btn">
-                            Continue Shopping <FaArrowRight size={10} />
-                        </Link>
-                    </div>
-                ) : (
-                    <div className="ap-grid">
-                        {products.map((product, idx) => {
-                            const discount = getDiscount(product);
-                            const outOfStock = product.stock_quantity === 0;
-
-                            return (
-                                <div
-                                    key={product.id}
-                                    className="ap-card"
-                                    style={{ animationDelay: `${idx * 0.04}s` }}
-                                >
-                                    <div className="ap-card-img">
-                                        <div className="ap-badge-wrap">
-                                            {outOfStock && (
-                                                <span className="ap-badge ap-badge-sold">Sold Out</span>
-                                            )}
-                                            {discount && !outOfStock && (
-                                                <span className="ap-badge ap-badge-sale">-{discount}%</span>
-                                            )}
-                                        </div>
-
-                                        <Link href={`/products/${product.id}`} style={{ display: 'contents' }}>
-                                            <img src={getPrimaryImage(product)} alt={product.name} />
-                                        </Link>
-
-                                        <div className="ap-card-overlay">
-                                            <button
-                                                className="ap-overlay-btn"
-                                                onClick={() => handleAddToCart(product)}
-                                                disabled={outOfStock}
-                                            >
-                                                {outOfStock ? (
-                                                    'Out of Stock'
-                                                ) : (
-                                                    <>
-                                                        Add to Cart <FaArrowRight size={9} />
-                                                    </>
-                                                )}
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    <div className="ap-card-body">
-                                        <p className="ap-card-cat">{category.name}</p>
-                                        <Link href={`/products/${product.id}`} className="ap-card-name">
-                                            {product.name}
-                                        </Link>
-                                        <div className="ap-card-price-row">
-                                            <span className="ap-card-price">${formatPrice(product.price)}</span>
-                                            {product.compare_price && (
-                                                <span className="ap-card-compare">
-                                                    ${formatPrice(product.compare_price)}
-                                                </span>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                )}
-            </div>
-        </>
+      <>
+        <CategoryProductStyles />
+        <div className="cp-loading">
+          <div className="spinner-border text-dark" />
+        </div>
+      </>
     );
+  }
+
+  if (error || !category) {
+    notFound();
+  }
+
+  return (
+    <>
+      <CategoryProductStyles />
+      <div className="cp-page">
+        <div className="ap-header">
+          <p className="ap-header-eyebrow">Category</p>
+          <h1>{category.name}</h1>
+          {category.description && <p>{category.description}</p>}
+          <span>
+            {products.length} {products.length === 1 ? "item" : "items"}
+          </span>
+        </div>
+
+        {products.length === 0 ? (
+          <div className="ap-empty">
+            <div className="ap-empty-icon">...</div>
+            <h3>No products yet</h3>
+            <p>Check back soon for new arrivals in {category.name}.</p>
+            <Link href="/products" className="ap-empty-btn">
+              Continue Shopping <FaArrowRight size={10} />
+            </Link>
+          </div>
+        ) : (
+          <div className="ap-grid">
+            {products.map((product, idx) => {
+              const discount = getDiscount(product);
+              const outOfStock = product.stock_quantity === 0;
+
+              return (
+                <div
+                  key={product.id}
+                  className="ap-card"
+                  style={{ animationDelay: `${idx * 0.04}s` }}
+                >
+                  <div className="ap-card-img">
+                    <div className="ap-badge-wrap">
+                      {outOfStock && (
+                        <span className="ap-badge ap-badge-sold">Sold Out</span>
+                      )}
+                      {discount && !outOfStock && (
+                        <span className="ap-badge ap-badge-sale">
+                          -{discount}%
+                        </span>
+                      )}
+                    </div>
+
+                    <Link
+                      href={`/products/${product.id}`}
+                      style={{ display: "contents" }}
+                    >
+                      <img src={getPrimaryImage(product)} alt={product.name} />
+                    </Link>
+
+                    <div className="ap-card-overlay">
+                      <button
+                        className="ap-overlay-btn"
+                        onClick={() => handleAddToCart(product)}
+                        disabled={outOfStock}
+                      >
+                        {outOfStock ? (
+                          "Out of Stock"
+                        ) : (
+                          <>
+                            Add to Cart <FaArrowRight size={9} />
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="ap-card-body">
+                    <p className="ap-card-cat">{category.name}</p>
+                    <Link
+                      href={`/products/${product.id}`}
+                      className="ap-card-name"
+                    >
+                      {product.name}
+                    </Link>
+                    <div className="ap-card-price-row">
+                      <span className="ap-card-price">
+                        ${formatPrice(product.price)}
+                      </span>
+                      {product.compare_price && (
+                        <span className="ap-card-compare">
+                          ${formatPrice(product.compare_price)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </>
+  );
 }
 
 function CategoryProductStyles() {
-    return (
-        <style>{`
+  return (
+    <style>{`
                 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Jost:wght@300;400;500;600&display=swap');
 
                 *, *::before, *::after { box-sizing: border-box; }
@@ -289,7 +303,7 @@ function CategoryProductStyles() {
 
                 .ap-card-img {
                     background: var(--product-bg);
-                    aspect-ratio: 1/1;
+                    aspect-ratio: 6/7;
                     display: flex;
                     align-items: center;
                     justify-content: center;
@@ -337,7 +351,7 @@ function CategoryProductStyles() {
                     left: 0;
                     right: 0;
                     background: var(--ink);
-                    padding: 14px 20px;
+                    padding: 12px 10px;
                     transform: translateY(100%);
                     transition: transform .32s cubic-bezier(.16,1,.3,1);
                     z-index: 3;
@@ -473,15 +487,14 @@ function CategoryProductStyles() {
                 @media (max-width: 768px) {
                     .cp-page { padding: 34px 16px 60px; }
                     .ap-header { padding: 8px 12px 32px; }
-                    .ap-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+                    .ap-grid { grid-template-columns: repeat(2, 1fr); gap: 18px; }
                 }
                 @media (max-width: 480px) {
-                    .ap-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
-                    .ap-card-overlay { display: none; }
+                    .ap-grid { grid-template-columns: 1fr 1fr; gap: 15px; }
                     .ap-card-body { padding-top: 12px; }
                     .ap-card-name { font-size: 13px; }
                     .ap-card-price { font-size: 18px; }
                 }
             `}</style>
-    );
+  );
 }

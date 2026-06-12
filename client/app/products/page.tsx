@@ -436,7 +436,7 @@ export default function AllProductsPage() {
                 /* hover overlay */
                 .ap-card-overlay {
                     position: absolute; bottom: 0; left: 0; right: 0;
-                    background: var(--ink); padding: 14px 10px;
+                    background: var(--ink); padding: 12px 10px;
                     transform: translateY(100%);
                     transition: transform .32s cubic-bezier(.16,1,.3,1);
                     z-index: 3;
