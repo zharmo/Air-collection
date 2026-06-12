@@ -282,14 +282,28 @@ export default function Footer() {
               © {new Date().getFullYear()} Air Collection. All rights reserved.
             </p>
             <div className="ft-bottom-right">
-              <Link
-                href="https://github.com/zharmo"
-                className="ft-blink"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Developed by Sharmarke Abdi
-              </Link>
+              <span className="ft-credit">
+                Developed by{" "}
+                <Link
+                  href="https://github.com/zharmo"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="ft-credit-link"
+                >
+                  Sharmarke Abdi
+                </Link>
+                <span className="ft-credit-separator" aria-hidden="true">
+                  &
+                </span>
+                <Link
+                  href="https://github.com/sifathossain-ai"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="ft-credit-link"
+                >
+                  Sifat Hossain
+                </Link>
+              </span>
             </div>
           </div>
         </div>
@@ -542,6 +556,52 @@ const CSS = `
 .ft-bottom-right {
   display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
 }
+.ft-credit {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 5px;
+  font-size: 0.7rem;
+  color: #8a8478;
+  font-weight: 300;
+  letter-spacing: 0.04em;
+  line-height: 1.7;
+}
+.ft-credit-link {
+  color: #b8965a;
+  text-decoration: none;
+  font-weight: 500;
+  letter-spacing: 0.055em;
+  position: relative;
+  transition: color .22s ease, text-shadow .22s ease;
+}
+.ft-credit-link::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -2px;
+  height: 1px;
+  background: currentColor;
+  opacity: 0.35;
+  transform: scaleX(0);
+  transform-origin: right;
+  transition: transform .24s ease, opacity .24s ease;
+}
+.ft-credit-link:hover {
+  color: #f5f0e8;
+  text-shadow: 0 0 16px rgba(184,150,90,0.22);
+}
+.ft-credit-link:hover::after {
+  opacity: 0.75;
+  transform: scaleX(1);
+  transform-origin: left;
+}
+.ft-credit-separator {
+  color: #514b40;
+  margin: 0 2px;
+}
 .ft-blink {
   font-size: 0.7rem; color: #8a8478; text-decoration: none;
   font-weight: 300; letter-spacing: 0.04em;
@@ -584,6 +644,7 @@ const CSS = `
     grid-template-columns: 1fr 1fr;
   }
   .ft-bottom-inner { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .ft-credit { justify-content: flex-start; }
 }
 
 @media (max-width: 520px) {
@@ -599,6 +660,11 @@ const CSS = `
   }
   .ft-brand-name { font-size: 1.6rem; }
   .ft-bottom-right { flex-direction: column; align-items: flex-start; gap: 6px; }
+  .ft-credit {
+    gap: 4px;
+    font-size: 0.68rem;
+    line-height: 1.9;
+  }
   .ft-pipe { display: none; }
 }
 `;
