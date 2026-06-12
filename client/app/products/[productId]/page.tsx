@@ -684,7 +684,7 @@ export default function ProductDetailPage() {
                 /* Image container — square, same warm bg as main gallery */
                 .pd-rel-img-wrap {
                     width: 100%;
-                    aspect-ratio: 1/1;
+                    aspect-ratio: 6/7;
                     background: var(--product-bg);
                     overflow: hidden;
                     position: relative;

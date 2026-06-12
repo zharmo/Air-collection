@@ -444,7 +444,7 @@ export default function HomePage() {
 
                 .product-card-image {
                     background: var(--product-bg);
-                    aspect-ratio: 3/4;
+                    aspect-ratio: 6/7;
                     display: flex;
                     align-items: center;
                     justify-content: center;

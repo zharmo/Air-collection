@@ -407,7 +407,7 @@ export default function AllProductsPage() {
                 /* card image */
                 .ap-card-img {
                     background: var(--product-bg);
-                    aspect-ratio: 1/1;
+                    aspect-ratio: 6/7;
                     display: flex; align-items: center; justify-content: center;
                     overflow: hidden; position: relative;
                 }
