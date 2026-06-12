@@ -7,7 +7,6 @@ import {
   FaRegStar,
   FaStarHalfAlt,
   FaArrowRight,
-  FaCheckCircle,
   FaQuoteLeft,
 } from "react-icons/fa";
 import axiosInstance from "@/utils/axiosConfig";
@@ -472,14 +471,12 @@ export default function HomePage() {
 
                 .product-card-badge {
                     position: absolute;
-                    top: 16px;
-                    left: 16px;
                     font-family: 'Jost', sans-serif;
                     font-size: 9px;
                     font-weight: 700;
-                    letter-spacing: 0.2em;
+                    letter-spacing: .08em;
                     text-transform: uppercase;
-                    padding: 6px 12px;
+                    padding: 3px 6px;
                     background: var(--ink);
                     color: #fff;
                     z-index: 2;
@@ -524,6 +521,7 @@ export default function HomePage() {
                 }
 
                 .product-card-overlay button:hover { opacity: 0.7; }
+                .product-card-overlay button:disabled { opacity: .35; cursor: not-allowed; }
 
                 .product-card-body {
                     padding: 20px 6px 8px;
@@ -712,6 +710,22 @@ export default function HomePage() {
                     font-size: 20px;
                 }
 
+                .ap-badge-wrap {
+                    position: absolute; top: 12px; left: 12px;
+                    display: flex; flex-direction: column; gap: 5px; z-index: 2;
+                }
+                
+                .ap-badge {
+                    font-family: 'Jost', sans-serif;
+                    font-size: 9px; font-weight: 700;
+                    letter-spacing: .08em; text-transform: uppercase;
+                    padding: 3px 6px; display: inline-block; width: fit-content;
+                }
+                
+                .ap-badge-sale    { background: var(--ink); color: #fff; }
+                .ap-badge-new     { background: var(--accent); color: var(--ink); }
+                .ap-badge-sold    { background: rgba(255,255,255,.9); color: rgb(220, 53, 69); border: 1px solid rgba(192,57,43,.2); }
+
                 .review-stat-grid {
                     display: grid;
                     grid-template-columns: 1fr 1fr;
@@ -873,7 +887,7 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* ── FEATURED ── */}
+      {/* ── FEATURED PIECES ── */}
       {featuredProducts.length > 0 && (
         <section className="section">
           <div className="section-header">
@@ -885,36 +899,72 @@ export default function HomePage() {
             </Link>
           </div>
           <div className="product-grid-4">
-            {featuredProducts.map((product) => (
-              <div key={product.id} className="product-card">
-                <div className="product-card-image">
-                  <Link href={`/products/${product.id}`}>
-                    <img src={getPrimaryImage(product)} alt={product.name} />
-                  </Link>
-                  <div className="product-card-overlay">
-                    <button onClick={() => handleAddToCart(product)}>
-                      Add to Cart <FaArrowRight size={10} />
-                    </button>
+            {featuredProducts.map((product) => {
+              const discount =
+                product.compare_price && product.compare_price > product.price
+                  ? Math.round(
+                      ((product.compare_price - product.price) /
+                        product.compare_price) *
+                        100,
+                    )
+                  : null;
+              const outOfStock = product.stock_quantity === 0;
+
+              return (
+                <div key={product.id} className="product-card">
+                  <div className="product-card-image">
+                    {/* Badges Layout from Products Page */}
+                    <div className="ap-badge-wrap">
+                      {outOfStock && (
+                        <span className="ap-badge ap-badge-sold">Sold Out</span>
+                      )}
+                      {discount && !outOfStock && (
+                        <span className="ap-badge ap-badge-sale">
+                          −{discount}%
+                        </span>
+                      )}
+                    </div>
+
+                    <Link href={`/products/${product.id}`}>
+                      <img src={getPrimaryImage(product)} alt={product.name} />
+                    </Link>
+
+                    <div className="product-card-overlay">
+                      <button
+                        onClick={() => handleAddToCart(product)}
+                        disabled={outOfStock}
+                      >
+                        {outOfStock ? (
+                          "Out of Stock"
+                        ) : (
+                          <>
+                            Add to Cart <FaArrowRight size={10} />
+                          </>
+                        )}
+                      </button>
+                    </div>
                   </div>
-                </div>
-                <div className="product-card-body">
-                  <Link
-                    href={`/products/${product.id}`}
-                    className="product-card-name"
-                  >
-                    {product.name}
-                  </Link>
-                  <div>
-                    <span className="product-card-price">${product.price}</span>
-                    {product.compare_price && (
-                      <span className="product-card-compare">
-                        ${product.compare_price}
+                  <div className="product-card-body">
+                    <Link
+                      href={`/products/${product.id}`}
+                      className="product-card-name"
+                    >
+                      {product.name}
+                    </Link>
+                    <div>
+                      <span className="product-card-price">
+                        ${product.price}
                       </span>
-                    )}
+                      {product.compare_price && (
+                        <span className="product-card-compare">
+                          ${product.compare_price}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </section>
       )}
@@ -967,29 +1017,71 @@ export default function HomePage() {
             </Link>
           </div>
           <div className="product-grid-4">
-            {bestSellers.map((product) => (
-              <div key={product.id} className="product-card">
-                <div className="product-card-image">
-                  <Link href={`/products/${product.id}`}>
-                    <img src={getPrimaryImage(product)} alt={product.name} />
-                  </Link>
-                  <div className="product-card-overlay">
-                    <button onClick={() => handleAddToCart(product)}>
-                      Add to Cart <FaArrowRight size={10} />
-                    </button>
+            {bestSellers.map((product) => {
+              const discount =
+                product.compare_price && product.compare_price > product.price
+                  ? Math.round(
+                      ((product.compare_price - product.price) /
+                        product.compare_price) *
+                        100,
+                    )
+                  : null;
+              const outOfStock = product.stock_quantity === 0;
+
+              return (
+                <div key={product.id} className="product-card">
+                  <div className="product-card-image">
+                    <div className="ap-badge-wrap">
+                      {outOfStock && (
+                        <span className="ap-badge ap-badge-sold">Sold Out</span>
+                      )}
+                      {discount && !outOfStock && (
+                        <span className="ap-badge ap-badge-sale">
+                          −{discount}%
+                        </span>
+                      )}
+                    </div>
+
+                    <Link href={`/products/${product.id}`}>
+                      <img src={getPrimaryImage(product)} alt={product.name} />
+                    </Link>
+
+                    <div className="product-card-overlay">
+                      <button
+                        onClick={() => handleAddToCart(product)}
+                        disabled={outOfStock}
+                      >
+                        {outOfStock ? (
+                          "Out of Stock"
+                        ) : (
+                          <>
+                            Add to Cart <FaArrowRight size={10} />
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="product-card-body">
+                    <Link
+                      href={`/products/${product.id}`}
+                      className="product-card-name"
+                    >
+                      {product.name}
+                    </Link>
+                    <div>
+                      <span className="product-card-price">
+                        ${product.price}
+                      </span>
+                      {product.compare_price && (
+                        <span className="product-card-compare">
+                          ${product.compare_price}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
-                <div className="product-card-body">
-                  <Link
-                    href={`/products/${product.id}`}
-                    className="product-card-name"
-                  >
-                    {product.name}
-                  </Link>
-                  <span className="product-card-price">${product.price}</span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </section>
       )}
@@ -1009,37 +1101,76 @@ export default function HomePage() {
             </Link>
           </div>
           <div className="product-grid-4">
-            {newArrivals.map((product) => (
-              <div key={product.id} className="product-card">
-                <div className="product-card-image">
-                  <div className="product-card-badge new">New</div>
-                  <Link href={`/products/${product.id}`}>
-                    <img src={getPrimaryImage(product)} alt={product.name} />
-                  </Link>
-                  <div className="product-card-overlay">
-                    <button onClick={() => handleAddToCart(product)}>
-                      Add to Cart <FaArrowRight size={10} />
-                    </button>
+            {newArrivals.map((product, idx) => {
+              const discount =
+                product.compare_price && product.compare_price > product.price
+                  ? Math.round(
+                      ((product.compare_price - product.price) /
+                        product.compare_price) *
+                        100,
+                    )
+                  : null;
+              const outOfStock = product.stock_quantity === 0;
+              const isNew = idx < 4; // Tracks "New" designation rule from products page
+
+              return (
+                <div key={product.id} className="product-card">
+                  <div className="product-card-image">
+                    <div className="ap-badge-wrap">
+                      {outOfStock && (
+                        <span className="ap-badge ap-badge-sold">Sold Out</span>
+                      )}
+                      {/* Priority layer: Shows "New" if not Sold out, otherwise falls back to discount percentage */}
+                      {isNew && !outOfStock && (
+                        <div className="product-card-badge new">New</div>
+                      )}
+                      {discount && !outOfStock && !isNew && (
+                        <span className="ap-badge ap-badge-sale">
+                          −{discount}%
+                        </span>
+                      )}
+                    </div>
+
+                    <Link href={`/products/${product.id}`}>
+                      <img src={getPrimaryImage(product)} alt={product.name} />
+                    </Link>
+
+                    <div className="product-card-overlay">
+                      <button
+                        onClick={() => handleAddToCart(product)}
+                        disabled={outOfStock}
+                      >
+                        {outOfStock ? (
+                          "Out of Stock"
+                        ) : (
+                          <>
+                            Add to Cart <FaArrowRight size={10} />
+                          </>
+                        )}
+                      </button>
+                    </div>
                   </div>
-                </div>
-                <div className="product-card-body">
-                  <Link
-                    href={`/products/${product.id}`}
-                    className="product-card-name"
-                  >
-                    {product.name}
-                  </Link>
-                  <div>
-                    <span className="product-card-price">${product.price}</span>
-                    {product.compare_price && (
-                      <span className="product-card-compare">
-                        ${product.compare_price}
+                  <div className="product-card-body">
+                    <Link
+                      href={`/products/${product.id}`}
+                      className="product-card-name"
+                    >
+                      {product.name}
+                    </Link>
+                    <div>
+                      <span className="product-card-price">
+                        ${product.price}
                       </span>
-                    )}
+                      {product.compare_price && (
+                        <span className="product-card-compare">
+                          ${product.compare_price}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </section>
       )}

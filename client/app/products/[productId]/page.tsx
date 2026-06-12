@@ -229,6 +229,35 @@ export default function ProductDetailPage() {
     );
   };
 
+  const getCurrentStock = () => {
+    if (!product) return 0;
+
+    const productStock = Number(product.stock_quantity) || 0;
+    if (productStock <= 0) return 0;
+
+    const sizeOptions = filteredSizes();
+    if (sizeOptions.length === 0) return productStock;
+    if (selectedSize) return Math.min(productStock, Number(selectedSize.stock) || 0);
+
+    const maxSizeStock = Math.max(
+      0,
+      ...sizeOptions
+        .filter((size) => size.is_available && Number(size.stock) > 0)
+        .map((size) => Number(size.stock) || 0),
+    );
+
+    return Math.min(productStock, maxSizeStock);
+  };
+
+  useEffect(() => {
+    if (!product) return;
+
+    const currentStock = getCurrentStock();
+    setQuantity((current) =>
+      currentStock > 0 ? Math.min(current, currentStock) : 1,
+    );
+  }, [product, selectedColor, selectedSize]);
+
   const allThumbs = () => {
     if (!product) return [];
     const imgs: string[] = [];
@@ -251,7 +280,8 @@ export default function ProductDetailPage() {
     const needsSize = sizeOptions.length > 0;
     const sizeUnavailable =
       needsSize && (!selectedSize?.is_available || selectedSize.stock === 0);
-    const productUnavailable = !needsSize && product!.stock_quantity === 0;
+    const currentStock = getCurrentStock();
+    const productUnavailable = currentStock <= 0 || quantity > currentStock;
 
     if (needsSize && !selectedSize) {
       setSizeError(true);
@@ -397,17 +427,21 @@ export default function ProductDetailPage() {
 
   const availableSizes = filteredSizes();
   const hasSizeOptions = availableSizes.length > 0;
+  const productStock = Number(product.stock_quantity) || 0;
+  const hasAvailableSize = availableSizes.some(
+    (size) => size.is_available && Number(size.stock) > 0,
+  );
+  const currentStock = getCurrentStock();
   const selectedSizeUnavailable =
     hasSizeOptions &&
     !!selectedSize &&
     (!selectedSize.is_available || selectedSize.stock === 0);
-  const isOutOfStock = hasSizeOptions
-    ? selectedSizeUnavailable
-    : product.stock_quantity === 0;
+  const isOutOfStock =
+    productStock <= 0 ||
+    (hasSizeOptions ? !hasAvailableSize || selectedSizeUnavailable : false);
   const isActionDisabled =
     addedToCart ||
-    selectedSizeUnavailable ||
-    (!hasSizeOptions && product.stock_quantity === 0);
+    isOutOfStock;
 
   return (
     <>
@@ -476,6 +510,14 @@ export default function ProductDetailPage() {
                 .pd-discount-pill {
                     position: absolute; top: 20px; left: 20px;
                     background: var(--ink); color: #fff;
+                    font-family: 'Jost', sans-serif;
+                    font-size: 10px; font-weight: 700;
+                    letter-spacing: .15em; text-transform: uppercase;
+                    padding: 6px 12px; z-index: 2;
+                }
+                .pd-stock-pill {
+                    position: absolute; top: 20px; left: 20px;
+                    background: var(--danger); color: #fff;
                     font-family: 'Jost', sans-serif;
                     font-size: 10px; font-weight: 700;
                     letter-spacing: .15em; text-transform: uppercase;
@@ -589,6 +631,8 @@ export default function ProductDetailPage() {
                 .pd-qty-row { display:flex; align-items:center; gap:0; margin-bottom:28px; width:fit-content; border:1px solid var(--border-md); }
                 .pd-qty-btn { width:44px; height:44px; background:none; border:none; cursor:pointer; color:var(--ink); display:flex; align-items:center; justify-content:center; transition:background .18s; }
                 .pd-qty-btn:hover { background:var(--muted); }
+                .pd-qty-btn:disabled { opacity:.35; cursor:not-allowed; }
+                .pd-qty-btn:disabled:hover { background:transparent; }
                 .pd-qty-val { width:52px; height:44px; font-family:'Jost',sans-serif; font-size:15px; font-weight:500; color:var(--ink); background:var(--warm); display:flex; align-items:center; justify-content:center; border-left:1px solid var(--border-md); border-right:1px solid var(--border-md); user-select:none; }
 
                 .pd-actions { display:flex; gap:10px; margin-bottom:28px; flex-wrap:wrap; }
@@ -822,7 +866,9 @@ export default function ProductDetailPage() {
           {/* ── Left: Gallery ── */}
           <div className="pd-gallery">
             <div className="pd-main-img-wrap">
-              {discount && (
+              {isOutOfStock ? (
+                <span className="pd-stock-pill">Stock Out</span>
+              ) : discount && (
                 <span className="pd-discount-pill">−{discount}%</span>
               )}
               <button
@@ -986,6 +1032,7 @@ export default function ProductDetailPage() {
               <button
                 className="pd-qty-btn"
                 onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                disabled={quantity <= 1 || currentStock <= 0}
                 aria-label="Decrease"
               >
                 <FaMinus size={10} />
@@ -993,7 +1040,12 @@ export default function ProductDetailPage() {
               <span className="pd-qty-val">{quantity}</span>
               <button
                 className="pd-qty-btn"
-                onClick={() => setQuantity((q) => q + 1)}
+                onClick={() =>
+                  setQuantity((q) =>
+                    currentStock > 0 ? Math.min(currentStock, q + 1) : 1,
+                  )
+                }
+                disabled={currentStock <= 0 || quantity >= currentStock}
                 aria-label="Increase"
               >
                 <FaPlus size={10} />

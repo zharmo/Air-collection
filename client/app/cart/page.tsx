@@ -20,6 +20,7 @@ interface ProductSize {
 }
 
 interface ProductDetails {
+  stock_quantity?: number;
   colors?: ProductColor[];
   sizes?: ProductSize[];
 }
@@ -27,6 +28,7 @@ interface ProductDetails {
 interface SizeOption {
   name: string;
   available: boolean;
+  stock: number;
 }
 
 const cartStyles = `
@@ -224,6 +226,19 @@ const cartStyles = `
     text-decoration: line-through;
   }
 
+  .cart-stock-note {
+    font-family: 'Jost', sans-serif;
+    font-size: 11px;
+    font-weight: 400;
+    color: #c0392b;
+    margin-top: 8px;
+  }
+
+  .cart-checkout-disabled {
+    pointer-events: none;
+    opacity: .45;
+  }
+
   @media (max-width: 575px) {
     .cart-page {
       padding: 34px 16px 60px;
@@ -329,20 +344,65 @@ export default function CartPage() {
     const optionsByName = new Map<string, SizeOption>();
     relevantSizes.forEach((size) => {
       if (!size.size_name) return;
-      const available = Boolean(size.is_available && Number(size.stock) > 0);
+      const stock = Number(size.stock) || 0;
+      const available = Boolean(size.is_available && stock > 0);
       const existing = optionsByName.get(size.size_name);
 
-      if (!existing || (!existing.available && available)) {
-        optionsByName.set(size.size_name, { name: size.size_name, available });
+      if (!existing || existing.stock < stock || (!existing.available && available)) {
+        optionsByName.set(size.size_name, {
+          name: size.size_name,
+          available,
+          stock,
+        });
       }
     });
 
     if (item.size && !optionsByName.has(item.size)) {
-      optionsByName.set(item.size, { name: item.size, available: true });
+      optionsByName.set(item.size, { name: item.size, available: true, stock: 1 });
     }
 
     return Array.from(optionsByName.values());
   };
+
+  const getAvailableStock = (item: {
+    product_id: number;
+    color?: string;
+    size?: string;
+  }) => {
+    const details = productDetails[item.product_id];
+    if (!details) return undefined;
+
+    const productStock = Number(details.stock_quantity);
+    if (Number.isFinite(productStock) && productStock <= 0) return 0;
+
+    const sizeOptions = getSizeOptions(item);
+    if (sizeOptions.length > 0) {
+      if (!item.size) return 0;
+
+      const selectedSize = sizeOptions.find((option) => option.name === item.size);
+      if (!selectedSize || !selectedSize.available) return 0;
+
+      return Number.isFinite(productStock)
+        ? Math.min(productStock, selectedSize.stock)
+        : selectedSize.stock;
+    }
+
+    return Number.isFinite(productStock) ? productStock : undefined;
+  };
+
+  const stockBlockedItems = cart.items.filter((item) => {
+    const stock = getAvailableStock(item);
+    return stock !== undefined && (stock <= 0 || item.quantity > stock);
+  });
+
+  useEffect(() => {
+    cart.items.forEach((item) => {
+      const stock = getAvailableStock(item);
+      if (stock !== undefined && stock > 0 && item.quantity > stock) {
+        updateQuantity(item.id, stock);
+      }
+    });
+  }, [cart.items, productDetails]);
 
   const handleApplyPromo = () => {
     if (promoCode.toUpperCase() === "AIR10") {
@@ -384,6 +444,11 @@ export default function CartPage() {
             <div className="card-body p-4">
               {cart.items.map((item) => {
                 const sizeOptions = getSizeOptions(item);
+                const availableStock = getAvailableStock(item);
+                const stockOut =
+                  availableStock !== undefined && availableStock <= 0;
+                const overStock =
+                  availableStock !== undefined && item.quantity > availableStock;
 
                 return (
                   <div
@@ -458,7 +523,7 @@ export default function CartPage() {
                             onClick={() =>
                               updateQuantity(item.id, item.quantity - 1)
                             }
-                            disabled={item.quantity <= 1}
+                            disabled={item.quantity <= 1 || stockOut}
                           >
                             -
                           </button>
@@ -466,7 +531,17 @@ export default function CartPage() {
                           <button
                             className="btn btn-sm border-0"
                             onClick={() =>
-                              updateQuantity(item.id, item.quantity + 1)
+                              updateQuantity(
+                                item.id,
+                                availableStock !== undefined
+                                  ? Math.min(availableStock, item.quantity + 1)
+                                  : item.quantity + 1,
+                              )
+                            }
+                            disabled={
+                              stockOut ||
+                              (availableStock !== undefined &&
+                                item.quantity >= availableStock)
                             }
                           >
                             +
@@ -479,6 +554,13 @@ export default function CartPage() {
                           <FaTrashAlt />
                         </button>
                       </div>
+                      {(stockOut || overStock) && (
+                        <p className="cart-stock-note">
+                          {stockOut
+                            ? "Stock out. Please remove this item."
+                            : `Only ${availableStock} left in stock.`}
+                        </p>
+                      )}
                     </div>
                   </div>
                 );
@@ -532,10 +614,18 @@ export default function CartPage() {
               </div>
               <Link
                 href="/checkout"
-                className="btn btn-dark rounded-0 w-100 py-2"
+                className={`btn btn-dark rounded-0 w-100 py-2${
+                  stockBlockedItems.length > 0 ? " cart-checkout-disabled" : ""
+                }`}
+                aria-disabled={stockBlockedItems.length > 0}
               >
                 Checkout
               </Link>
+              {stockBlockedItems.length > 0 && (
+                <p className="cart-stock-note text-center">
+                  Update unavailable items before checkout.
+                </p>
+              )}
               <button
                 className="btn btn-link text-muted w-100 mt-2"
                 onClick={clearCart}
