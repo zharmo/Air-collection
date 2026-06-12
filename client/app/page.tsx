@@ -452,16 +452,22 @@ export default function HomePage() {
                     position: relative;
                 }
 
+                .product-card-image > a {
+                    display: block;
+                    width: 100%;
+                    height: 100%;
+                }
+
                 .product-card-image img {
                     width: 100%;
                     height: 100%;
                     object-fit: cover;
                     padding: 0;
-                    transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+                    transition: transform .55s cubic-bezier(.16,1,.3,1);
                 }
 
                 .product-card:hover .product-card-image img {
-                    transform: scale(1.04);
+                    transform: scale(1.06);
                 }
 
                 .product-card-badge {
