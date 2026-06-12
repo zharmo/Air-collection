@@ -2,6 +2,7 @@ const express = require('express');
 const pool = require('../config/db');
 const { sendSuccess, sendError } = require('../utils/responseHandler');
 const { ensureOrderCustomerColumns, normalizeCheckoutCustomer } = require('../utils/orderCustomerFields');
+const { StockError, validateAndReserveOrderStock } = require('../utils/orderStock');
 const { sendOrderConfirmation, sendNewOrderNotification } = require('../services/emailService');
 
 const router = express.Router();
@@ -20,6 +21,7 @@ const ensureAdvancePaymentColumn = async (pool) => {
  * POST /guest-orders  — guest checkout
  * ───────────────────────────────────────────────────────────── */
 router.post('/', async (req, res) => {
+    let client;
     try {
         const { customer, items, subtotal, deliveryFee, total, paymentMethod } = req.body;
 
@@ -43,9 +45,12 @@ router.post('/', async (req, res) => {
               }
             : null;
 
-        await pool.query('BEGIN');
+        client = await pool.connect();
+        await client.query('BEGIN');
 
-        const orderResult = await pool.query(
+        await validateAndReserveOrderStock(client, items);
+
+        const orderResult = await client.query(
             `INSERT INTO orders (
                 user_id, order_number, total_amount, shipping_address, billing_address,
                 payment_method, payment_status, status, delivery_fee,
@@ -64,7 +69,7 @@ router.post('/', async (req, res) => {
         const order = orderResult.rows[0];
 
         for (const item of items) {
-            await pool.query(
+            await client.query(
                 `INSERT INTO order_items
                     (order_id, product_id, product_name, quantity, price, total, size, color, image_url)
                  VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
@@ -78,7 +83,7 @@ router.post('/', async (req, res) => {
             );
         }
 
-        await pool.query('COMMIT');
+        await client.query('COMMIT');
 
         // ── Respond immediately — emails are fire-and-forget ──
         sendSuccess(res, { orderNumber, orderId: order.id }, 'Order placed successfully', 201);
@@ -110,9 +115,14 @@ router.post('/', async (req, res) => {
             .catch(err => console.error('Admin email error (guest):', err.message));
 
     } catch (error) {
-        await pool.query('ROLLBACK');
+        if (client) await client.query('ROLLBACK');
         console.error('Guest order error:', error);
+        if (error instanceof StockError) {
+            return sendError(res, error.message, error.statusCode);
+        }
         sendError(res, 'Failed to place order', 500);
+    } finally {
+        if (client) client.release();
     }
 });
 
