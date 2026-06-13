@@ -206,7 +206,7 @@ export default function Footer() {
                     <span className="ft-contact-ico">
                       <IconMail />
                     </span>
-                    zharmoabdi@gmail.com
+                    aircollection05@gmail.com
                   </a>
                 </li>
                 <li>
@@ -214,7 +214,7 @@ export default function Footer() {
                     <span className="ft-contact-ico">
                       <IconPhone />
                     </span>
-                    +252 63 3484616
+                    +252 63 4818551
                   </a>
                 </li>
               </ul>

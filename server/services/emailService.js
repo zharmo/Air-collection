@@ -1,135 +1,174 @@
-const path = require('path');
-const dotenv = require('dotenv');
+const path       = require('path');
+const dotenv     = require('dotenv');
 const nodemailer = require('nodemailer');
 
 dotenv.config({ path: path.join(__dirname, '../.env') });
 
-/* ─────────────────────────────────────────────────────────────
- * Transporter
- * ───────────────────────────────────────────────────────────── */
+/* ═══════════════ TRANSPORT ═══════════════ */
 const isEmailConfigured = () => Boolean(process.env.EMAIL_USER && process.env.EMAIL_PASS);
-const getAdminEmail = () => (process.env.ADMIN_EMAIL || process.env.EMAIL_USER || '').trim();
+const getAdminEmail     = () => (process.env.ADMIN_EMAIL || process.env.EMAIL_USER || '').trim();
 
 const createTransporter = () => nodemailer.createTransport({
-  host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-  port: Number(process.env.EMAIL_PORT || 465),
+  host:   process.env.EMAIL_HOST   || 'smtp.gmail.com',
+  port:   Number(process.env.EMAIL_PORT  || 465),
   secure: String(process.env.EMAIL_SECURE || 'true') === 'true',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
+  auth:   { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
 });
 
-/* ─────────────────────────────────────────────────────────────
- * Base send helper
- * ───────────────────────────────────────────────────────────── */
 const sendEmail = async (to, subject, html, options = {}) => {
   try {
     if (!isEmailConfigured()) {
-      console.error('Email service is not configured. Set EMAIL_USER and EMAIL_PASS in server/.env.');
+      console.error('Email not configured — set EMAIL_USER and EMAIL_PASS in server/.env');
       return false;
     }
-
-    const transporter = createTransporter();
-    const mailOptions = {
-      from: process.env.EMAIL_FROM || `"Air Collection" <${process.env.EMAIL_USER}>`,
-      to,
-      subject,
-      html,
-    };
-
-    if (options.replyTo) {
-      mailOptions.replyTo = options.replyTo;
-    }
-
-    const info = await transporter.sendMail(mailOptions);
+    const t    = createTransporter();
+    const mail = { from: process.env.EMAIL_FROM || `"Air Collection" <${process.env.EMAIL_USER}>`, to, subject, html };
+    if (options.replyTo) mail.replyTo = options.replyTo;
+    const info = await t.sendMail(mail);
     console.log(`✅ Email sent to ${to}: ${info.messageId}`);
     return true;
-  } catch (error) {
-    console.error('❌ Email error:', error.message);
+  } catch (err) {
+    console.error('❌ Email error:', err.message);
     return false;
   }
 };
 
-const escapeHtml = (value = '') => String(value)
-  .replace(/&/g, '&amp;')
-  .replace(/</g, '&lt;')
-  .replace(/>/g, '&gt;')
-  .replace(/"/g, '&quot;')
-  .replace(/'/g, '&#039;');
+const escapeHtml = (v = '') => String(v)
+  .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+  .replace(/"/g,'&quot;').replace(/'/g,'&#039;');
 
-/* ─────────────────────────────────────────────────────────────
- * Shared design tokens (inline — email clients ignore <style>)
- * ───────────────────────────────────────────────────────────── */
-const T = {
-  bg:         '#FAF9F7',
-  surface:    '#FFFFFF',
-  border:     '#E8E4DF',
-  text:       '#0D0D0D',
-  muted:      '#8A7F76',
-  accent:     '#B8955A',
-  accentBg:   '#F5EFE6',
-  errorBg:    '#FFF5F5',
-  fontStack:  'Georgia, "Times New Roman", serif',
-  sansStack:  '-apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif',
+/* ═══════════════ NORMALISE MOBILE PAYMENT ═══════════════
+ * Accepts camelCase or snake_case fields from backend.
+ ═══════════════════════════════════════════════════════ */
+const normaliseMP = (mp) => {
+  if (!mp || !mp.provider) return null;
+  const p = (mp.provider || '').toLowerCase();
+  return {
+    provider:      p,
+    providerLabel: p === 'edahab' ? 'E-Dahab' : p === 'zaad' ? 'Zaad' : mp.provider,
+    senderPhone:   mp.transfer_phone || mp.transferPhone || '',
+    receiptName:   mp.transfer_name  || mp.transferName  || '',
+    amount:        Number(mp.amount_paid ?? mp.amountPaid ?? 0),
+  };
 };
 
-/* ─────────────────────────────────────────────────────────────
- * Email wrapper shell  (shared header + footer)
- * ───────────────────────────────────────────────────────────── */
-const shell = (content, previewText = '') => `
+/* ═══════════════ CITY / LOCATION DETECTION ═══════════════
+ * The backend may NOT save location/city fields reliably.
+ * We scan EVERY WORD from ALL address fields to detect outside cities.
+ *
+ * Usage:
+ *   const { isOutside, cityLabel, rawCity, addrLine } =
+ *     resolveLocation({ location, city, shippingAddress, streetAddress });
+ ═══════════════════════════════════════════════════════════ */
+const OUTSIDE_CITIES_LC = ['burco', 'boorama', 'berbera', 'borama', 'others'];
+const OUTSIDE_CITIES_LABELS = {
+  burco: 'Burco', boorama: 'Boorama', borama: 'Boorama',
+  berbera: 'Berbera', others: 'Others',
+};
+
+const resolveLocation = ({ location = '', city = '', shippingAddress = '', streetAddress = '' }) => {
+  /* Combine ALL text and scan every word */
+  const combined = [location, city, shippingAddress, streetAddress]
+    .join(' ')
+    .toLowerCase()
+    .replace(/[,.\-]/g, ' ');
+
+  const words = combined.split(/\s+/).filter(Boolean);
+  const foundWord = words.find(w => OUTSIDE_CITIES_LC.includes(w)) || null;
+
+  /* isOutside: any signal is enough */
+  const isOutside =
+    location === 'outside' ||
+    combined.includes('outside') ||
+    (!!city && OUTSIDE_CITIES_LC.includes(city.toLowerCase())) ||
+    foundWord !== null;
+
+  /* Best city key */
+  const cityKey =
+    (city && OUTSIDE_CITIES_LC.includes(city.toLowerCase()) ? city.toLowerCase() : null) ||
+    foundWord || null;
+
+  const rawCity = cityKey ? (OUTSIDE_CITIES_LABELS[cityKey] || city || '') : '';
+
+  /* Full label */
+  const cityLabel = isOutside
+    ? (rawCity ? `Outside Hargeisa / ${rawCity}` : 'Outside Hargeisa')
+    : 'Inside Hargeisa';
+
+  /* Street line — first comma segment, or full address if no commas */
+  const addrLine = streetAddress ||
+    (shippingAddress ? shippingAddress.split(',')[0].trim() : '') ||
+    shippingAddress;
+
+  return { isOutside, rawCity, cityLabel, addrLine };
+};
+
+/* ═══════════════ DESIGN TOKENS ═══════════════ */
+const T = {
+  bg:       '#F9F8F6',
+  surface:  '#FFFFFF',
+  border:   '#E5E0DA',
+  text:     '#0D0D0D',
+  muted:    '#7A7068',
+  accent:   '#B8955A',
+  accentBg: '#F5EFE6',
+  green:    '#166534',
+  greenBg:  '#F0FDF4',
+  greenBdr: '#BBF7D0',
+  sans:     '-apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif',
+  serif:    'Georgia, "Times New Roman", serif',
+};
+
+/* ═══════════════ LOGO ═══════════════
+ * Set FRONTEND_URL=https://yourdomain.com in server/.env
+ * The file is at: client/public/images/hero/air-collection-hero.jpg
+ ═══════════════════════════════════ */
+const logoHtml = () => {
+  const base = (process.env.FRONTEND_URL || '').replace(/\/$/, '');
+  if (base) {
+    return `<img src="${base}/images/hero/air-collection-hero.jpg" alt="Air Collection"
+                 width="160" style="display:block;max-width:160px;height:auto;margin:0 auto 4px;border:0;"/>`;
+  }
+  return `<span style="font-family:${T.serif};font-size:26px;font-weight:700;
+                        letter-spacing:0.12em;color:${T.text};text-transform:uppercase;">
+            AIR COLLECTION
+          </span>`;
+};
+
+/* ═══════════════ SHELL ═══════════════ */
+const shell = (content, preview = '') => `
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Air Collection</title>
-  <!--[if mso]><noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript><![endif]-->
-</head>
-<body style="margin:0;padding:0;background:${T.bg};font-family:${T.sansStack};-webkit-font-smoothing:antialiased;">
-  ${previewText ? `<div style="display:none;max-height:0;overflow:hidden;font-size:1px;color:${T.bg};">${previewText}</div>` : ''}
-
-  <!-- Outer wrapper -->
+<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Air Collection</title></head>
+<body style="margin:0;padding:0;background:${T.bg};font-family:${T.sans};-webkit-font-smoothing:antialiased;">
+  ${preview ? `<div style="display:none;max-height:0;overflow:hidden;font-size:1px;color:${T.bg};">${preview}</div>` : ''}
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
          style="background:${T.bg};padding:40px 16px 64px;">
     <tr><td align="center">
-
-      <!-- Card -->
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
              style="max-width:600px;">
 
-        <!-- Logo header -->
+        <!-- LOGO -->
         <tr>
-          <td style="padding:0 0 28px;text-align:center;">
-            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-              <tr>
-                <td style="border-bottom:1px solid ${T.border};padding-bottom:24px;text-align:center;">
-                  <span style="font-family:${T.fontStack};font-size:26px;font-weight:700;
-                               letter-spacing:0.12em;color:${T.text};text-transform:uppercase;">
-                    AIR COLLECTION
-                  </span>
-                  <br/>
-                  <span style="font-family:${T.sansStack};font-size:11px;letter-spacing:0.2em;
-                               color:${T.accent};text-transform:uppercase;font-weight:500;">
-                    Light as Air
-                  </span>
-                </td>
-              </tr>
-            </table>
+          <td style="padding:0 0 20px;text-align:center;border-bottom:1px solid ${T.border};">
+            ${logoHtml()}
+            <div style="font-family:${T.sans};font-size:11px;letter-spacing:0.2em;color:${T.accent};
+                        text-transform:uppercase;font-weight:500;margin-top:4px;">Light as Air</div>
           </td>
         </tr>
 
-        <!-- Main content -->
+        <!-- CONTENT -->
         <tr>
-          <td style="background:${T.surface};border:1px solid ${T.border};">
+          <td style="background:${T.surface};border:1px solid ${T.border};border-top:none;">
             ${content}
           </td>
         </tr>
 
-        <!-- Footer -->
+        <!-- FOOTER -->
         <tr>
-          <td style="padding:28px 0 0;text-align:center;">
-            <p style="font-size:11px;color:${T.muted};margin:0 0 6px;letter-spacing:0.08em;text-transform:uppercase;">
+          <td style="padding:24px 0 0;text-align:center;">
+            <p style="font-size:11px;color:${T.muted};margin:0 0 4px;letter-spacing:0.08em;text-transform:uppercase;">
               Air Collection · Hargeisa, Somaliland
             </p>
             <p style="font-size:11px;color:${T.muted};margin:0;">
@@ -144,157 +183,198 @@ const shell = (content, previewText = '') => `
 </body>
 </html>`;
 
-/* ─────────────────────────────────────────────────────────────
- * Helper: items rows HTML
- * ───────────────────────────────────────────────────────────── */
-const buildItemsTable = (items = []) => {
+/* ═══════════════ SHARED HELPERS ═══════════════ */
+const sectionLine = (title) => `
+  <tr>
+    <td colspan="2" style="padding:28px 32px 0;">
+      <div style="padding-bottom:12px;border-bottom:1px solid ${T.border};display:flex;align-items:center;">
+        <span style="display:inline-block;width:20px;height:1px;background:${T.accent};margin-right:8px;"></span>
+        <span style="font-family:${T.sans};font-size:10px;font-weight:700;letter-spacing:0.2em;
+                     text-transform:uppercase;color:${T.muted};">${title}</span>
+      </div>
+    </td>
+  </tr>`;
+
+const cell2 = (label, value) => `
+  <td style="padding:10px 0;vertical-align:top;width:50%;">
+    <div style="font-family:${T.sans};font-size:10px;font-weight:600;letter-spacing:0.18em;
+                text-transform:uppercase;color:${T.muted};margin-bottom:4px;">${label}</div>
+    <div style="font-family:${T.sans};font-size:14px;font-weight:500;color:${T.text};line-height:1.4;">
+      ${value || '—'}
+    </div>
+  </td>`;
+
+const cityPill = (label) => `
+  <span style="display:inline-flex;align-items:center;gap:5px;background:${T.accentBg};
+               border:1px solid rgba(184,149,90,0.35);padding:4px 14px;font-family:${T.sans};
+               font-size:10px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:${T.text};">
+    📍 ${label}
+  </span>`;
+
+const itemsTable = (items = []) => {
+  if (!items.length) return '<p style="font-size:13px;color:#999;padding:16px 0;">No items</p>';
   const rows = items.map(item => `
     <tr>
-      <td style="padding:12px 16px;border-bottom:1px solid ${T.border};
-                 font-family:${T.sansStack};font-size:13px;color:${T.text};">
-        <strong style="display:block;margin-bottom:3px;">${item.name || item.product_name || ''}</strong>
-        <span style="color:${T.muted};font-size:11.5px;">
-          ${item.size  ? `Size: ${item.size}` : ''}
-          ${item.size && item.color ? ' &middot; ' : ''}
+      <td style="padding:12px 16px;border-bottom:1px solid ${T.border};font-family:${T.sans};">
+        <strong style="display:block;font-size:13px;font-weight:600;color:${T.text};margin-bottom:2px;">
+          ${escapeHtml(item.name || item.product_name || '')}
+        </strong>
+        <span style="font-size:11.5px;color:${T.muted};">
+          ${item.size ? `Size: ${item.size}` : ''}
+          ${item.size && item.color ? ' · ' : ''}
           ${item.color ? `Color: ${item.color}` : ''}
         </span>
       </td>
-      <td style="padding:12px 16px;border-bottom:1px solid ${T.border};
-                 text-align:center;font-family:${T.sansStack};font-size:13px;
-                 color:${T.muted};white-space:nowrap;">
+      <td style="padding:12px 16px;border-bottom:1px solid ${T.border};text-align:center;
+                 font-family:${T.sans};font-size:13px;color:${T.muted};white-space:nowrap;">
         &times; ${item.quantity}
       </td>
-      <td style="padding:12px 16px;border-bottom:1px solid ${T.border};
-                 text-align:right;font-family:${T.sansStack};font-size:13px;
-                 font-weight:600;color:${T.text};white-space:nowrap;">
-        $${(item.price * item.quantity).toFixed(2)}
+      <td style="padding:12px 16px;border-bottom:1px solid ${T.border};text-align:right;
+                 font-family:${T.sans};font-size:13px;font-weight:600;color:${T.text};white-space:nowrap;">
+        $${(Number(item.price) * Number(item.quantity)).toFixed(2)}
       </td>
     </tr>`).join('');
-
   return `
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
-           style="border-collapse:collapse;border:1px solid ${T.border};">
+           style="border-collapse:collapse;border:1px solid ${T.border};margin-top:16px;">
       <thead>
         <tr style="background:${T.bg};">
-          <th style="padding:10px 16px;text-align:left;font-family:${T.sansStack};
-                     font-size:10px;font-weight:700;letter-spacing:0.12em;
-                     text-transform:uppercase;color:${T.muted};border-bottom:1px solid ${T.border};">
-            Product
-          </th>
-          <th style="padding:10px 16px;text-align:center;font-family:${T.sansStack};
-                     font-size:10px;font-weight:700;letter-spacing:0.12em;
-                     text-transform:uppercase;color:${T.muted};border-bottom:1px solid ${T.border};">
-            Qty
-          </th>
-          <th style="padding:10px 16px;text-align:right;font-family:${T.sansStack};
-                     font-size:10px;font-weight:700;letter-spacing:0.12em;
-                     text-transform:uppercase;color:${T.muted};border-bottom:1px solid ${T.border};">
-            Amount
-          </th>
+          <th style="padding:9px 16px;text-align:left;font-family:${T.sans};font-size:10px;font-weight:700;
+                     letter-spacing:0.12em;text-transform:uppercase;color:${T.muted};
+                     border-bottom:1px solid ${T.border};">Product</th>
+          <th style="padding:9px 16px;text-align:center;font-family:${T.sans};font-size:10px;font-weight:700;
+                     letter-spacing:0.12em;text-transform:uppercase;color:${T.muted};
+                     border-bottom:1px solid ${T.border};">Qty</th>
+          <th style="padding:9px 16px;text-align:right;font-family:${T.sans};font-size:10px;font-weight:700;
+                     letter-spacing:0.12em;text-transform:uppercase;color:${T.muted};
+                     border-bottom:1px solid ${T.border};">Amount</th>
         </tr>
       </thead>
       <tbody>${rows}</tbody>
     </table>`;
 };
 
-/* ─────────────────────────────────────────────────────────────
- * Helper: info row (label / value)
- * ───────────────────────────────────────────────────────────── */
-const infoRow = (label, value, last = false) => `
-  <tr>
-    <td style="padding:9px 0;border-bottom:${last ? 'none' : `1px solid ${T.border}`};
-               font-family:${T.sansStack};font-size:12px;color:${T.muted};font-weight:500;">
-      ${label}
-    </td>
-    <td style="padding:9px 0;border-bottom:${last ? 'none' : `1px solid ${T.border}`};
-               text-align:right;font-family:${T.sansStack};font-size:12.5px;
-               color:${T.text};font-weight:600;">
-      ${value || '—'}
-    </td>
-  </tr>`;
+const totalsBlock = (subtotal, deliveryFee, total) => `
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:2px;">
+    <tr>
+      <td style="padding:8px 16px;text-align:right;font-family:${T.sans};font-size:12.5px;color:${T.muted};">Subtotal</td>
+      <td style="padding:8px 16px;text-align:right;width:110px;font-family:${T.sans};font-size:12.5px;font-weight:500;color:${T.text};">$${Number(subtotal||0).toFixed(2)}</td>
+    </tr>
+    ${Number(deliveryFee) > 0 ? `
+    <tr>
+      <td style="padding:4px 16px;text-align:right;font-family:${T.sans};font-size:12.5px;color:${T.muted};">Delivery</td>
+      <td style="padding:4px 16px;text-align:right;font-family:${T.sans};font-size:12.5px;font-weight:500;color:${T.text};">$${Number(deliveryFee).toFixed(2)}</td>
+    </tr>` : ''}
+    <tr><td colspan="2" style="padding:0 16px;"><hr style="border:none;border-top:1.5px solid ${T.text};margin:8px 0 0;"/></td></tr>
+    <tr>
+      <td style="padding:10px 16px;text-align:right;font-family:${T.serif};font-size:16px;font-weight:700;color:${T.text};">TOTAL</td>
+      <td style="padding:10px 16px;text-align:right;font-family:${T.sans};font-size:20px;font-weight:700;color:${T.text};">$${Number(total||0).toFixed(2)}</td>
+    </tr>
+  </table>`;
 
-/* ─────────────────────────────────────────────────────────────
- * Helper: section heading inside email body
- * ───────────────────────────────────────────────────────────── */
-const sectionHeading = (title) => `
-  <p style="font-family:${T.sansStack};font-size:10px;font-weight:700;
-             letter-spacing:0.14em;text-transform:uppercase;
-             color:${T.accent};margin:0 0 14px;">
-    ${title}
-  </p>`;
+/* Mobile money proof box — 4 fields in a 2x2 grid */
+const mpProofBox = (proof, forAdmin = false) => {
+  if (!proof) return '';
+  return `
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+           style="margin-top:20px;background:#FBF7F0;border:1px solid #E2D4BE;">
+      <tr>
+        <td style="padding:22px 24px;">
+          <div style="font-family:${T.sans};font-size:10px;font-weight:700;letter-spacing:0.18em;
+                      text-transform:uppercase;color:${T.accent};margin-bottom:14px;">
+            ${forAdmin ? '⚠️  Verify This Transfer Before Shipping' : 'Transfer Details You Submitted'}
+          </div>
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td style="padding:0 16px 14px 0;width:50%;vertical-align:top;">
+                <div style="font-family:${T.sans};font-size:10px;font-weight:600;letter-spacing:0.16em;
+                            text-transform:uppercase;color:${T.muted};margin-bottom:4px;">Provider</div>
+                <div style="font-family:${T.serif};font-size:20px;font-weight:600;color:${T.text};">${proof.providerLabel}</div>
+              </td>
+              <td style="padding:0 0 14px;width:50%;vertical-align:top;">
+                <div style="font-family:${T.sans};font-size:10px;font-weight:600;letter-spacing:0.16em;
+                            text-transform:uppercase;color:${T.muted};margin-bottom:4px;">Amount ${forAdmin ? 'Claimed' : 'Paid'}</div>
+                <div style="font-family:${T.serif};font-size:20px;font-weight:600;color:${T.text};">$${Number(proof.amount).toFixed(2)}</div>
+              </td>
+            </tr>
+            <tr style="border-top:1px solid ${T.border};">
+              <td style="padding:14px 16px 0 0;width:50%;vertical-align:top;">
+                <div style="font-family:${T.sans};font-size:10px;font-weight:600;letter-spacing:0.16em;
+                            text-transform:uppercase;color:${T.muted};margin-bottom:4px;">Sent From Number</div>
+                <div style="font-family:${T.serif};font-size:20px;font-weight:600;color:${T.text};word-break:break-all;">${proof.senderPhone || '—'}</div>
+              </td>
+              <td style="padding:14px 0 0;width:50%;vertical-align:top;">
+                <div style="font-family:${T.sans};font-size:10px;font-weight:600;letter-spacing:0.16em;
+                            text-transform:uppercase;color:${T.muted};margin-bottom:4px;">Name on Transfer</div>
+                <div style="font-family:${T.serif};font-size:20px;font-weight:600;color:${T.text};">${proof.receiptName || '—'}</div>
+              </td>
+            </tr>
+          </table>
+          ${forAdmin ? `
+          <p style="font-family:${T.sans};font-size:11.5px;color:${T.muted};margin:16px 0 0;line-height:1.6;">
+            ⚠️ Check your ${proof.providerLabel} account to confirm this transfer before processing the order.
+            Number: <strong>${proof.senderPhone}</strong> · Name: <strong>${proof.receiptName}</strong>
+          </p>` : `
+          <p style="font-family:${T.sans};font-size:11.5px;color:${T.muted};margin:16px 0 0;line-height:1.6;">
+            We will verify your payment shortly and update your order status.
+          </p>`}
+        </td>
+      </tr>
+    </table>`;
+};
 
-/* ─────────────────────────────────────────────────────────────
- * 1.  CUSTOMER — Order Confirmation
- * ───────────────────────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════
+ * 1. CUSTOMER — Order Confirmation
+ * ═══════════════════════════════════════════════════════════════ */
 const sendOrderConfirmation = async (to, order) => {
   if (!to) return false;
 
-  const {
-    customerName, orderNumber, items = [],
-    subtotal, deliveryFee, total,
-    shippingAddress, location,
-    advancePayment,           // { provider, amount, receiptName, senderPhone } | null
-  } = order;
+  /* Accept every possible field name */
+  const customerName  = order.customerName  || order.customer_name  || order.name  || '';
+  const customerEmail = order.customerEmail || order.customer_email || order.email || to;
+  const customerPhone = order.customerPhone || order.customer_phone || order.phone || '';
+  const orderNumber   = order.orderNumber   || order.order_number   || '';
+  const items         = order.items         || [];
+  const subtotal      = order.subtotal      || 0;
+  const deliveryFee   = order.deliveryFee   || order.delivery_fee   || 0;
+  const total         = order.total         || order.total_amount   || 0;
+  const paymentMethod = order.paymentMethod || order.payment_method || 'cash_on_delivery';
+  const mobilePayment = order.mobilePayment || order.mobile_payment || null;
 
-  const isOutside   = location === 'outside' || (shippingAddress || '').toLowerCase().includes('outside');
-  const providerLbl = advancePayment?.provider === 'edahab' ? 'E-Dahab' : 'Zaad';
+  const isMobileMoney = paymentMethod === 'zaad' || paymentMethod === 'edahab';
+  const proof = normaliseMP(mobilePayment);
 
-  /* ── Advance payment block (only for outside Hargeisa) ── */
-  const advanceBlock = (isOutside && advancePayment) ? `
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
-           style="margin-top:28px;background:#FBF7F0;border:1px solid #E8D9C0;">
-      <tr>
-        <td style="padding:20px 24px;">
-          <p style="font-family:${T.sansStack};font-size:10px;font-weight:700;
-                     letter-spacing:0.14em;text-transform:uppercase;
-                     color:${T.accent};margin:0 0 6px;">
-            Advance Delivery Payment
-          </p>
-          <p style="font-family:Georgia,serif;font-size:14px;font-weight:700;
-                     color:${T.text};margin:0 0 16px;">
-            Your $${Number(advancePayment.amount).toFixed(2)} delivery payment is being verified
-          </p>
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-            ${infoRow('Provider',      providerLbl)}
-            ${infoRow('Receipt Name',  advancePayment.receiptName)}
-            ${infoRow('Sent From',     advancePayment.senderPhone)}
-            ${infoRow('Amount',        `$${Number(advancePayment.amount).toFixed(2)}`, true)}
-          </table>
-          <p style="font-family:${T.sansStack};font-size:11.5px;color:${T.muted};
-                     margin:14px 0 0;line-height:1.6;">
-            We will verify your payment before dispatching your order.
-            If you have any issues, please contact us with your order number.
-          </p>
-        </td>
-      </tr>
-    </table>` : '';
+  /* City / location — using the shared resolver */
+  const { isOutside, cityLabel, addrLine } = resolveLocation({
+    location:        order.location        || '',
+    city:            order.city            || order.customer_city || '',
+    shippingAddress: order.shippingAddress || order.shipping_address || '',
+    streetAddress:   order.streetAddress   || order.street_address  || '',
+  });
+
+  const orderDate = new Date().toLocaleDateString('en-US', { month:'long', day:'numeric', year:'numeric' });
 
   const content = `
-    <!-- Hero -->
+    <!-- STATUS HERO -->
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
-           style="background:${T.accentBg};border-bottom:1px solid #E8D9C0;">
+           style="background:${T.greenBg};border-bottom:1px solid ${T.greenBdr};">
       <tr>
-        <td style="padding:36px 40px;">
-          <p style="font-family:${T.sansStack};font-size:11px;font-weight:600;
-                     letter-spacing:0.16em;text-transform:uppercase;
-                     color:${T.accent};margin:0 0 10px;">
-            Order Confirmed
-          </p>
-          <h1 style="font-family:Georgia,serif;font-size:26px;font-weight:700;
-                      color:${T.text};margin:0 0 10px;line-height:1.2;">
-            Thank you, ${customerName || 'valued customer'}!
-          </h1>
-          <p style="font-family:${T.sansStack};font-size:13.5px;color:${T.muted};
-                     margin:0 0 16px;line-height:1.6;">
-            We've received your order and will begin processing it shortly.
-          </p>
-          <table role="presentation" cellpadding="0" cellspacing="0">
+        <td style="padding:28px 32px;">
+          <table cellpadding="0" cellspacing="0">
             <tr>
-              <td style="background:${T.surface};border:1px solid #E8D9C0;
-                          padding:8px 18px;font-family:${T.sansStack};
-                          font-size:12px;font-weight:700;letter-spacing:0.08em;
-                          color:${T.text};">
-                ORDER #${orderNumber}
+              <td style="vertical-align:middle;padding-right:16px;">
+                <div style="width:44px;height:44px;background:${T.green};border-radius:50%;
+                            text-align:center;line-height:44px;color:#fff;font-size:22px;font-weight:700;">✓</div>
+              </td>
+              <td style="vertical-align:middle;">
+                <div style="font-family:${T.sans};font-size:10px;font-weight:700;letter-spacing:0.2em;
+                            text-transform:uppercase;color:${T.green};margin-bottom:4px;">Order Confirmed</div>
+                <div style="font-family:${T.serif};font-size:22px;font-weight:700;color:${T.text};line-height:1.2;">
+                  Thank you, ${escapeHtml(customerName || 'valued customer')}.
+                </div>
+                <div style="font-family:${T.sans};font-size:12px;color:${T.muted};margin-top:4px;">
+                  Order #${orderNumber} &nbsp;·&nbsp; ${orderDate}
+                </div>
               </td>
             </tr>
           </table>
@@ -302,376 +382,251 @@ const sendOrderConfirmation = async (to, order) => {
       </tr>
     </table>
 
-    <!-- Body -->
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+
+      <!-- SHIPPING DETAILS -->
+      ${sectionLine('Shipping Details')}
       <tr>
-        <td style="padding:32px 40px;">
-
-          <!-- Items -->
-          ${sectionHeading('Order Items')}
-          ${buildItemsTable(items)}
-
-          <!-- Totals -->
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
-                 style="margin-top:4px;">
+        <td colspan="2" style="padding:16px 32px 8px;">
+          <table width="100%" cellpadding="0" cellspacing="0">
             <tr>
-              <td style="padding:10px 16px;text-align:right;
-                          font-family:${T.sansStack};font-size:12.5px;color:${T.muted};">
-                Subtotal
-              </td>
-              <td style="padding:10px 16px;text-align:right;width:100px;
-                          font-family:${T.sansStack};font-size:12.5px;
-                          font-weight:500;color:${T.text};">
-                $${Number(subtotal).toFixed(2)}
-              </td>
+              ${cell2('Full Name',      escapeHtml(customerName))}
+              ${cell2('Phone',          escapeHtml(customerPhone))}
             </tr>
             <tr>
-              <td style="padding:4px 16px;text-align:right;
-                          font-family:${T.sansStack};font-size:12.5px;color:${T.muted};">
-                Delivery Fee${isOutside ? ' (paid in advance)' : ''}
-              </td>
-              <td style="padding:4px 16px;text-align:right;
-                          font-family:${T.sansStack};font-size:12.5px;
-                          font-weight:500;color:${T.text};">
-                $${Number(deliveryFee).toFixed(2)}
-              </td>
-            </tr>
-            <tr>
-              <td colspan="2" style="padding:0 16px;">
-                <hr style="border:none;border-top:1.5px solid ${T.text};margin:10px 0 0;"/>
-              </td>
-            </tr>
-            <tr>
-              <td style="padding:10px 16px;text-align:right;
-                          font-family:Georgia,serif;font-size:16px;font-weight:700;color:${T.text};">
-                Grand Total
-              </td>
-              <td style="padding:10px 16px;text-align:right;
-                          font-family:${T.sansStack};font-size:20px;font-weight:700;color:${T.text};">
-                $${Number(total).toFixed(2)}
-              </td>
+              ${cell2('Email',          escapeHtml(customerEmail))}
+              ${cell2('Street Address', escapeHtml(addrLine))}
             </tr>
           </table>
-
-          <!-- Shipping -->
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
-                 style="margin-top:28px;border-top:1px solid ${T.border};padding-top:24px;">
-            <tr>
-              <td style="padding-top:24px;">
-                ${sectionHeading('Shipping Address')}
-                <p style="font-family:${T.sansStack};font-size:13px;color:${T.text};
-                           margin:0;line-height:1.8;">
-                  ${(shippingAddress || '').split(',').map(p => p.trim()).filter(Boolean).join('<br/>')}
-                </p>
-              </td>
-            </tr>
-          </table>
-
-          <!-- Payment method -->
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
-                 style="margin-top:28px;border-top:1px solid ${T.border};">
-            <tr>
-              <td style="padding-top:24px;">
-                ${sectionHeading('Payment Method')}
-                <p style="font-family:${T.sansStack};font-size:13px;color:${T.text};margin:0 0 4px;">
-                  💵&nbsp; Cash on Delivery
-                </p>
-                <p style="font-family:${T.sansStack};font-size:12px;color:${T.muted};margin:0;">
-                  ${isOutside
-                    ? 'Delivery fee paid in advance. Product total collected upon delivery.'
-                    : 'Pay the full amount when your order arrives.'}
-                </p>
-              </td>
-            </tr>
-          </table>
-
-          <!-- Advance payment block -->
-          ${advanceBlock}
-
-          <!-- Delivery estimate -->
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
-                 style="margin-top:28px;background:${T.bg};border:1px solid ${T.border};">
-            <tr>
-              <td style="padding:18px 22px;">
-                <p style="font-family:${T.sansStack};font-size:12px;font-weight:700;
-                           color:${T.text};margin:0 0 4px;">
-                  📦 Estimated Delivery: 3–5 Business Days
-                </p>
-                <p style="font-family:${T.sansStack};font-size:12px;color:${T.muted};margin:0;line-height:1.6;">
-                  We'll notify you once your order has been handed to our courier.
-                </p>
-              </td>
-            </tr>
-          </table>
-
+          <div style="margin-top:12px;">${cityPill(cityLabel)}</div>
         </td>
       </tr>
+
+      <!-- PAYMENT -->
+      ${sectionLine('Payment')}
+      <tr>
+        <td colspan="2" style="padding:16px 32px 8px;">
+          ${isMobileMoney ? `
+            <div style="font-family:${T.sans};font-size:13px;font-weight:600;color:${T.text};margin-bottom:6px;">
+              📱 Mobile Money — ${proof ? proof.providerLabel : paymentMethod}
+            </div>
+            <div style="font-family:${T.sans};font-size:13px;font-weight:300;color:${T.muted};line-height:1.6;">
+              Your payment is being verified. We will confirm within a few minutes.
+            </div>
+            ${mpProofBox(proof, false)}
+          ` : `
+            <div style="font-family:${T.sans};font-size:13px;font-weight:600;color:${T.text};margin-bottom:6px;">
+              💵 Cash on Delivery
+            </div>
+            <div style="font-family:${T.sans};font-size:13px;font-weight:300;color:${T.muted};line-height:1.6;">
+              Please have $${Number(total).toFixed(2)} ready when your order arrives.
+            </div>
+          `}
+        </td>
+      </tr>
+
+      <!-- ITEMS -->
+      ${sectionLine('Items Ordered')}
+      <tr>
+        <td colspan="2" style="padding:16px 32px 0;">
+          ${itemsTable(items)}
+          ${totalsBlock(subtotal, deliveryFee, total)}
+        </td>
+      </tr>
+
+      <!-- DELIVERY -->
+      ${sectionLine('Estimated Delivery')}
+      <tr>
+        <td colspan="2" style="padding:16px 32px 36px;">
+          <div style="font-family:${T.sans};font-size:15px;font-weight:600;color:${T.text};margin-bottom:6px;">
+            3 — 5 Business Days
+          </div>
+          <div style="font-family:${T.sans};font-size:13px;font-weight:300;color:${T.muted};line-height:1.6;">
+            We will send you a notification once your order is on its way.
+            ${isOutside ? `Delivery to ${escapeHtml(cityLabel)} may take slightly longer than our Hargeisa estimates.` : ''}
+          </div>
+        </td>
+      </tr>
+
     </table>`;
 
   return sendEmail(
     to,
     `Order Confirmed — #${orderNumber} | Air Collection`,
-    shell(content, `Your order #${orderNumber} has been confirmed. Thank you for shopping with Air Collection.`)
+    shell(content, `Your order #${orderNumber} is confirmed. Thank you for shopping with Air Collection.`)
   );
 };
 
-/* ─────────────────────────────────────────────────────────────
- * 2.  ADMIN — New Order Alert
- * ───────────────────────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════
+ * 2. ADMIN — New Order Alert
+ * ═══════════════════════════════════════════════════════════════ */
 const sendNewOrderNotification = async (order) => {
   const adminEmail = getAdminEmail();
-  if (!adminEmail) {
-    console.warn('⚠️  ADMIN_EMAIL not set — skipping admin notification');
-    return false;
-  }
+  if (!adminEmail) { console.warn('⚠️  ADMIN_EMAIL not set'); return false; }
 
-  const {
-    customerName, customerEmail, customerPhone,
-    orderNumber, items = [],
-    subtotal, deliveryFee, total,
-    shippingAddress, location,
-    paymentMethod,
-    advancePayment,
-  } = order;
+  /* Accept every possible field name the backend may pass */
+  const name          = order.customerName  || order.customer_name  || order.name  || '';
+  const email         = order.customerEmail || order.customer_email || order.email || '';
+  const phone         = order.customerPhone || order.customer_phone || order.phone || '';
+  const orderNumber   = order.orderNumber   || order.order_number   || '';
+  const orderId       = order.orderId       || order.id             || '';
+  const items         = order.items         || [];
+  const subtotal      = order.subtotal      || 0;
+  const deliveryFee   = order.deliveryFee   || order.delivery_fee   || 0;
+  const total         = order.total         || order.total_amount   || 0;
+  const paymentMethod = order.paymentMethod || order.payment_method || 'cash_on_delivery';
+  const mobilePayment = order.mobilePayment || order.mobile_payment || null;
 
-  const isOutside    = location === 'outside' || (shippingAddress || '').toLowerCase().includes('outside');
-  const providerLbl  = advancePayment?.provider === 'edahab' ? 'E-Dahab' : 'Zaad';
+  const isMobileMoney = paymentMethod === 'zaad' || paymentMethod === 'edahab';
+  const proof = normaliseMP(mobilePayment);
 
-  /* ── Advance payment section for admin ── */
-  const advanceSection = (isOutside && advancePayment) ? `
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
-           style="margin-top:24px;background:#FBF7F0;border:1px solid #E8D9C0;">
-      <tr>
-        <td style="padding:18px 22px;">
-          <p style="font-family:${T.sansStack};font-size:10px;font-weight:700;
-                     letter-spacing:0.14em;text-transform:uppercase;
-                     color:${T.accent};margin:0 0 12px;">
-            ⚠️  Advance Delivery Payment — Verify Before Dispatching
-          </p>
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-            ${infoRow('Provider',      providerLbl)}
-            ${infoRow('Amount Paid',   `$${Number(advancePayment.amount).toFixed(2)}`)}
-            ${infoRow('Receipt Name',  `<strong>${advancePayment.receiptName}</strong>`)}
-            ${infoRow('Sent From',     `<strong>${advancePayment.senderPhone}</strong>`, true)}
-          </table>
-        </td>
-      </tr>
-    </table>` : '';
+  /* City / location — shared resolver covers ALL cases */
+  const { isOutside, cityLabel, addrLine } = resolveLocation({
+    location:        order.location        || '',
+    city:            order.city            || order.customer_city || order.shipping_city || '',
+    shippingAddress: order.shippingAddress || order.shipping_address || '',
+    streetAddress:   order.streetAddress   || order.street_address  || '',
+  });
+
+  const orderDate = new Date().toLocaleDateString('en-US', {
+    weekday:'long', month:'long', day:'numeric', year:'numeric',
+  });
+  const dashLink = `${(process.env.FRONTEND_URL || '').replace(/\/$/, '')}/admin/orders/${orderId}`;
 
   const content = `
-    <!-- Alert hero -->
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
-           style="background:#0D0D0D;">
+    <!-- DARK HERO -->
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0D0D0D;">
       <tr>
-        <td style="padding:28px 40px;">
-          <p style="font-family:${T.sansStack};font-size:10px;font-weight:700;
-                     letter-spacing:0.18em;text-transform:uppercase;
-                     color:${T.accent};margin:0 0 8px;">
-            New Order Received
-          </p>
-          <h1 style="font-family:Georgia,serif;font-size:24px;font-weight:700;
-                      color:#FFFFFF;margin:0 0 6px;line-height:1.2;">
-            Order #${orderNumber}
-          </h1>
-          <p style="font-family:${T.sansStack};font-size:12px;color:#8A7F76;margin:0;">
-            ${new Date().toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' })}
-            &nbsp;·&nbsp;
-            ${isOutside ? 'Outside Hargeisa' : 'Inside Hargeisa'}
-          </p>
+        <td style="padding:24px 32px;">
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td style="vertical-align:middle;">
+                <div style="font-family:${T.sans};font-size:10px;font-weight:700;letter-spacing:0.18em;
+                            text-transform:uppercase;color:${T.accent};margin-bottom:4px;">New Order Received</div>
+                <div style="font-family:${T.serif};font-size:22px;font-weight:700;color:#fff;line-height:1.2;">
+                  Order #${orderNumber} — ${orderDate}
+                </div>
+              </td>
+              <td style="vertical-align:middle;text-align:right;padding-left:16px;">
+                <span style="font-family:${T.sans};font-size:10px;font-weight:700;letter-spacing:0.14em;
+                             text-transform:uppercase;color:${T.accent};border:1px solid ${T.accent};
+                             padding:5px 12px;white-space:nowrap;">Admin Notification</span>
+              </td>
+            </tr>
+          </table>
         </td>
       </tr>
     </table>
 
-    <!-- Body -->
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+    <!-- VIEW IN DASHBOARD -->
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+           style="background:#FBF7F0;border-bottom:1px solid ${T.border};">
       <tr>
-        <td style="padding:32px 40px;">
-
-          <!-- Customer info -->
-          ${sectionHeading('Customer Details')}
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
-                 style="margin-bottom:28px;">
-            ${infoRow('Full Name',  customerName)}
-            ${infoRow('Email',      customerEmail)}
-            ${infoRow('Phone',      customerPhone)}
-            ${infoRow('Address',    shippingAddress)}
-            ${infoRow('Zone',       isOutside ? 'Outside Hargeisa' : 'Inside Hargeisa', true)}
-          </table>
-
-          <!-- Items -->
-          ${sectionHeading('Order Items')}
-          ${buildItemsTable(items)}
-
-          <!-- Totals -->
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
-                 style="margin-top:4px;">
+        <td style="padding:16px 32px;">
+          <table width="100%" cellpadding="0" cellspacing="0">
             <tr>
-              <td style="padding:10px 16px;text-align:right;
-                          font-family:${T.sansStack};font-size:12.5px;color:${T.muted};">
-                Subtotal
+              <td style="vertical-align:middle;">
+                <span style="font-family:${T.sans};font-size:12px;color:${T.muted};">
+                  <span style="display:inline-block;width:8px;height:8px;background:${T.accent};
+                               border-radius:50%;margin-right:6px;vertical-align:middle;"></span>
+                  <strong style="color:${T.text};">New order received</strong> — verify and process.
+                </span>
               </td>
-              <td style="padding:10px 16px;text-align:right;width:100px;
-                          font-family:${T.sansStack};font-size:12.5px;
-                          font-weight:500;color:${T.text};">
-                $${Number(subtotal).toFixed(2)}
-              </td>
-            </tr>
-            <tr>
-              <td style="padding:4px 16px;text-align:right;
-                          font-family:${T.sansStack};font-size:12.5px;color:${T.muted};">
-                Delivery Fee
-              </td>
-              <td style="padding:4px 16px;text-align:right;
-                          font-family:${T.sansStack};font-size:12.5px;
-                          font-weight:500;color:${T.text};">
-                $${Number(deliveryFee).toFixed(2)}
-              </td>
-            </tr>
-            <tr>
-              <td colspan="2" style="padding:0 16px;">
-                <hr style="border:none;border-top:1.5px solid ${T.text};margin:10px 0 0;"/>
-              </td>
-            </tr>
-            <tr>
-              <td style="padding:10px 16px;text-align:right;
-                          font-family:Georgia,serif;font-size:16px;font-weight:700;color:${T.text};">
-                Grand Total
-              </td>
-              <td style="padding:10px 16px;text-align:right;
-                          font-family:${T.sansStack};font-size:20px;font-weight:700;color:${T.text};">
-                $${Number(total).toFixed(2)}
-              </td>
-            </tr>
-          </table>
-
-          <!-- Payment -->
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
-                 style="margin-top:28px;border-top:1px solid ${T.border};">
-            <tr>
-              <td style="padding-top:24px;">
-                ${sectionHeading('Payment')}
-                <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-                  ${infoRow('Method', 'Cash on Delivery')}
-                  ${infoRow('Status', 'Pending')}
-                  ${infoRow('Zone',   isOutside ? 'Outside Hargeisa — delivery fee paid in advance' : 'Inside Hargeisa', true)}
-                </table>
-              </td>
-            </tr>
-          </table>
-
-          <!-- Advance payment details -->
-          ${advanceSection}
-
-        </td>
-      </tr>
-    </table>`;
-
-  return sendEmail(
-    adminEmail,
-    `🛍️ New Order #${orderNumber} — $${Number(total).toFixed(2)} | Air Collection`,
-    shell(content, `New order #${orderNumber} from ${customerName} — $${Number(total).toFixed(2)}`)
-  );
-};
-
-/* ─────────────────────────────────────────────────────────────
- * 3.  Password reset  (unchanged logic, updated style)
- * ───────────────────────────────────────────────────────────── */
-const sendPasswordResetEmail = async (to, resetToken) => {
-  const siteUrl = process.env.FRONTEND_URL || process.env.SITE_URL || 'http://localhost:3000';
-  const resetUrl = `${siteUrl}/auth/reset-password?token=${resetToken}`;
-
-  const content = `
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-      <tr>
-        <td style="padding:40px;">
-          <p style="font-family:${T.sansStack};font-size:10px;font-weight:700;
-                     letter-spacing:0.16em;text-transform:uppercase;
-                     color:${T.accent};margin:0 0 10px;">
-            Password Reset
-          </p>
-          <h1 style="font-family:Georgia,serif;font-size:24px;font-weight:700;
-                      color:${T.text};margin:0 0 16px;line-height:1.2;">
-            Reset Your Password
-          </h1>
-          <p style="font-family:${T.sansStack};font-size:13.5px;color:${T.muted};
-                     margin:0 0 28px;line-height:1.7;">
-            You requested a password reset for your Air Collection account.
-            Click the button below to set a new password.
-            This link expires in <strong style="color:${T.text};">10 minutes</strong>.
-          </p>
-          <table role="presentation" cellpadding="0" cellspacing="0">
-            <tr>
-              <td style="background:${T.text};">
-                <a href="${resetUrl}"
-                   style="display:inline-block;padding:16px 36px;
-                          font-family:${T.sansStack};font-size:12px;
-                          font-weight:700;letter-spacing:0.12em;
-                          text-transform:uppercase;color:#FFFFFF;
-                          text-decoration:none;">
-                  Reset Password
+              <td style="text-align:right;vertical-align:middle;padding-left:16px;">
+                <a href="${dashLink}"
+                   style="display:inline-block;background:${T.text};color:#fff;font-family:${T.sans};
+                          font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;
+                          text-decoration:none;padding:10px 20px;white-space:nowrap;">
+                  View Order in Dashboard →
                 </a>
               </td>
             </tr>
           </table>
-          <p style="font-family:${T.sansStack};font-size:11.5px;color:${T.muted};
-                     margin:24px 0 0;line-height:1.6;">
-            If you did not request this, you can safely ignore this email.
-            Your password will not change.
-          </p>
         </td>
       </tr>
-    </table>`;
+    </table>
 
-  return sendEmail(to, 'Reset Your Password — Air Collection', shell(content));
-};
-
-/* ─────────────────────────────────────────────────────────────
- * 4.  Contact form notification  (unchanged logic, updated style)
- * ───────────────────────────────────────────────────────────── */
-const sendContactNotification = async (name, email, subject, message) => {
-  const adminEmail = getAdminEmail();
-  if (!adminEmail) {
-    console.warn('⚠️  ADMIN_EMAIL not set in .env — contact notification skipped');
-    return false;
-  }
-
-  const contactName = String(name || '').trim();
-  const contactEmail = String(email || '').trim();
-  const contactSubject = String(subject || '').trim() || 'General Inquiry';
-  const contactMessage = String(message || '').trim();
-
-  const safeName = escapeHtml(contactName);
-  const safeEmail = escapeHtml(contactEmail);
-  const safeSubject = escapeHtml(contactSubject);
-  const safeMessage = escapeHtml(contactMessage).replace(/\n/g, '<br/>');
-
-  const content = `
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+
+      <!-- CUSTOMER -->
+      ${sectionLine('Customer')}
       <tr>
-        <td style="padding:32px 40px;">
-          <p style="font-family:${T.sansStack};font-size:10px;font-weight:700;
-                     letter-spacing:0.16em;text-transform:uppercase;
-                     color:${T.accent};margin:0 0 10px;">
-            Contact Form Submission
-          </p>
-          <h1 style="font-family:Georgia,serif;font-size:22px;font-weight:700;
-                      color:${T.text};margin:0 0 24px;">
-            New Message
-          </h1>
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
-                 style="margin-bottom:24px;">
-            ${infoRow('From',    `${safeName} &lt;${safeEmail}&gt;`)}
-            ${infoRow('Subject', safeSubject, true)}
+        <td colspan="2" style="padding:16px 32px 8px;">
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              ${cell2('Name',    escapeHtml(name))}
+              ${cell2('Phone',   escapeHtml(phone))}
+            </tr>
+            <tr>
+              ${cell2('Email',   escapeHtml(email))}
+              ${cell2('Account', order.userId ? 'Registered' : 'Guest')}
+            </tr>
           </table>
-          <p style="font-family:${T.sansStack};font-size:10px;font-weight:700;
-                     letter-spacing:0.12em;text-transform:uppercase;
-                     color:${T.muted};margin:0 0 10px;">
-            Message
-          </p>
-          <div style="background:${T.bg};border:1px solid ${T.border};
-                       padding:16px 20px;font-family:${T.sansStack};
-                       font-size:13.5px;color:${T.text};line-height:1.7;">
-            ${safeMessage}
+        </td>
+      </tr>
+
+      <!-- SHIPPING & LOCATION -->
+      ${sectionLine('Shipping & Location')}
+      <tr>
+        <td colspan="2" style="padding:16px 32px 8px;">
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              ${cell2('Street Address', escapeHtml(addrLine))}
+              ${cell2('City / Area',    escapeHtml(cityLabel))}
+            </tr>
+          </table>
+          <div style="margin-top:12px;">${cityPill(cityLabel)}</div>
+        </td>
+      </tr>
+
+      <!-- PAYMENT METHOD -->
+      ${sectionLine('Payment Method')}
+      <tr>
+        <td colspan="2" style="padding:16px 32px 8px;">
+          ${isMobileMoney ? `
+            <span style="display:inline-block;background:${T.text};color:#fff;font-family:${T.sans};
+                         font-size:10px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;
+                         padding:6px 16px;margin-bottom:14px;">
+              📱 ${proof ? proof.providerLabel : paymentMethod}
+            </span>
+            <div style="font-family:${T.sans};font-size:13px;font-weight:300;color:${T.muted};line-height:1.6;margin-bottom:0;">
+              Customer paid via mobile money. Verify before dispatching.
+            </div>
+            ${mpProofBox(proof, true)}
+          ` : `
+            <span style="display:inline-block;background:${T.greenBg};color:${T.green};
+                         border:1px solid ${T.greenBdr};font-family:${T.sans};font-size:10px;font-weight:700;
+                         letter-spacing:0.14em;text-transform:uppercase;padding:6px 16px;margin-bottom:10px;">
+              ✓ Cash on Delivery
+            </span>
+            <div style="font-family:${T.sans};font-size:13px;font-weight:300;color:${T.muted};line-height:1.6;">
+              Collect $${Number(total).toFixed(2)} upon delivery.
+            </div>
+          `}
+        </td>
+      </tr>
+
+      <!-- ITEMS -->
+      ${sectionLine(`Items — ${items.length} item${items.length !== 1 ? 's' : ''}`)}
+      <tr>
+        <td colspan="2" style="padding:16px 32px 32px;">
+          ${itemsTable(items)}
+          ${totalsBlock(subtotal, deliveryFee, total)}
+        </td>
+      </tr>
+
+    </table>
+
+    <!-- ADMIN FOOTER -->
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0D0D0D;">
+      <tr>
+        <td style="padding:14px 32px;text-align:center;">
+          <span style="font-family:${T.sans};font-size:11px;color:#8A7F76;">
+            Air Collection Admin System &nbsp;·&nbsp;
+            <a href="${dashLink}" style="color:${T.accent};text-decoration:none;">Open Dashboard</a>
+          </span>
+          <div style="font-family:${T.sans};font-size:10px;color:#555;margin-top:4px;">
+            This is an automated notification. Do not reply to this email.
           </div>
         </td>
       </tr>
@@ -679,21 +634,96 @@ const sendContactNotification = async (name, email, subject, message) => {
 
   return sendEmail(
     adminEmail,
-    `Contact: ${contactSubject} - from ${contactName}`,
-    shell(content, `New message from ${contactName}: ${contactSubject}`),
-    { replyTo: contactEmail }
+    `🛍️ New Order #${orderNumber} — $${Number(total).toFixed(2)} | Air Collection`,
+    shell(content, `New order #${orderNumber} from ${name} — $${Number(total).toFixed(2)}`)
   );
 };
 
-/* ─────────────────────────────────────────────────────────────
- * Exports
- * ───────────────────────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════
+ * 3. Password Reset
+ * ═══════════════════════════════════════════════════════════════ */
+const sendPasswordResetEmail = async (to, resetToken) => {
+  const siteUrl  = process.env.FRONTEND_URL || 'http://localhost:3000';
+  const resetUrl = `${siteUrl}/auth/reset-password?token=${resetToken}`;
+  const content = `
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      <tr>
+        <td style="padding:40px 32px;">
+          <p style="font-family:${T.sans};font-size:10px;font-weight:700;letter-spacing:0.16em;
+                    text-transform:uppercase;color:${T.accent};margin:0 0 10px;">Password Reset</p>
+          <h1 style="font-family:${T.serif};font-size:24px;font-weight:700;color:${T.text};margin:0 0 16px;">
+            Reset Your Password
+          </h1>
+          <p style="font-family:${T.sans};font-size:13.5px;color:${T.muted};margin:0 0 28px;line-height:1.7;">
+            You requested a password reset. This link expires in
+            <strong style="color:${T.text};">10 minutes</strong>.
+          </p>
+          <table role="presentation" cellpadding="0" cellspacing="0">
+            <tr>
+              <td style="background:${T.text};">
+                <a href="${resetUrl}" style="display:inline-block;padding:16px 36px;font-family:${T.sans};
+                          font-size:12px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;
+                          color:#fff;text-decoration:none;">Reset Password</a>
+              </td>
+            </tr>
+          </table>
+          <p style="font-family:${T.sans};font-size:11.5px;color:${T.muted};margin:24px 0 0;line-height:1.6;">
+            If you did not request this, you can safely ignore this email.
+          </p>
+        </td>
+      </tr>
+    </table>`;
+  return sendEmail(to, 'Reset Your Password — Air Collection', shell(content));
+};
+
+/* ═══════════════════════════════════════════════════════════════
+ * 4. Contact Form Notification
+ * ═══════════════════════════════════════════════════════════════ */
+const sendContactNotification = async (name, email, subject, message) => {
+  const adminEmail = getAdminEmail();
+  if (!adminEmail) { console.warn('⚠️  ADMIN_EMAIL not set'); return false; }
+  const safeName    = escapeHtml(String(name    || '').trim());
+  const safeEmail   = escapeHtml(String(email   || '').trim());
+  const safeSubject = escapeHtml(String(subject || '').trim()) || 'General Inquiry';
+  const safeMsg     = escapeHtml(String(message || '').trim()).replace(/\n/g, '<br/>');
+  const content = `
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      <tr>
+        <td style="padding:32px;">
+          <p style="font-family:${T.sans};font-size:10px;font-weight:700;letter-spacing:0.16em;
+                    text-transform:uppercase;color:${T.accent};margin:0 0 10px;">Contact Form</p>
+          <h1 style="font-family:${T.serif};font-size:22px;font-weight:700;color:${T.text};margin:0 0 24px;">
+            New Message
+          </h1>
+          <table width="100%" cellpadding="0" cellspacing="0"
+                 style="margin-bottom:24px;border-bottom:1px solid ${T.border};">
+            <tr><td style="padding:8px 0;">
+              <table width="100%"><tr>
+                ${cell2('From', `${safeName} &lt;${safeEmail}&gt;`)}
+                ${cell2('Subject', safeSubject)}
+              </tr></table>
+            </td></tr>
+          </table>
+          <p style="font-family:${T.sans};font-size:10px;font-weight:700;letter-spacing:0.12em;
+                    text-transform:uppercase;color:${T.muted};margin:0 0 10px;">Message</p>
+          <div style="background:${T.bg};border:1px solid ${T.border};padding:16px 20px;
+                      font-family:${T.sans};font-size:13.5px;color:${T.text};line-height:1.7;">
+            ${safeMsg}
+          </div>
+        </td>
+      </tr>
+    </table>`;
+  return sendEmail(
+    adminEmail,
+    `Contact: ${safeSubject} — from ${safeName}`,
+    shell(content, `New message from ${safeName}: ${safeSubject}`),
+    { replyTo: email }
+  );
+};
+
+/* ═══════════════ EXPORTS ═══════════════ */
 module.exports = {
-  sendEmail,
-  isEmailConfigured,
-  getAdminEmail,
-  sendPasswordResetEmail,
-  sendOrderConfirmation,
-  sendNewOrderNotification,
-  sendContactNotification,
+  sendEmail, isEmailConfigured, getAdminEmail,
+  sendPasswordResetEmail, sendOrderConfirmation,
+  sendNewOrderNotification, sendContactNotification,
 };

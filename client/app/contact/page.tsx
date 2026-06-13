@@ -298,7 +298,7 @@ export default function ContactPage() {
                           </div>
                           <div>
                             <div className="small text-muted">General Inquiries</div>
-                            <a href="mailto:concierge@aircollection.com" className="text-dark text-decoration-none">concierge@aircollection.com</a>
+                            <a href="mailto:concierge@aircollection.com" className="text-dark text-decoration-none">aircollection05@gmail.com</a>
                           </div>
                         </div>
                       </div>
@@ -309,7 +309,7 @@ export default function ContactPage() {
                           </div>
                           <div>
                             <div className="small text-muted">Customer Support</div>
-                            <a href="tel:+252633484616" className="text-dark text-decoration-none">+252 63 3484616</a>
+                            <a href="tel:+252634818551" className="text-dark text-decoration-none">+252 63 4818551</a>
                             <div className="small text-muted">Sat – Fri, 9am – 6pm EST</div>
                           </div>
                         </div>
@@ -321,7 +321,7 @@ export default function ContactPage() {
                           </div>
                           <div>
                             <div className="small text-muted">Press & Media</div>
-                            <a href="mailto:media@aircollection.com" className="text-dark text-decoration-none">media@aircollection.com</a>
+                            <a href="mailto:media@aircollection.com" className="text-dark text-decoration-none">aircollection05@gmail.com</a>
                           </div>
                         </div>
                       </div>

@@ -3,709 +3,311 @@
 import { ChangeEvent, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { FaTruck, FaMoneyBillWave, FaMapMarkerAlt, FaUser, FaArrowRight, FaCheckCircle } from 'react-icons/fa';
+import { FaMoneyBillWave, FaMapMarkerAlt, FaUser, FaArrowRight, FaMobileAlt } from 'react-icons/fa';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
 import axiosInstance from '@/utils/axiosConfig';
 
-const checkoutStyles = `
+const OUTSIDE_CITIES = [
+    { value: 'burco',   label: 'Burco'   },
+    { value: 'boorama', label: 'Boorama' },
+    { value: 'berbera', label: 'Berbera' },
+    { value: 'others',  label: 'Others'  },
+];
+
+const PROVIDER_NUMBERS: Record<string, string> = {
+    zaad:   '+252 63 4567890',
+    edahab: '+252 65 9876543',
+};
+
+const CSS = `
   @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Jost:wght@300;400;500;600&display=swap');
-
   :root {
-    --ink: #0a0a0a;
-    --ink-soft: #6b6b6b;
-    --ink-faint: #ababab;
-    --surface: #ffffff;
-    --surface-warm: #fafaf7;
-    --surface-muted: #f4f2ef;
-    --accent: #c8a96e;
-    --accent-light: #f0e8d8;
-    --border: rgba(0,0,0,0.08);
-    --border-strong: rgba(0,0,0,0.15);
-  }
-
-  * { box-sizing: border-box; }
-
-  /* ── Page Wrapper ── */
-  .checkout-page {
-    min-height: 100vh;
-    background: var(--surface-warm);
-    padding: 60px max(24px, calc((100vw - 1300px) / 2 + 40px));
-  }
-
-  /* ── Page Header ── */
-  .checkout-page-header {
-    margin-bottom: 48px;
-    padding-bottom: 28px;
-    border-bottom: 1px solid var(--border-strong);
-    display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-  }
-
-  .checkout-eyebrow {
-    font-family: 'Jost', sans-serif;
-    font-size: 11px;
-    font-weight: 500;
-    letter-spacing: 0.25em;
-    text-transform: uppercase;
-    color: var(--accent);
-    margin-bottom: 10px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-
-  .checkout-eyebrow::before {
-    content: '';
-    display: inline-block;
-    width: 28px;
-    height: 1px;
-    background: var(--accent);
-  }
-
-  .checkout-page-title {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: clamp(36px, 5vw, 56px);
-    font-weight: 500;
-    color: var(--ink);
-    line-height: 1;
-    letter-spacing: -0.02em;
-    margin: 0;
-  }
-
-  .checkout-back-link {
-    font-family: 'Jost', sans-serif;
-    font-size: 11px;
-    font-weight: 500;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    color: var(--ink-soft);
-    text-decoration: none;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding-bottom: 2px;
-    border-bottom: 1px solid var(--border-strong);
-    transition: color 0.2s, border-color 0.2s;
-  }
-
-  .checkout-back-link:hover {
-    color: var(--ink);
-    border-color: var(--ink);
-  }
-
-  /* ── Grid ── */
-  .checkout-grid {
-    display: grid;
-    grid-template-columns: 1fr 420px;
-    gap: 32px;
-    align-items: start;
-  }
-
-  /* ── Panel ── */
-  .checkout-panel {
-    background: var(--surface);
-    border: 1px solid var(--border);
-  }
-
-  .checkout-panel-body {
-    padding: 40px;
-  }
-
-  /* ── Section Heading ── */
-  .co-section-heading {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 28px;
-    padding-bottom: 16px;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .co-section-icon {
-    width: 36px;
-    height: 36px;
-    border: 1px solid var(--border-strong);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--accent);
-    font-size: 14px;
-    flex-shrink: 0;
-  }
-
-  .co-section-title {
-    font-family: 'Jost', sans-serif;
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    color: var(--ink);
-    margin: 0;
-  }
-
-  .co-section-block {
-    margin-bottom: 40px;
-  }
-
-  .co-section-block:last-of-type {
-    margin-bottom: 0;
-  }
-
-  /* ── Form Elements ── */
-  .co-form-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 20px;
-  }
-
-  .co-form-grid.single {
-    grid-template-columns: 1fr;
-  }
-
-  .co-field {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .co-field.full {
-    grid-column: 1 / -1;
-  }
-
-  .co-label {
-    font-family: 'Jost', sans-serif;
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    color: var(--ink-soft);
-  }
-
-  .co-input {
-    font-family: 'Jost', sans-serif;
-    font-size: 14px;
-    font-weight: 300;
-    color: var(--ink);
-    background: var(--surface-warm);
-    border: 1px solid var(--border-strong);
-    padding: 14px 16px;
-    outline: none;
-    transition: border-color 0.2s, background 0.2s;
-    width: 100%;
-    border-radius: 0;
-    -webkit-appearance: none;
-  }
-
-  .co-input:focus {
-    border-color: var(--ink);
-    background: var(--surface);
-  }
-
-  .co-input::placeholder {
-    color: var(--ink-faint);
-    font-weight: 300;
-  }
-
-  .co-select {
-    font-family: 'Jost', sans-serif;
-    font-size: 14px;
-    font-weight: 300;
-    color: var(--ink);
-    background: var(--surface-warm);
-    border: 1px solid var(--border-strong);
-    padding: 14px 16px;
-    outline: none;
-    transition: border-color 0.2s;
-    width: 100%;
-    border-radius: 0;
-    cursor: pointer;
-    -webkit-appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b6b6b' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 16px center;
-    padding-right: 40px;
-  }
-
-  .co-select:focus {
-    border-color: var(--ink);
-  }
-
-  /* ── Payment Box ── */
-  .co-payment-box {
-    border: 1px solid var(--border-strong);
-    background: var(--surface-warm);
-    padding: 20px 24px;
-    display: flex;
-    align-items: flex-start;
-    gap: 16px;
-  }
-
-  .co-radio-custom {
-    width: 18px;
-    height: 18px;
-    border: 1.5px solid var(--ink);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    margin-top: 2px;
-  }
-
-  .co-radio-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--ink);
-  }
-
-  .co-payment-label {
-    font-family: 'Jost', sans-serif;
-    font-size: 13px;
-    font-weight: 500;
-    letter-spacing: 0.05em;
-    color: var(--ink);
-    margin-bottom: 4px;
-  }
-
-  .co-payment-desc {
-    font-family: 'Jost', sans-serif;
-    font-size: 12px;
-    font-weight: 300;
-    color: var(--ink-soft);
-  }
-
-  /* ── Error ── */
-  .co-error {
-    background: #fef2f2;
-    border: 1px solid #fecaca;
-    padding: 14px 20px;
-    margin-bottom: 28px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-  }
-
-  .co-error-text {
-    font-family: 'Jost', sans-serif;
-    font-size: 13px;
-    font-weight: 400;
-    color: #dc2626;
-  }
-
-  .co-error-close {
-    background: none;
-    border: none;
-    color: #dc2626;
-    cursor: pointer;
-    font-size: 16px;
-    padding: 0;
-    line-height: 1;
-    flex-shrink: 0;
-  }
-
-  /* ── Submit Button ── */
-  .co-submit-btn {
-    width: 100%;
-    background: var(--ink);
-    color: #fff;
-    border: 1.5px solid var(--ink);
-    font-family: 'Jost', sans-serif;
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    padding: 20px 32px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    margin-top: 36px;
-    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  }
-
-  .co-submit-btn:hover:not(:disabled) {
-    background: transparent;
-    color: var(--ink);
-  }
-
-  .co-submit-btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-
-  /* ── Order Summary Panel ── */
-  .summary-panel {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    position: sticky;
-    top: 24px;
-  }
-
-  .summary-header {
-    padding: 24px 32px;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  .summary-title {
-    font-family: 'Jost', sans-serif;
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    color: var(--ink);
-    margin: 0;
-  }
-
-  .summary-count {
-    font-family: 'Jost', sans-serif;
-    font-size: 11px;
-    font-weight: 400;
-    color: var(--ink-soft);
-  }
-
-  .summary-items {
-    padding: 24px 32px;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-    max-height: 340px;
-    overflow-y: auto;
-  }
-
-  .summary-item {
-    display: flex;
-    gap: 16px;
-    align-items: flex-start;
-  }
-
-  .summary-item-img {
-    width: 64px;
-    height: 64px;
-    background: var(--surface-muted);
-    overflow: hidden;
-    flex-shrink: 0;
-  }
-
-  .summary-item-img img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-
-  .summary-item-name {
-    font-family: 'Jost', sans-serif;
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--ink);
-    margin-bottom: 4px;
-    line-height: 1.4;
-  }
-
-  .summary-item-meta {
-    font-family: 'Jost', sans-serif;
-    font-size: 11px;
-    font-weight: 300;
-    color: var(--ink-soft);
-    letter-spacing: 0.03em;
-  }
-
-  .summary-item-price {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 18px;
-    font-weight: 500;
-    color: var(--ink);
-    margin-left: auto;
-    flex-shrink: 0;
-  }
-
-  /* ── Totals ── */
-  .summary-totals {
-    padding: 24px 32px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .summary-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  .summary-row-label {
-    font-family: 'Jost', sans-serif;
-    font-size: 12px;
-    font-weight: 400;
-    color: var(--ink-soft);
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .summary-row-value {
-    font-family: 'Jost', sans-serif;
-    font-size: 13px;
-    font-weight: 400;
-    color: var(--ink);
-  }
-
-  .summary-total-row {
-    padding: 24px 32px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  .summary-total-label {
-    font-family: 'Jost', sans-serif;
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    color: var(--ink);
-  }
-
-  .summary-total-value {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 32px;
-    font-weight: 500;
-    color: var(--ink);
-    letter-spacing: -0.01em;
-  }
-
-  .summary-note {
-    padding: 0 32px 24px;
-    font-family: 'Jost', sans-serif;
-    font-size: 11px;
-    font-weight: 300;
-    color: var(--ink-faint);
-    letter-spacing: 0.03em;
-  }
-
-  /* ── Empty Cart ── */
-  .empty-cart-page {
-    min-height: 70vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 20px;
-    text-align: center;
-    padding: 60px 24px;
-    background: var(--surface-warm);
-  }
-
-  .empty-cart-emoji {
-    font-size: 72px;
-    line-height: 1;
-    margin-bottom: 8px;
-  }
-
-  .empty-cart-title {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 40px;
-    font-weight: 500;
-    color: var(--ink);
-    margin: 0;
-  }
-
-  .empty-cart-desc {
-    font-family: 'Jost', sans-serif;
-    font-size: 14px;
-    font-weight: 300;
-    color: var(--ink-soft);
-    letter-spacing: 0.04em;
-  }
-
-  .btn-primary-ink {
-    font-family: 'Jost', sans-serif;
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    background: var(--ink);
-    color: #fff;
-    border: 1.5px solid var(--ink);
-    padding: 16px 40px;
-    text-decoration: none;
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-    margin-top: 8px;
-  }
-
-  .btn-primary-ink:hover {
-    background: transparent;
-    color: var(--ink);
-  }
-
-  /* ── Responsive ── */
-  @media (max-width: 1024px) {
-    .checkout-grid { grid-template-columns: 1fr; }
-    .summary-panel { position: static; }
-    .checkout-page { padding: 40px 24px; }
-    .checkout-page-header { flex-direction: column; align-items: flex-start; gap: 16px; }
-  }
-
-  @media (max-width: 640px) {
-    .checkout-panel-body { padding: 24px; }
-    .co-form-grid { grid-template-columns: 1fr; }
-    .summary-header, .summary-items, .summary-totals,
-    .summary-total-row, .summary-note { padding-left: 20px; padding-right: 20px; }
-    .checkout-page { padding: 32px 16px; }
-  }
+    --ink:#0a0a0a; --ink-soft:#6b6b6b; --ink-faint:#ababab;
+    --surface:#fff; --surface-warm:#fafaf7; --surface-muted:#f4f2ef;
+    --accent:#c8a96e; --accent-light:#f0e8d8;
+    --border:rgba(0,0,0,0.08); --border-strong:rgba(0,0,0,0.15);
+  }
+  *{box-sizing:border-box;}
+  .co-page{min-height:100vh;background:var(--surface-warm);padding:60px max(24px,calc((100vw - 1300px)/2 + 40px));}
+  .co-header{margin-bottom:48px;padding-bottom:28px;border-bottom:1px solid var(--border-strong);display:flex;align-items:flex-end;justify-content:space-between;}
+  .co-eyebrow{font-family:'Jost',sans-serif;font-size:11px;font-weight:500;letter-spacing:.25em;text-transform:uppercase;color:var(--accent);margin-bottom:10px;display:flex;align-items:center;gap:10px;}
+  .co-eyebrow::before{content:'';display:inline-block;width:28px;height:1px;background:var(--accent);}
+  .co-title{font-family:'Cormorant Garamond',serif;font-size:clamp(36px,5vw,56px);font-weight:500;color:var(--ink);line-height:1;letter-spacing:-.02em;margin:0;}
+  .co-back{font-family:'Jost',sans-serif;font-size:11px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-soft);text-decoration:none;display:inline-flex;align-items:center;gap:8px;padding-bottom:2px;border-bottom:1px solid var(--border-strong);transition:color .2s,border-color .2s;}
+  .co-back:hover{color:var(--ink);border-color:var(--ink);}
+  .co-grid{display:grid;grid-template-columns:1fr 420px;gap:32px;align-items:start;}
+  .co-panel{background:var(--surface);border:1px solid var(--border);}
+  .co-panel-body{padding:40px;}
+  .co-sec{margin-bottom:40px;}
+  .co-sec:last-of-type{margin-bottom:0;}
+  .co-sec-head{display:flex;align-items:center;gap:12px;margin-bottom:28px;padding-bottom:16px;border-bottom:1px solid var(--border);}
+  .co-sec-icon{width:36px;height:36px;border:1px solid var(--border-strong);display:flex;align-items:center;justify-content:center;color:var(--accent);font-size:14px;flex-shrink:0;}
+  .co-sec-title{font-family:'Jost',sans-serif;font-size:12px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:var(--ink);margin:0;}
+  .co-2col{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+  .co-1col{display:grid;grid-template-columns:1fr;gap:20px;}
+  .co-field{display:flex;flex-direction:column;gap:8px;}
+  .co-label{font-family:'Jost',sans-serif;font-size:10px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-soft);}
+  .co-input{font-family:'Jost',sans-serif;font-size:14px;font-weight:300;color:var(--ink);background:var(--surface-warm);border:1px solid var(--border-strong);padding:14px 16px;outline:none;transition:border-color .2s,background .2s;width:100%;border-radius:0;-webkit-appearance:none;}
+  .co-input:focus{border-color:var(--ink);background:var(--surface);}
+  .co-input::placeholder{color:var(--ink-faint);font-weight:300;}
+  .co-loc-cards{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;}
+  .co-loc-card{border:1px solid var(--border-strong);padding:18px 20px;cursor:pointer;transition:border-color .2s,background .2s;display:flex;align-items:center;gap:12px;background:var(--surface-warm);user-select:none;}
+  .co-loc-card:hover{border-color:var(--ink);}
+  .co-loc-card.sel{border-color:var(--ink);background:var(--surface);}
+  .co-radio{width:16px;height:16px;border-radius:50%;border:1.5px solid var(--border-strong);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:border-color .2s;}
+  .co-loc-card.sel .co-radio{border-color:var(--ink);}
+  .co-radio-dot{width:7px;height:7px;border-radius:50%;background:var(--ink);}
+  .co-loc-label{font-family:'Jost',sans-serif;font-size:13px;font-weight:500;color:var(--ink);letter-spacing:.02em;}
+  .co-city-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;animation:co-fade .22s ease;}
+  .co-city-card{border:1px solid var(--border-strong);padding:13px 10px;cursor:pointer;text-align:center;font-family:'Jost',sans-serif;font-size:12px;font-weight:500;color:var(--ink-soft);background:var(--surface-warm);transition:border-color .2s,background .2s,color .2s;letter-spacing:.05em;user-select:none;}
+  .co-city-card:hover{border-color:var(--ink);color:var(--ink);}
+  .co-city-card.sel{border-color:var(--ink);background:var(--ink);color:#fff;}
+  .co-pay-cards{display:flex;flex-direction:column;gap:12px;}
+  .co-pay-card{border:1px solid var(--border-strong);padding:20px 24px;cursor:pointer;transition:border-color .2s,background .2s;background:var(--surface-warm);display:flex;align-items:center;gap:16px;user-select:none;}
+  .co-pay-card:hover{border-color:var(--ink);}
+  .co-pay-card.sel{border-color:var(--ink);background:var(--surface);}
+  .co-pay-radio{width:18px;height:18px;border-radius:50%;border:1.5px solid var(--border-strong);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:border-color .2s;}
+  .co-pay-card.sel .co-pay-radio{border-color:var(--ink);}
+  .co-pay-radio-dot{width:8px;height:8px;border-radius:50%;background:var(--ink);}
+  .co-pay-label{font-family:'Jost',sans-serif;font-size:13px;font-weight:500;letter-spacing:.05em;color:var(--ink);margin-bottom:3px;}
+  .co-pay-desc{font-family:'Jost',sans-serif;font-size:12px;font-weight:300;color:var(--ink-soft);}
+  .co-mm{margin-top:16px;animation:co-fade .25s ease;}
+  .co-tabs{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--border-strong);margin-bottom:20px;overflow:hidden;}
+  .co-tab{padding:14px;text-align:center;cursor:pointer;font-family:'Jost',sans-serif;font-size:11px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-soft);background:var(--surface-warm);border:none;border-right:1px solid var(--border-strong);transition:background .2s,color .2s;user-select:none;}
+  .co-tab:last-child{border-right:none;}
+  .co-tab.active{background:var(--ink);color:#fff;}
+  .co-info-box{background:var(--accent-light);border:1px solid rgba(200,169,110,.45);padding:22px 24px;margin-bottom:20px;}
+  .co-info-eyebrow{font-family:'Jost',sans-serif;font-size:10px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:var(--accent);margin-bottom:8px;display:block;}
+  .co-info-number{font-family:'Cormorant Garamond',serif;font-size:30px;font-weight:600;color:var(--ink);letter-spacing:.02em;display:block;margin-bottom:10px;line-height:1;}
+  .co-info-text{font-family:'Jost',sans-serif;font-size:13px;font-weight:300;color:var(--ink-soft);line-height:1.6;}
+  .co-info-amount{font-family:'Jost',sans-serif;font-size:13px;font-weight:600;color:var(--ink);}
+  .co-mm-fields{display:flex;flex-direction:column;gap:16px;}
+  .co-error{background:#fef2f2;border:1px solid #fecaca;padding:14px 20px;margin-bottom:28px;display:flex;align-items:center;justify-content:space-between;gap:12px;}
+  .co-error-text{font-family:'Jost',sans-serif;font-size:13px;color:#dc2626;}
+  .co-error-close{background:none;border:none;color:#dc2626;cursor:pointer;font-size:16px;padding:0;line-height:1;}
+  .co-submit{width:100%;background:var(--ink);color:#fff;border:1.5px solid var(--ink);font-family:'Jost',sans-serif;font-size:12px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;padding:20px 32px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:12px;margin-top:36px;transition:all .3s cubic-bezier(.16,1,.3,1);}
+  .co-submit:hover:not(:disabled){background:transparent;color:var(--ink);}
+  .co-submit:disabled{opacity:.6;cursor:not-allowed;}
+  .sum-panel{background:var(--surface);border:1px solid var(--border);position:sticky;top:24px;}
+  .sum-head{padding:24px 32px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+  .sum-title{font-family:'Jost',sans-serif;font-size:11px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:var(--ink);margin:0;}
+  .sum-count{font-family:'Jost',sans-serif;font-size:11px;color:var(--ink-soft);}
+  .sum-items{padding:24px 32px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:20px;max-height:340px;overflow-y:auto;}
+  .sum-item{display:flex;gap:16px;align-items:flex-start;}
+  .sum-img{width:64px;height:64px;background:var(--surface-muted);overflow:hidden;flex-shrink:0;}
+  .sum-img img{width:100%;height:100%;object-fit:cover;}
+  .sum-name{font-family:'Jost',sans-serif;font-size:13px;font-weight:500;color:var(--ink);margin-bottom:4px;line-height:1.4;}
+  .sum-meta{font-family:'Jost',sans-serif;font-size:11px;font-weight:300;color:var(--ink-soft);}
+  .sum-price{font-family:'Cormorant Garamond',serif;font-size:18px;font-weight:500;color:var(--ink);margin-left:auto;flex-shrink:0;}
+  .sum-total-row{padding:28px 32px;display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--border);}
+  .sum-total-label{font-family:'Jost',sans-serif;font-size:11px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:var(--ink);}
+  .sum-total-val{font-family:'Cormorant Garamond',serif;font-size:32px;font-weight:500;color:var(--ink);letter-spacing:-.01em;}
+  .sum-note{padding:0 32px 24px;font-family:'Jost',sans-serif;font-size:11px;font-weight:300;color:var(--ink-faint);}
+  .empty-page{min-height:70vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;text-align:center;padding:60px 24px;background:var(--surface-warm);}
+  .empty-emoji{font-size:72px;line-height:1;margin-bottom:8px;}
+  .empty-title{font-family:'Cormorant Garamond',serif;font-size:40px;font-weight:500;color:var(--ink);margin:0;}
+  .empty-desc{font-family:'Jost',sans-serif;font-size:14px;font-weight:300;color:var(--ink-soft);}
+  .btn-ink{font-family:'Jost',sans-serif;font-size:12px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;background:var(--ink);color:#fff;border:1.5px solid var(--ink);padding:16px 40px;text-decoration:none;display:inline-flex;align-items:center;gap:10px;transition:all .3s cubic-bezier(.16,1,.3,1);margin-top:8px;}
+  .btn-ink:hover{background:transparent;color:var(--ink);}
+  @keyframes co-fade{from{opacity:0;transform:translateY(-8px);}to{opacity:1;transform:translateY(0);}}
+  @media(max-width:1024px){.co-grid{grid-template-columns:1fr;}.sum-panel{position:static;}.co-page{padding:40px 24px;}.co-header{flex-direction:column;align-items:flex-start;gap:16px;}}
+  @media(max-width:640px){.co-panel-body{padding:24px;}.co-2col{grid-template-columns:1fr;}.co-loc-cards{grid-template-columns:1fr;}.co-city-cards{grid-template-columns:repeat(2,1fr);}.sum-head,.sum-items,.sum-total-row,.sum-note{padding-left:20px;padding-right:20px;}.co-page{padding:32px 16px;}}
 `;
 
 export default function CheckoutPage() {
-    const router = useRouter();
+    const router          = useRouter();
     const { cart, clearCart } = useCart();
-    const { user } = useAuth();
+    const { user }        = useAuth();
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
-    const [formData, setFormData] = useState({
-        fullName: '',
-        email: '',
-        phone: '',
+    const [error,   setError  ] = useState('');
+
+    const [form, setForm] = useState({
+        fullName:      '',
+        email:         '',
+        phone:         '',
         streetAddress: '',
-        location: 'inside',
+        location:      'inside' as 'inside' | 'outside',
+        outsideCity:   '',
+        paymentMethod: 'cash_on_delivery' as 'cash_on_delivery' | 'zaad' | 'edahab',
+        transferPhone: '',
+        transferName:  '',
     });
-    const [deliveryFee, setDeliveryFee] = useState(1);
 
     const backendUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000';
-
-    const getImageUrl = (imagePath?: string) => {
-        if (!imagePath) return '';
-        if (imagePath.startsWith('/uploads')) return `${backendUrl}${imagePath}`;
-        return imagePath;
+    const imgUrl = (p?: string) => {
+        if (!p) return '';
+        return p.startsWith('/uploads') ? `${backendUrl}${p}` : p;
     };
 
     useEffect(() => {
-        if (user) {
-            setFormData(prev => ({
-                ...prev,
-                email: user.email || '',
-                fullName: user.name || '',
-            }));
-        }
+        if (user) setForm(p => ({ ...p, email: user.email || '', fullName: user.name || '' }));
     }, [user]);
 
-    useEffect(() => {
-        setDeliveryFee(formData.location === 'inside' ? 1 : 1.5);
-    }, [formData.location]);
+    const subtotal      = cart.items.reduce((s, i) => s + i.price * i.quantity, 0);
+    const total         = subtotal;
+    const isMobileMoney = form.paymentMethod === 'zaad' || form.paymentMethod === 'edahab';
 
-    const subtotal = cart.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    const total = subtotal + deliveryFee;
-
-    const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
+    const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
+        setForm(p => ({ ...p, [e.target.name]: e.target.value }));
         setError('');
     };
 
-    const validateForm = () => {
-        if (!formData.fullName.trim()) return 'Please enter your full name';
-        if (!formData.email.trim()) return 'Please enter your email';
-        if (!formData.phone.trim()) return 'Please enter your phone number';
-        if (!formData.streetAddress.trim()) return 'Please enter your street address';
+    const validate = () => {
+        if (!form.fullName.trim())      return 'Please enter your full name';
+        if (!form.email.trim())         return 'Please enter your email address';
+        if (!form.phone.trim())         return 'Please enter your phone number';
+        if (!form.streetAddress.trim()) return 'Please enter your street address';
+        if (form.location === 'outside' && !form.outsideCity) return 'Please select your city';
+        if (isMobileMoney) {
+            if (!form.transferPhone.trim()) return 'Please enter the number you sent the money from';
+            if (!form.transferName.trim())  return 'Please enter the name used for the transfer';
+        }
         if (cart.items.length === 0) return 'Your cart is empty';
         return null;
     };
 
     const handlePlaceOrder = async () => {
-        const validationError = validateForm();
-        if (validationError) {
-            setError(validationError);
-            return;
-        }
-
+        const err = validate();
+        if (err) { setError(err); return; }
         setLoading(true);
         setError('');
 
         try {
+            const cityLabel = form.location === 'outside'
+                ? (OUTSIDE_CITIES.find(c => c.value === form.outsideCity)?.label ?? 'Outside Hargeisa')
+                : 'Hargeisa';
+
+            const shippingAddress = form.location === 'outside'
+                ? `${form.streetAddress}, ${cityLabel}, Somaliland`
+                : `${form.streetAddress}, Hargeisa, Somaliland`;
+
+            /*
+             * IMPORTANT: we save the payment data to sessionStorage RIGHT HERE
+             * before the API call. This guarantees the success page can show
+             * the mobile money details even if the backend doesn't return them yet.
+             */
+            if (isMobileMoney) {
+                sessionStorage.setItem('lastOrderPayment', JSON.stringify({
+                    paymentMethod: form.paymentMethod,
+                    transferPhone: form.transferPhone,
+                    transferName:  form.transferName,
+                    total,
+                }));
+            } else {
+                sessionStorage.removeItem('lastOrderPayment');
+            }
+
             const orderData = {
+                /* Customer */
                 customer: {
-                    name: formData.fullName,
-                    email: formData.email,
-                    phone: formData.phone,
-                    address: formData.streetAddress,
-                    location: formData.location,
+                    name:    form.fullName,
+                    email:   form.email,
+                    phone:   form.phone,
+                    address: form.streetAddress,
                 },
+                /* Also at top level for backends that read flat fields */
+                customer_name:  form.fullName,
+                customer_email: form.email,
+                customer_phone: form.phone,
+
+                /* Location */
+                location:        form.location,
+                city:            cityLabel,
+                shipping_address: shippingAddress,
+
+                /* Items */
                 items: cart.items.map(item => ({
                     productId: item.product_id,
-                    name: item.name,
-                    quantity: item.quantity,
-                    price: item.price,
-                    size: item.size,
-                    color: item.color,
-                    image: item.image,
+                    name:      item.name,
+                    quantity:  item.quantity,
+                    price:     item.price,
+                    size:      item.size  ?? null,
+                    color:     item.color ?? null,
+                    image:     item.image ?? null,
                 })),
+
+                /* Totals */
                 subtotal,
-                deliveryFee,
+                deliveryFee: 0,
                 total,
-                paymentMethod: 'cash_on_delivery',
+
+                /* Payment — both naming conventions */
+                paymentMethod:  form.paymentMethod,
+                payment_method: form.paymentMethod,
+
+                /* Mobile money proof — only when used */
+                ...(isMobileMoney && {
+                    /* camelCase */
+                    mobilePayment: {
+                        provider:      form.paymentMethod,
+                        transferPhone: form.transferPhone,
+                        transferName:  form.transferName,
+                        amountPaid:    total,
+                    },
+                    /* snake_case */
+                    mobile_payment: {
+                        provider:       form.paymentMethod,
+                        transfer_phone: form.transferPhone,
+                        transfer_name:  form.transferName,
+                        amount_paid:    total,
+                    },
+                    /* flat fields — some backends read these */
+                    mobile_provider:       form.paymentMethod,
+                    mobile_transfer_phone: form.transferPhone,
+                    mobile_transfer_name:  form.transferName,
+                    mobile_amount_paid:    total,
+                }),
             };
 
             const endpoint = user ? '/orders' : '/guest-orders';
             const response = await axiosInstance.post(endpoint, orderData);
-            const orderId = response.data.data.orderId;
+            const orderId  = response.data.data.orderId;
             clearCart();
             router.push(`/order-success?orderId=${orderId}`);
-        } catch (err: any) {
-            console.error(err);
-            setError(err.response?.data?.message || 'Failed to place order. Please try again.');
+        } catch (e: any) {
+            console.error('Order error:', e);
+            setError(e.response?.data?.message || 'Failed to place order. Please try again.');
         } finally {
             setLoading(false);
         }
     };
 
-    if (cart.items.length === 0) {
-        return (
-            <>
-                <style dangerouslySetInnerHTML={{ __html: checkoutStyles }} />
-                <div className="empty-cart-page">
-                    <div className="empty-cart-emoji">🛒</div>
-                    <h2 className="empty-cart-title">Your cart is empty</h2>
-                    <p className="empty-cart-desc">Looks like you haven't added anything yet.</p>
-                    <Link href="/" className="btn-primary-ink">
-                        Continue Shopping <FaArrowRight size={11} />
-                    </Link>
-                </div>
-            </>
-        );
-    }
+    const submitLabel =
+        form.paymentMethod === 'zaad'   ? 'Confirm Order — Paid via Zaad'    :
+        form.paymentMethod === 'edahab' ? 'Confirm Order — Paid via E-Dahab' :
+                                          'Confirm Order — Cash on Delivery';
+
+    if (cart.items.length === 0) return (
+        <>
+            <style dangerouslySetInnerHTML={{ __html: CSS }} />
+            <div className="empty-page">
+                <div className="empty-emoji">🛒</div>
+                <h2 className="empty-title">Your cart is empty</h2>
+                <p className="empty-desc">Looks like you haven't added anything yet.</p>
+                <Link href="/" className="btn-ink">Continue Shopping <FaArrowRight size={11} /></Link>
+            </div>
+        </>
+    );
 
     return (
         <>
-            <style dangerouslySetInnerHTML={{ __html: checkoutStyles }} />
+            <style dangerouslySetInnerHTML={{ __html: CSS }} />
+            <div className="co-page">
 
-            <div className="checkout-page">
-
-                {/* ── Page Header ── */}
-                <div className="checkout-page-header">
+                <div className="co-header">
                     <div>
-                        <div className="checkout-eyebrow">Secure Checkout</div>
-                        <h1 className="checkout-page-title">Complete Your Order</h1>
+                        <div className="co-eyebrow">Secure Checkout</div>
+                        <h1 className="co-title">Complete Your Order</h1>
                     </div>
-                    <Link href="/cart" className="checkout-back-link">
-                        ← Back to Cart
-                    </Link>
+                    <Link href="/cart" className="co-back">← Back to Cart</Link>
                 </div>
 
-                <div className="checkout-grid">
+                <div className="co-grid">
 
-                    {/* ── LEFT: Form ── */}
-                    <div className="checkout-panel">
-                        <div className="checkout-panel-body">
+                    {/* ══ FORM ══ */}
+                    <div className="co-panel">
+                        <div className="co-panel-body">
 
                             {error && (
                                 <div className="co-error">
@@ -714,173 +316,198 @@ export default function CheckoutPage() {
                                 </div>
                             )}
 
-                            {/* Customer Info */}
-                            <div className="co-section-block">
-                                <div className="co-section-heading">
-                                    <div className="co-section-icon"><FaUser /></div>
-                                    <p className="co-section-title">Customer Information</p>
+                            {/* 1 — Customer */}
+                            <div className="co-sec">
+                                <div className="co-sec-head">
+                                    <div className="co-sec-icon"><FaUser /></div>
+                                    <p className="co-sec-title">Customer Information</p>
                                 </div>
-                                <div className="co-form-grid">
+                                <div className="co-2col">
                                     <div className="co-field">
                                         <label className="co-label">Full Name *</label>
-                                        <input
-                                            type="text"
-                                            name="fullName"
-                                            className="co-input"
-                                            placeholder="John Doe"
-                                            value={formData.fullName}
-                                            onChange={handleChange}
-                                            required
-                                        />
+                                        <input type="text" name="fullName" className="co-input"
+                                            placeholder="John Doe" value={form.fullName} onChange={handleChange} />
                                     </div>
                                     <div className="co-field">
                                         <label className="co-label">Email Address *</label>
-                                        <input
-                                            type="email"
-                                            name="email"
-                                            className="co-input"
-                                            placeholder="john@example.com"
-                                            value={formData.email}
-                                            onChange={handleChange}
-                                            required
-                                        />
+                                        <input type="email" name="email" className="co-input"
+                                            placeholder="john@example.com" value={form.email} onChange={handleChange} />
                                     </div>
                                     <div className="co-field">
                                         <label className="co-label">Phone Number *</label>
-                                        <input
-                                            type="tel"
-                                            name="phone"
-                                            className="co-input"
-                                            placeholder="+252 63 123456"
-                                            value={formData.phone}
-                                            onChange={handleChange}
-                                            required
-                                        />
+                                        <input type="tel" name="phone" className="co-input"
+                                            placeholder="+252 63 123456" value={form.phone} onChange={handleChange} />
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Shipping */}
-                            <div className="co-section-block">
-                                <div className="co-section-heading">
-                                    <div className="co-section-icon"><FaMapMarkerAlt /></div>
-                                    <p className="co-section-title">Shipping Address</p>
+                            {/* 2 — Shipping */}
+                            <div className="co-sec">
+                                <div className="co-sec-head">
+                                    <div className="co-sec-icon"><FaMapMarkerAlt /></div>
+                                    <p className="co-sec-title">Shipping Address</p>
                                 </div>
-                                <div className="co-form-grid single">
+
+                                <div className="co-1col" style={{ marginBottom:24 }}>
                                     <div className="co-field">
                                         <label className="co-label">Street Address *</label>
-                                        <input
-                                            type="text"
-                                            name="streetAddress"
-                                            className="co-input"
+                                        <input type="text" name="streetAddress" className="co-input"
                                             placeholder="Wadnaha Road, 26 June District"
-                                            value={formData.streetAddress}
-                                            onChange={handleChange}
-                                            required
-                                        />
-                                    </div>
-                                    <div className="co-field">
-                                        <label className="co-label">Location *</label>
-                                        <select
-                                            name="location"
-                                            className="co-select"
-                                            value={formData.location}
-                                            onChange={handleChange}
-                                        >
-                                            <option value="inside">Inside Hargeisa ($1.00 delivery)</option>
-                                            <option value="outside">Outside Hargeisa ($1.50 delivery)</option>
-                                        </select>
+                                            value={form.streetAddress} onChange={handleChange} />
                                     </div>
                                 </div>
-                            </div>
 
-                            {/* Payment */}
-                            <div className="co-section-block">
-                                <div className="co-section-heading">
-                                    <div className="co-section-icon"><FaMoneyBillWave /></div>
-                                    <p className="co-section-title">Payment Method</p>
-                                </div>
-                                <div className="co-payment-box">
-                                    <div className="co-radio-custom">
-                                        <div className="co-radio-dot" />
+                                <label className="co-label" style={{ display:'block', marginBottom:12 }}>Location *</label>
+                                <div className="co-loc-cards">
+                                    <div
+                                        className={`co-loc-card${form.location === 'inside' ? ' sel' : ''}`}
+                                        onClick={() => { setForm(p => ({ ...p, location:'inside', outsideCity:'' })); setError(''); }}
+                                    >
+                                        <div className="co-radio">{form.location === 'inside' && <div className="co-radio-dot" />}</div>
+                                        <span className="co-loc-label">Inside Hargeisa</span>
                                     </div>
+                                    <div
+                                        className={`co-loc-card${form.location === 'outside' ? ' sel' : ''}`}
+                                        onClick={() => { setForm(p => ({ ...p, location:'outside' })); setError(''); }}
+                                    >
+                                        <div className="co-radio">{form.location === 'outside' && <div className="co-radio-dot" />}</div>
+                                        <span className="co-loc-label">Outside Hargeisa</span>
+                                    </div>
+                                </div>
+
+                                {form.location === 'outside' && (
                                     <div>
-                                        <div className="co-payment-label">Cash on Delivery</div>
-                                        <div className="co-payment-desc">Pay when you receive your order</div>
+                                        <label className="co-label" style={{ display:'block', marginBottom:12 }}>Select Your City *</label>
+                                        <div className="co-city-cards">
+                                            {OUTSIDE_CITIES.map(city => (
+                                                <div
+                                                    key={city.value}
+                                                    className={`co-city-card${form.outsideCity === city.value ? ' sel' : ''}`}
+                                                    onClick={() => { setForm(p => ({ ...p, outsideCity:city.value })); setError(''); }}
+                                                >
+                                                    {city.label}
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
-                                </div>
+                                )}
                             </div>
 
-                            <button
-                                className="co-submit-btn"
-                                onClick={handlePlaceOrder}
-                                disabled={loading}
-                            >
-                                {loading ? (
-                                    'Placing Order...'
-                                ) : (
-                                    <>
-                                        Confirm Order — Cash on Delivery <FaArrowRight size={11} />
-                                    </>
+                            {/* 3 — Payment */}
+                            <div className="co-sec">
+                                <div className="co-sec-head">
+                                    <div className="co-sec-icon"><FaMoneyBillWave /></div>
+                                    <p className="co-sec-title">Payment Method</p>
+                                </div>
+
+                                <div className="co-pay-cards">
+                                    <div
+                                        className={`co-pay-card${form.paymentMethod === 'cash_on_delivery' ? ' sel' : ''}`}
+                                        onClick={() => { setForm(p => ({ ...p, paymentMethod:'cash_on_delivery', transferPhone:'', transferName:'' })); setError(''); }}
+                                    >
+                                        <div className="co-pay-radio">{form.paymentMethod === 'cash_on_delivery' && <div className="co-pay-radio-dot" />}</div>
+                                        <div>
+                                            <div className="co-pay-label">Cash on Delivery</div>
+                                            <div className="co-pay-desc">Pay when you receive your order</div>
+                                        </div>
+                                    </div>
+
+                                    <div
+                                        className={`co-pay-card${isMobileMoney ? ' sel' : ''}`}
+                                        onClick={() => { if (!isMobileMoney) { setForm(p => ({ ...p, paymentMethod:'zaad' })); setError(''); } }}
+                                    >
+                                        <div className="co-pay-radio">{isMobileMoney && <div className="co-pay-radio-dot" />}</div>
+                                        <div>
+                                            <div className="co-pay-label" style={{ display:'flex', alignItems:'center', gap:8 }}>
+                                                <FaMobileAlt size={13} style={{ color:'var(--accent)' }} />
+                                                Mobile Money — Zaad / E-Dahab
+                                            </div>
+                                            <div className="co-pay-desc">Send payment via Zaad or E-Dahab</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {isMobileMoney && (
+                                    <div className="co-mm">
+                                        <div className="co-tabs">
+                                            <div className={`co-tab${form.paymentMethod === 'zaad' ? ' active' : ''}`}
+                                                onClick={() => setForm(p => ({ ...p, paymentMethod:'zaad' }))}>Zaad</div>
+                                            <div className={`co-tab${form.paymentMethod === 'edahab' ? ' active' : ''}`}
+                                                onClick={() => setForm(p => ({ ...p, paymentMethod:'edahab' }))}>E-Dahab</div>
+                                        </div>
+
+                                        <div className="co-info-box">
+                                            <span className="co-info-eyebrow">
+                                                Send payment to this {form.paymentMethod === 'zaad' ? 'Zaad' : 'E-Dahab'} number
+                                            </span>
+                                            <span className="co-info-number">{PROVIDER_NUMBERS[form.paymentMethod]}</span>
+                                            <p className="co-info-text">
+                                                Please send exactly <span className="co-info-amount">${total.toFixed(2)}</span> to the
+                                                number above, then fill in the details below so we can verify your payment.
+                                            </p>
+                                        </div>
+
+                                        <div className="co-mm-fields">
+                                            <div className="co-field">
+                                                <label className="co-label">Number You Sent From *</label>
+                                                <input type="tel" name="transferPhone" className="co-input"
+                                                    placeholder="+252 63 XXXXXXX"
+                                                    value={form.transferPhone} onChange={handleChange} />
+                                            </div>
+                                            <div className="co-field">
+                                                <label className="co-label">Full Name Used for Transfer *</label>
+                                                <input type="text" name="transferName" className="co-input"
+                                                    placeholder="Name shown on the transfer receipt"
+                                                    value={form.transferName} onChange={handleChange} />
+                                            </div>
+                                        </div>
+                                    </div>
                                 )}
+                            </div>
+
+                            <button className="co-submit" onClick={handlePlaceOrder} disabled={loading}>
+                                {loading ? 'Placing Order…' : <>{submitLabel} <FaArrowRight size={11} /></>}
                             </button>
 
                         </div>
                     </div>
 
-                    {/* ── RIGHT: Summary ── */}
-                    <div className="summary-panel">
-                        <div className="summary-header">
-                            <p className="summary-title">Order Summary</p>
-                            <span className="summary-count">{cart.items.length} item{cart.items.length !== 1 ? 's' : ''}</span>
+                    {/* ══ SUMMARY ══ */}
+                    <div className="sum-panel">
+                        <div className="sum-head">
+                            <p className="sum-title">Order Summary</p>
+                            <span className="sum-count">{cart.items.length} item{cart.items.length !== 1 ? 's' : ''}</span>
                         </div>
-
-                        <div className="summary-items">
-                            {cart.items.map((item) => (
-                                <div key={item.id} className="summary-item">
-                                    <div className="summary-item-img">
-                                        <img
-                                            src={getImageUrl(item.image)}
-                                            alt={item.name}
-                                            onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                                        />
+                        <div className="sum-items">
+                            {cart.items.map(item => (
+                                <div key={item.id} className="sum-item">
+                                    <div className="sum-img">
+                                        <img src={imgUrl(item.image)} alt={item.name}
+                                            onError={e => { e.currentTarget.style.display = 'none'; }} />
                                     </div>
-                                    <div style={{ flex: 1 }}>
-                                        <div className="summary-item-name">{item.name}</div>
-                                        <div className="summary-item-meta">
-                                            {item.size && `Size: ${item.size}`}
+                                    <div style={{ flex:1 }}>
+                                        <div className="sum-name">{item.name}</div>
+                                        <div className="sum-meta">
+                                            {item.size  && `Size: ${item.size}`}
                                             {item.size && item.color && ' · '}
                                             {item.color && `Color: ${item.color}`}
                                             {(item.size || item.color) && ' · '}
                                             Qty: {item.quantity}
                                         </div>
                                     </div>
-                                    <div className="summary-item-price">
-                                        ${(item.price * item.quantity).toFixed(2)}
-                                    </div>
+                                    <div className="sum-price">${(item.price * item.quantity).toFixed(2)}</div>
                                 </div>
                             ))}
                         </div>
-
-                        <div className="summary-totals">
-                            <div className="summary-row">
-                                <span className="summary-row-label">Subtotal</span>
-                                <span className="summary-row-value">${subtotal.toFixed(2)}</span>
-                            </div>
-                            <div className="summary-row">
-                                <span className="summary-row-label">
-                                    <FaTruck size={11} /> Delivery Fee
-                                </span>
-                                <span className="summary-row-value">${deliveryFee.toFixed(2)}</span>
-                            </div>
+                        <div className="sum-total-row">
+                            <span className="sum-total-label">Total</span>
+                            <span className="sum-total-val">${total.toFixed(2)}</span>
                         </div>
-
-                        <div className="summary-total-row">
-                            <span className="summary-total-label">Total</span>
-                            <span className="summary-total-value">${total.toFixed(2)}</span>
-                        </div>
-
-                        <p className="summary-note">* Cash on delivery only. No additional taxes.</p>
+                        <p className="sum-note">
+                            {isMobileMoney
+                                ? `Pay $${total.toFixed(2)} via ${form.paymentMethod === 'zaad' ? 'Zaad' : 'E-Dahab'} before confirming.`
+                                : 'Cash on delivery. No hidden fees.'}
+                        </p>
                     </div>
 
                 </div>
