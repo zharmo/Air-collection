@@ -1,121 +1,129 @@
-const path       = require('path');
-const dotenv     = require('dotenv');
-const nodemailer = require('nodemailer');
+const path = require("path");
+const dotenv = require("dotenv");
+const nodemailer = require("nodemailer");
 
-dotenv.config({ path: path.join(__dirname, '../.env') });
+dotenv.config({ path: path.join(__dirname, "../.env") });
 
 /* ═══════════════════════════════════════════════════════════════
  * TRANSPORT
  * ═══════════════════════════════════════════════════════════════ */
-const isEmailConfigured = () => Boolean(process.env.EMAIL_USER && process.env.EMAIL_PASS);
-const getAdminEmail     = () => (process.env.ADMIN_EMAIL || process.env.EMAIL_USER || '').trim();
+const isEmailConfigured = () =>
+  Boolean(process.env.EMAIL_USER && process.env.EMAIL_PASS);
+const getAdminEmail = () =>
+  (process.env.ADMIN_EMAIL || process.env.EMAIL_USER || "").trim();
 
-const createTransporter = () => nodemailer.createTransport({
-  host:   process.env.EMAIL_HOST   || 'smtp.gmail.com',
-  port:   Number(process.env.EMAIL_PORT  || 465),
-  secure: String(process.env.EMAIL_SECURE || 'true') === 'true',
-  auth:   { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
-});
+const createTransporter = () =>
+  nodemailer.createTransport({
+    host: process.env.EMAIL_HOST || "smtp.gmail.com",
+    port: Number(process.env.EMAIL_PORT || 465),
+    secure: String(process.env.EMAIL_SECURE || "true") === "true",
+    auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
+  });
 
 const sendEmail = async (to, subject, html, options = {}) => {
   try {
     if (!isEmailConfigured()) {
-      console.error('Email not configured — set EMAIL_USER and EMAIL_PASS in server/.env');
+      console.error(
+        "Email not configured — set EMAIL_USER and EMAIL_PASS in server/.env",
+      );
       return false;
     }
     const transporter = createTransporter();
     const mail = {
-      from: process.env.EMAIL_FROM || `"Air Collection" <${process.env.EMAIL_USER}>`,
-      to, subject, html,
+      from:
+        process.env.EMAIL_FROM ||
+        `"Air Collection" <${process.env.EMAIL_USER}>`,
+      to,
+      subject,
+      html,
     };
     if (options.replyTo) mail.replyTo = options.replyTo;
     const info = await transporter.sendMail(mail);
     console.log(`✅ Email sent to ${to}: ${info.messageId}`);
     return true;
   } catch (err) {
-    console.error('❌ Email error:', err.message);
+    console.error("❌ Email error:", err.message);
     return false;
   }
 };
 
-const escapeHtml = (v = '') => String(v)
-  .replace(/&/g,  '&amp;')
-  .replace(/</g,  '&lt;')
-  .replace(/>/g,  '&gt;')
-  .replace(/"/g,  '&quot;')
-  .replace(/'/g,  '&#039;');
+const escapeHtml = (v = "") =>
+  String(v)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 
 /* ═══════════════════════════════════════════════════════════════
  * MOBILE PAYMENT NORMALISATION
- *
- * Accepts camelCase or snake_case fields, returns one clean shape
- * (or null when no mobile payment was made):
- *   { provider, providerLabel, senderPhone, receiptName, amount }
  * ═══════════════════════════════════════════════════════════════ */
 const normaliseMP = (mp) => {
   if (!mp || !mp.provider) return null;
-  const provider = (mp.provider || '').toLowerCase();
+  const provider = (mp.provider || "").toLowerCase();
   return {
     provider,
-    providerLabel: provider === 'edahab' ? 'E-Dahab' : provider === 'zaad' ? 'Zaad' : mp.provider,
-    senderPhone:   mp.transfer_phone || mp.transferPhone || '',
-    receiptName:   mp.transfer_name  || mp.transferName  || '',
-    amount:        Number(mp.amount_paid ?? mp.amountPaid ?? 0),
+    providerLabel:
+      provider === "edahab"
+        ? "E-Dahab"
+        : provider === "zaad"
+          ? "Zaad"
+          : mp.provider,
+    senderPhone: mp.transfer_phone || mp.transferPhone || "",
+    receiptName: mp.transfer_name || mp.transferName || "",
+    amount: Number(mp.amount_paid ?? mp.amountPaid ?? 0),
   };
 };
 
 /* ═══════════════════════════════════════════════════════════════
  * CITY / LOCATION DETECTION
- *
- * The backend may not always persist location/city fields reliably,
- * so every word from all available address fields is scanned for a
- * known "outside Hargeisa" city name. Any one signal is enough to
- * mark the order as outside.
- *
- * Returns:
- *   { isOutside, rawCity, cityLabel, addrLine }
- *
- *   cityLabel examples:
- *     "Inside Hargeisa"
- *     "Outside Hargeisa"
- *     "Outside Hargeisa / Burco"
  * ═══════════════════════════════════════════════════════════════ */
-const OUTSIDE_CITIES_LC = ['burco', 'boorama', 'berbera', 'borama', 'others'];
+const OUTSIDE_CITIES_LC = ["burco", "boorama", "berbera", "borama", "others"];
 const OUTSIDE_CITIES_LABELS = {
-  burco:   'Burco',
-  boorama: 'Boorama',
-  borama:  'Boorama',
-  berbera: 'Berbera',
-  others:  'Others',
+  burco: "Burco",
+  boorama: "Boorama",
+  borama: "Boorama",
+  berbera: "Berbera",
+  others: "Others",
 };
 
-const resolveLocation = ({ location = '', city = '', shippingAddress = '', streetAddress = '' }) => {
+const resolveLocation = ({
+  location = "",
+  city = "",
+  shippingAddress = "",
+  streetAddress = "",
+}) => {
   const combined = [location, city, shippingAddress, streetAddress]
-    .join(' ')
+    .join(" ")
     .toLowerCase()
-    .replace(/[,.\-]/g, ' ');
+    .replace(/[,.\-]/g, " ");
 
-  const words    = combined.split(/\s+/).filter(Boolean);
-  const foundWord = words.find(w => OUTSIDE_CITIES_LC.includes(w)) || null;
+  const words = combined.split(/\s+/).filter(Boolean);
+  const foundWord = words.find((w) => OUTSIDE_CITIES_LC.includes(w)) || null;
 
   const isOutside =
-    location === 'outside' ||
-    combined.includes('outside') ||
+    location === "outside" ||
+    combined.includes("outside") ||
     (!!city && OUTSIDE_CITIES_LC.includes(city.toLowerCase())) ||
     foundWord !== null;
 
   const cityKey =
-    (city && OUTSIDE_CITIES_LC.includes(city.toLowerCase()) ? city.toLowerCase() : null) ||
+    (city && OUTSIDE_CITIES_LC.includes(city.toLowerCase())
+      ? city.toLowerCase()
+      : null) ||
     foundWord ||
     null;
 
-  const rawCity    = cityKey ? (OUTSIDE_CITIES_LABELS[cityKey] || city || '') : '';
-  const cityLabel  = isOutside
-    ? (rawCity ? `Outside Hargeisa / ${rawCity}` : 'Outside Hargeisa')
-    : 'Inside Hargeisa';
+  const rawCity = cityKey ? OUTSIDE_CITIES_LABELS[cityKey] || city || "" : "";
+  const cityLabel = isOutside
+    ? rawCity
+      ? `Outside Hargeisa / ${rawCity}`
+      : "Outside Hargeisa"
+    : "Inside Hargeisa";
 
-  const addrLine = streetAddress ||
-    (shippingAddress ? shippingAddress.split(',')[0].trim() : '') ||
+  const addrLine =
+    streetAddress ||
+    (shippingAddress ? shippingAddress.split(",")[0].trim() : "") ||
     shippingAddress;
 
   return { isOutside, rawCity, cityLabel, addrLine };
@@ -125,29 +133,25 @@ const resolveLocation = ({ location = '', city = '', shippingAddress = '', stree
  * DESIGN TOKENS
  * ═══════════════════════════════════════════════════════════════ */
 const T = {
-  bg:       '#F9F8F6',
-  surface:  '#FFFFFF',
-  border:   '#E5E0DA',
-  text:     '#0D0D0D',
-  muted:    '#7A7068',
-  accent:   '#B8955A',
-  accentBg: '#F5EFE6',
-  green:    '#166534',
-  greenBg:  '#F0FDF4',
-  greenBdr: '#BBF7D0',
-  sans:     '-apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif',
-  serif:    'Georgia, "Times New Roman", serif',
+  bg: "#F9F8F6",
+  surface: "#FFFFFF",
+  border: "#E5E0DA",
+  text: "#0D0D0D",
+  muted: "#7A7068",
+  accent: "#B8955A",
+  accentBg: "#F5EFE6",
+  green: "#166534",
+  greenBg: "#F0FDF4",
+  greenBdr: "#BBF7D0",
+  sans: '-apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif',
+  serif: 'Georgia, "Times New Roman", serif',
 };
 
 /* ═══════════════════════════════════════════════════════════════
  * LOGO
- *
- * Set FRONTEND_URL=https://yourdomain.com in server/.env to use the
- * real logo at client/public/images/hero/air-collection-hero.jpg.
- * Falls back to a styled text wordmark when FRONTEND_URL is unset.
  * ═══════════════════════════════════════════════════════════════ */
 const logoHtml = () => {
-  const base = (process.env.FRONTEND_URL || '').replace(/\/$/, '');
+  const base = (process.env.FRONTEND_URL || "").replace(/\/$/, "");
   if (base) {
     return `<img src="${base}/images/hero/air-collection-hero.jpg" alt="Air Collection"
                  width="160" style="display:block;max-width:160px;height:auto;margin:0 auto 4px;border:0;"/>`;
@@ -161,7 +165,7 @@ const logoHtml = () => {
 /* ═══════════════════════════════════════════════════════════════
  * EMAIL SHELL — shared header / footer wrapper
  * ═══════════════════════════════════════════════════════════════ */
-const shell = (content, preview = '') => `
+const shell = (content, preview = "", hideLogo = false) => `
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -170,30 +174,29 @@ const shell = (content, preview = '') => `
   <title>Air Collection</title>
 </head>
 <body style="margin:0;padding:0;background:${T.bg};font-family:${T.sans};-webkit-font-smoothing:antialiased;">
-  ${preview ? `<div style="display:none;max-height:0;overflow:hidden;font-size:1px;color:${T.bg};">${preview}</div>` : ''}
+  ${preview ? `<div style="display:none;max-height:0;overflow:hidden;font-size:1px;color:${T.bg};">${preview}</div>` : ""}
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
          style="background:${T.bg};padding:40px 16px 64px;">
     <tr><td align="center">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
              style="max-width:600px;">
 
-        <!-- LOGO -->
-        <tr>
-          <td style="padding:0 0 20px;text-align:center;border-bottom:1px solid ${T.border};">
-            ${logoHtml()}
-            <div style="font-family:${T.sans};font-size:11px;letter-spacing:0.2em;color:${T.accent};
-                        text-transform:uppercase;font-weight:500;margin-top:4px;">Light as Air</div>
-          </td>
-        </tr>
+        ${
+          !hideLogo
+            ? `<tr>
+                <td align="center" style="padding:0 0 24px; text-align: center;">
+                  ${logoHtml()}
+                </td>
+              </tr>`
+            : ""
+        }
 
-        <!-- CONTENT -->
         <tr>
-          <td style="background:${T.surface};border:1px solid ${T.border};border-top:none;">
+          <td style="background:${T.surface};border:1px solid ${T.border};">
             ${content}
           </td>
         </tr>
 
-        <!-- FOOTER -->
         <tr>
           <td style="padding:24px 0 0;text-align:center;">
             <p style="font-size:11px;color:${T.muted};margin:0 0 4px;letter-spacing:0.08em;text-transform:uppercase;">
@@ -214,46 +217,54 @@ const shell = (content, preview = '') => `
 /* ═══════════════════════════════════════════════════════════════
  * SHARED LAYOUT HELPERS
  * ═══════════════════════════════════════════════════════════════ */
-
 const sectionLine = (title) => `
   <tr>
     <td colspan="2" style="padding:28px 32px 0;">
-      <div style="padding-bottom:12px;border-bottom:1px solid ${T.border};display:flex;align-items:center;">
-        <span style="display:inline-block;width:20px;height:1px;background:${T.accent};margin-right:8px;"></span>
-        <span style="font-family:${T.sans};font-size:10px;font-weight:700;letter-spacing:0.2em;
-                     text-transform:uppercase;color:${T.muted};">${title}</span>
-      </div>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="padding-bottom:12px;border-bottom:1px solid ${T.border};">
+        <tr>
+          <td style="vertical-align: middle; width: 28px;">
+            <span style="display:block;width:20px;height:1px;background:${T.accent};"></span>
+          </td>
+          <td style="vertical-align: middle;">
+            <span style="font-family:${T.sans};font-size:10px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:${T.muted};">${title}</span>
+          </td>
+        </tr>
+      </table>
     </td>
   </tr>`;
 
 const cell2 = (label, value) => `
   <td style="padding:10px 0;vertical-align:top;width:50%;">
-    <div style="font-family:${T.sans};font-size:10px;font-weight:600;letter-spacing:0.18em;
-                text-transform:uppercase;color:${T.muted};margin-bottom:4px;">${label}</div>
+    <div style="font-family:${T.sans};font-size:10px;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;color:${T.muted};margin-bottom:4px;">${label}</div>
     <div style="font-family:${T.sans};font-size:14px;font-weight:500;color:${T.text};line-height:1.4;">
-      ${value || '—'}
+      ${value || "—"}
     </div>
   </td>`;
 
 const cityPill = (label) => `
-  <span style="display:inline-flex;align-items:center;gap:5px;background:${T.accentBg};
-               border:1px solid rgba(184,149,90,0.35);padding:4px 14px;font-family:${T.sans};
-               font-size:10px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:${T.text};">
-    📍 ${label}
-  </span>`;
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="display:inline-block;background:${T.accentBg};border:1px solid rgba(184,149,90,0.35);padding:4px 14px;">
+    <tr>
+      <td style="font-family:${T.sans};font-size:10px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:${T.text};">
+        📍 ${label}
+      </td>
+    </tr>
+  </table>`;
 
 const itemsTable = (items = []) => {
-  if (!items.length) return '<p style="font-size:13px;color:#999;padding:16px 0;">No items</p>';
-  const rows = items.map(item => `
+  if (!items.length)
+    return '<p style="font-size:13px;color:#999;padding:16px 0;">No items</p>';
+  const rows = items
+    .map(
+      (item) => `
     <tr>
       <td style="padding:12px 16px;border-bottom:1px solid ${T.border};font-family:${T.sans};">
         <strong style="display:block;font-size:13px;font-weight:600;color:${T.text};margin-bottom:2px;">
-          ${escapeHtml(item.name || item.product_name || '')}
+          ${escapeHtml(item.name || item.product_name || "")}
         </strong>
         <span style="font-size:11.5px;color:${T.muted};">
-          ${item.size  ? `Size: ${item.size}`  : ''}
-          ${item.size && item.color ? ' · ' : ''}
-          ${item.color ? `Color: ${item.color}` : ''}
+          ${item.size ? `Size: ${item.size}` : ""}
+          ${item.size && item.color ? " · " : ""}
+          ${item.color ? `Color: ${item.color}` : ""}
         </span>
       </td>
       <td style="padding:12px 16px;border-bottom:1px solid ${T.border};text-align:center;
@@ -264,7 +275,9 @@ const itemsTable = (items = []) => {
                  font-family:${T.sans};font-size:13px;font-weight:600;color:${T.text};white-space:nowrap;">
         $${(Number(item.price) * Number(item.quantity)).toFixed(2)}
       </td>
-    </tr>`).join('');
+    </tr>`,
+    )
+    .join("");
   return `
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
            style="border-collapse:collapse;border:1px solid ${T.border};margin-top:16px;">
@@ -289,22 +302,26 @@ const totalsBlock = (subtotal, deliveryFee, total) => `
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:2px;">
     <tr>
       <td style="padding:8px 16px;text-align:right;font-family:${T.sans};font-size:12.5px;color:${T.muted};">Subtotal</td>
-      <td style="padding:8px 16px;text-align:right;width:110px;font-family:${T.sans};font-size:12.5px;font-weight:500;color:${T.text};">$${Number(subtotal||0).toFixed(2)}</td>
+      <td style="padding:8px 16px;text-align:right;width:110px;font-family:${T.sans};font-size:12.5px;font-weight:500;color:${T.text};">$${Number(subtotal || 0).toFixed(2)}</td>
     </tr>
-    ${Number(deliveryFee) > 0 ? `
+    ${
+      Number(deliveryFee) > 0
+        ? `
     <tr>
       <td style="padding:4px 16px;text-align:right;font-family:${T.sans};font-size:12.5px;color:${T.muted};">Delivery</td>
       <td style="padding:4px 16px;text-align:right;font-family:${T.sans};font-size:12.5px;font-weight:500;color:${T.text};">$${Number(deliveryFee).toFixed(2)}</td>
-    </tr>` : ''}
+    </tr>`
+        : ""
+    }
     <tr><td colspan="2" style="padding:0 16px;"><hr style="border:none;border-top:1.5px solid ${T.text};margin:8px 0 0;"/></td></tr>
     <tr>
       <td style="padding:10px 16px;text-align:right;font-family:${T.serif};font-size:16px;font-weight:700;color:${T.text};">TOTAL</td>
-      <td style="padding:10px 16px;text-align:right;font-family:${T.sans};font-size:20px;font-weight:700;color:${T.text};">$${Number(total||0).toFixed(2)}</td>
+      <td style="padding:10px 16px;text-align:right;font-family:${T.sans};font-size:20px;font-weight:700;color:${T.text};">$${Number(total || 0).toFixed(2)}</td>
     </tr>
   </table>`;
 
 const mpProofBox = (proof, forAdmin = false) => {
-  if (!proof) return '';
+  if (!proof) return "";
   return `
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
            style="margin-top:20px;background:#FBF7F0;border:1px solid #E2D4BE;">
@@ -312,7 +329,7 @@ const mpProofBox = (proof, forAdmin = false) => {
         <td style="padding:22px 24px;">
           <div style="font-family:${T.sans};font-size:10px;font-weight:700;letter-spacing:0.18em;
                       text-transform:uppercase;color:${T.accent};margin-bottom:14px;">
-            ${forAdmin ? '⚠️  Verify This Transfer Before Shipping' : 'Transfer Details You Submitted'}
+            ${forAdmin ? "⚠️   Verify This Transfer Before Shipping" : "Transfer Details You Submitted"}
           </div>
           <table width="100%" cellpadding="0" cellspacing="0">
             <tr>
@@ -323,7 +340,7 @@ const mpProofBox = (proof, forAdmin = false) => {
               </td>
               <td style="padding:0 0 14px;width:50%;vertical-align:top;">
                 <div style="font-family:${T.sans};font-size:10px;font-weight:600;letter-spacing:0.16em;
-                            text-transform:uppercase;color:${T.muted};margin-bottom:4px;">Amount ${forAdmin ? 'Claimed' : 'Paid'}</div>
+                            text-transform:uppercase;color:${T.muted};margin-bottom:4px;">Amount ${forAdmin ? "Claimed" : "Paid"}</div>
                 <div style="font-family:${T.serif};font-size:20px;font-weight:600;color:${T.text};">$${Number(proof.amount).toFixed(2)}</div>
               </td>
             </tr>
@@ -331,23 +348,27 @@ const mpProofBox = (proof, forAdmin = false) => {
               <td style="padding:14px 16px 0 0;width:50%;vertical-align:top;">
                 <div style="font-family:${T.sans};font-size:10px;font-weight:600;letter-spacing:0.16em;
                             text-transform:uppercase;color:${T.muted};margin-bottom:4px;">Sent From Number</div>
-                <div style="font-family:${T.serif};font-size:20px;font-weight:600;color:${T.text};word-break:break-all;">${proof.senderPhone || '—'}</div>
+                <div style="font-family:${T.serif};font-size:20px;font-weight:600;color:${T.text};word-break:break-all;">${proof.senderPhone || "—"}</div>
               </td>
               <td style="padding:14px 0 0;width:50%;vertical-align:top;">
                 <div style="font-family:${T.sans};font-size:10px;font-weight:600;letter-spacing:0.16em;
                             text-transform:uppercase;color:${T.muted};margin-bottom:4px;">Name on Transfer</div>
-                <div style="font-family:${T.serif};font-size:20px;font-weight:600;color:${T.text};">${proof.receiptName || '—'}</div>
+                <div style="font-family:${T.serif};font-size:20px;font-weight:600;color:${T.text};">${proof.receiptName || "—"}</div>
               </td>
             </tr>
           </table>
-          ${forAdmin ? `
+          ${
+            forAdmin
+              ? `
           <p style="font-family:${T.sans};font-size:11.5px;color:${T.muted};margin:16px 0 0;line-height:1.6;">
             ⚠️ Check your ${proof.providerLabel} account to confirm this transfer before processing the order.
             Number: <strong>${proof.senderPhone}</strong> · Name: <strong>${proof.receiptName}</strong>
-          </p>` : `
+          </p>`
+              : `
           <p style="font-family:${T.sans};font-size:11.5px;color:${T.muted};margin:16px 0 0;line-height:1.6;">
             We will verify your payment shortly and update your order status.
-          </p>`}
+          </p>`
+          }
         </td>
       </tr>
     </table>`;
@@ -359,33 +380,38 @@ const mpProofBox = (proof, forAdmin = false) => {
 const sendOrderConfirmation = async (to, order) => {
   if (!to) return false;
 
-  const customerName  = order.customerName  || order.customer_name  || order.name  || '';
-  const customerEmail = order.customerEmail || order.customer_email || order.email || to;
-  const customerPhone = order.customerPhone || order.customer_phone || order.phone || '';
-  const orderNumber   = order.orderNumber   || order.order_number   || '';
-  const items         = order.items         || [];
-  const subtotal      = order.subtotal      || 0;
-  const deliveryFee   = order.deliveryFee   || order.delivery_fee   || 0;
-  const total         = order.total         || order.total_amount   || 0;
-  const paymentMethod = order.paymentMethod || order.payment_method || 'cash_on_delivery';
+  const customerName =
+    order.customerName || order.customer_name || order.name || "";
+  const customerEmail =
+    order.customerEmail || order.customer_email || order.email || to;
+  const customerPhone =
+    order.customerPhone || order.customer_phone || order.phone || "";
+  const orderNumber = order.orderNumber || order.order_number || "";
+  const items = order.items || [];
+  const subtotal = order.subtotal || 0;
+  const deliveryFee = order.deliveryFee || order.delivery_fee || 0;
+  const total = order.total || order.total_amount || 0;
+  const paymentMethod =
+    order.paymentMethod || order.payment_method || "cash_on_delivery";
   const mobilePayment = order.mobilePayment || order.mobile_payment || null;
 
-  const isMobileMoney = paymentMethod === 'zaad' || paymentMethod === 'edahab';
+  const isMobileMoney = paymentMethod === "zaad" || paymentMethod === "edahab";
   const proof = normaliseMP(mobilePayment);
 
   const { isOutside, cityLabel, addrLine } = resolveLocation({
-    location:        order.location        || '',
-    city:            order.city            || order.customer_city || '',
-    shippingAddress: order.shippingAddress || order.shipping_address || '',
-    streetAddress:   order.streetAddress   || order.street_address  || '',
+    location: order.location || "",
+    city: order.city || order.customer_city || "",
+    shippingAddress: order.shippingAddress || order.shipping_address || "",
+    streetAddress: order.streetAddress || order.street_address || "",
   });
 
-  const orderDate = new Date().toLocaleDateString('en-US', {
-    month: 'long', day: 'numeric', year: 'numeric',
+  const orderDate = new Date().toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
   });
 
   const content = `
-    <!-- STATUS HERO -->
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
            style="background:${T.greenBg};border-bottom:1px solid ${T.greenBdr};">
       <tr>
@@ -400,7 +426,7 @@ const sendOrderConfirmation = async (to, order) => {
                 <div style="font-family:${T.sans};font-size:10px;font-weight:700;letter-spacing:0.2em;
                             text-transform:uppercase;color:${T.green};margin-bottom:4px;">Order Confirmed</div>
                 <div style="font-family:${T.serif};font-size:22px;font-weight:700;color:${T.text};line-height:1.2;">
-                  Thank you, ${escapeHtml(customerName || 'valued customer')}.
+                  Thank you, ${escapeHtml(customerName || "valued customer")}.
                 </div>
                 <div style="font-family:${T.sans};font-size:12px;color:${T.muted};margin-top:4px;">
                   Order #${orderNumber} &nbsp;·&nbsp; ${orderDate}
@@ -414,29 +440,29 @@ const sendOrderConfirmation = async (to, order) => {
 
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
 
-      <!-- SHIPPING DETAILS -->
-      ${sectionLine('Shipping Details')}
+      ${sectionLine("Shipping Details")}
       <tr>
         <td colspan="2" style="padding:16px 32px 8px;">
           <table width="100%" cellpadding="0" cellspacing="0">
             <tr>
-              ${cell2('Full Name',      escapeHtml(customerName))}
-              ${cell2('Phone',          escapeHtml(customerPhone))}
+              ${cell2("Full Name", escapeHtml(customerName))}
+              ${cell2("Phone", escapeHtml(customerPhone))}
             </tr>
             <tr>
-              ${cell2('Email',          escapeHtml(customerEmail))}
-              ${cell2('Street Address', escapeHtml(addrLine))}
+              ${cell2("Email", escapeHtml(customerEmail))}
+              ${cell2("Street Address", escapeHtml(addrLine))}
             </tr>
           </table>
           <div style="margin-top:12px;">${cityPill(cityLabel)}</div>
         </td>
       </tr>
 
-      <!-- PAYMENT -->
-      ${sectionLine('Payment')}
+      ${sectionLine("Payment")}
       <tr>
         <td colspan="2" style="padding:16px 32px 8px;">
-          ${isMobileMoney ? `
+          ${
+            isMobileMoney
+              ? `
             <div style="font-family:${T.sans};font-size:13px;font-weight:600;color:${T.text};margin-bottom:6px;">
               📱 Mobile Money — ${proof ? proof.providerLabel : paymentMethod}
             </div>
@@ -444,19 +470,20 @@ const sendOrderConfirmation = async (to, order) => {
               Your payment is being verified. We will confirm within a few minutes.
             </div>
             ${mpProofBox(proof, false)}
-          ` : `
+          `
+              : `
             <div style="font-family:${T.sans};font-size:13px;font-weight:600;color:${T.text};margin-bottom:6px;">
               💵 Cash on Delivery
             </div>
             <div style="font-family:${T.sans};font-size:13px;font-weight:300;color:${T.muted};line-height:1.6;">
               Please have $${Number(total).toFixed(2)} ready when your order arrives.
             </div>
-          `}
+          `
+          }
         </td>
       </tr>
 
-      <!-- ITEMS -->
-      ${sectionLine('Items Ordered')}
+      ${sectionLine("Items Ordered")}
       <tr>
         <td colspan="2" style="padding:16px 32px 0;">
           ${itemsTable(items)}
@@ -464,8 +491,7 @@ const sendOrderConfirmation = async (to, order) => {
         </td>
       </tr>
 
-      <!-- DELIVERY -->
-      ${sectionLine('Estimated Delivery')}
+      ${sectionLine("Estimated Delivery")}
       <tr>
         <td colspan="2" style="padding:16px 32px 36px;">
           <div style="font-family:${T.sans};font-size:15px;font-weight:600;color:${T.text};margin-bottom:6px;">
@@ -473,17 +499,22 @@ const sendOrderConfirmation = async (to, order) => {
           </div>
           <div style="font-family:${T.sans};font-size:13px;font-weight:300;color:${T.muted};line-height:1.6;">
             We will send you a notification once your order is on its way.
-            ${isOutside ? `Delivery to ${escapeHtml(cityLabel)} may take slightly longer than our Hargeisa estimates.` : ''}
+            ${isOutside ? `Delivery to ${escapeHtml(cityLabel)} may take slightly longer than our Hargeisa estimates.` : ""}
           </div>
         </td>
       </tr>
 
     </table>`;
 
+  // Notice the 3rd parameter passed here is `true` to hide the logo section
   return sendEmail(
     to,
     `Order Confirmed — #${orderNumber} | Air Collection`,
-    shell(content, `Your order #${orderNumber} is confirmed. Thank you for shopping with Air Collection.`)
+    shell(
+      content,
+      `Your order #${orderNumber} is confirmed. Thank you for shopping with Air Collection.`,
+      true,
+    ),
   );
 };
 
@@ -493,39 +524,44 @@ const sendOrderConfirmation = async (to, order) => {
 const sendNewOrderNotification = async (order) => {
   const adminEmail = getAdminEmail();
   if (!adminEmail) {
-    console.warn('⚠️  ADMIN_EMAIL not set — skipping admin notification');
+    console.warn("⚠️  ADMIN_EMAIL not set — skipping admin notification");
     return false;
   }
 
-  const name          = order.customerName  || order.customer_name  || order.name  || '';
-  const email         = order.customerEmail || order.customer_email || order.email || '';
-  const phone         = order.customerPhone || order.customer_phone || order.phone || '';
-  const orderNumber   = order.orderNumber   || order.order_number   || '';
-  const orderId       = order.orderId       || order.id             || '';
-  const items         = order.items         || [];
-  const subtotal      = order.subtotal      || 0;
-  const deliveryFee   = order.deliveryFee   || order.delivery_fee   || 0;
-  const total         = order.total         || order.total_amount   || 0;
-  const paymentMethod = order.paymentMethod || order.payment_method || 'cash_on_delivery';
+  const name = order.customerName || order.customer_name || order.name || "";
+  const email =
+    order.customerEmail || order.customer_email || order.email || "";
+  const phone =
+    order.customerPhone || order.customer_phone || order.phone || "";
+  const orderNumber = order.orderNumber || order.order_number || "";
+  const orderId = order.orderId || order.id || "";
+  const items = order.items || [];
+  const subtotal = order.subtotal || 0;
+  const deliveryFee = order.deliveryFee || order.delivery_fee || 0;
+  const total = order.total || order.total_amount || 0;
+  const paymentMethod =
+    order.paymentMethod || order.payment_method || "cash_on_delivery";
   const mobilePayment = order.mobilePayment || order.mobile_payment || null;
 
-  const isMobileMoney = paymentMethod === 'zaad' || paymentMethod === 'edahab';
+  const isMobileMoney = paymentMethod === "zaad" || paymentMethod === "edahab";
   const proof = normaliseMP(mobilePayment);
 
   const { isOutside, cityLabel, addrLine } = resolveLocation({
-    location:        order.location        || '',
-    city:            order.city            || order.customer_city || order.shipping_city || '',
-    shippingAddress: order.shippingAddress || order.shipping_address || '',
-    streetAddress:   order.streetAddress   || order.street_address  || '',
+    location: order.location || "",
+    city: order.city || order.customer_city || order.shipping_city || "",
+    shippingAddress: order.shippingAddress || order.shipping_address || "",
+    streetAddress: order.streetAddress || order.street_address || "",
   });
 
-  const orderDate = new Date().toLocaleDateString('en-US', {
-    weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
+  const orderDate = new Date().toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
   });
-  const dashLink = `${(process.env.FRONTEND_URL || '').replace(/\/$/, '')}/admin/orders/${orderId}`;
+  const dashLink = `${(process.env.FRONTEND_URL || "").replace(/\/$/, "")}/admin/orders/${orderId}`;
 
   const content = `
-    <!-- DARK HERO -->
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0D0D0D;">
       <tr>
         <td style="padding:24px 32px;">
@@ -549,7 +585,6 @@ const sendNewOrderNotification = async (order) => {
       </tr>
     </table>
 
-    <!-- VIEW IN DASHBOARD -->
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
            style="background:#FBF7F0;border-bottom:1px solid ${T.border};">
       <tr>
@@ -579,42 +614,41 @@ const sendNewOrderNotification = async (order) => {
 
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
 
-      <!-- CUSTOMER -->
-      ${sectionLine('Customer')}
+      ${sectionLine("Customer")}
       <tr>
         <td colspan="2" style="padding:16px 32px 8px;">
           <table width="100%" cellpadding="0" cellspacing="0">
             <tr>
-              ${cell2('Name',    escapeHtml(name))}
-              ${cell2('Phone',   escapeHtml(phone))}
+              ${cell2("Name", escapeHtml(name))}
+              ${cell2("Phone", escapeHtml(phone))}
             </tr>
             <tr>
-              ${cell2('Email',   escapeHtml(email))}
-              ${cell2('Account', order.userId ? 'Registered' : 'Guest')}
+              ${cell2("Email", escapeHtml(email))}
+              ${cell2("Account", order.userId ? "Registered" : "Guest")}
             </tr>
           </table>
         </td>
       </tr>
 
-      <!-- SHIPPING & LOCATION -->
-      ${sectionLine('Shipping & Location')}
+      ${sectionLine("Shipping & Location")}
       <tr>
         <td colspan="2" style="padding:16px 32px 8px;">
           <table width="100%" cellpadding="0" cellspacing="0">
             <tr>
-              ${cell2('Street Address', escapeHtml(addrLine))}
-              ${cell2('City / Area',    escapeHtml(cityLabel))}
+              ${cell2("Street Address", escapeHtml(addrLine))}
+              ${cell2("City / Area", escapeHtml(cityLabel))}
             </tr>
           </table>
           <div style="margin-top:12px;">${cityPill(cityLabel)}</div>
         </td>
       </tr>
 
-      <!-- PAYMENT METHOD -->
-      ${sectionLine('Payment Method')}
+      ${sectionLine("Payment Method")}
       <tr>
         <td colspan="2" style="padding:16px 32px 8px;">
-          ${isMobileMoney ? `
+          ${
+            isMobileMoney
+              ? `
             <span style="display:inline-block;background:${T.text};color:#fff;font-family:${T.sans};
                          font-size:10px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;
                          padding:6px 16px;margin-bottom:14px;">
@@ -624,21 +658,22 @@ const sendNewOrderNotification = async (order) => {
               Customer paid via mobile money. Verify before dispatching.
             </div>
             ${mpProofBox(proof, true)}
-          ` : `
+          `
+              : `
             <span style="display:inline-block;background:${T.greenBg};color:${T.green};
                          border:1px solid ${T.greenBdr};font-family:${T.sans};font-size:10px;font-weight:700;
                          letter-spacing:0.14em;text-transform:uppercase;padding:6px 16px;margin-bottom:10px;">
-              ✓ Cash on Delivery
+              🛍️ Cash on Delivery
             </span>
             <div style="font-family:${T.sans};font-size:13px;font-weight:300;color:${T.muted};line-height:1.6;">
               Collect $${Number(total).toFixed(2)} upon delivery.
             </div>
-          `}
+          `
+          }
         </td>
       </tr>
 
-      <!-- ITEMS -->
-      ${sectionLine(`Items — ${items.length} item${items.length !== 1 ? 's' : ''}`)}
+      ${sectionLine(`Items — ${items.length} item${items.length !== 1 ? "s" : ""}`)}
       <tr>
         <td colspan="2" style="padding:16px 32px 32px;">
           ${itemsTable(items)}
@@ -648,7 +683,6 @@ const sendNewOrderNotification = async (order) => {
 
     </table>
 
-    <!-- ADMIN FOOTER -->
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0D0D0D;">
       <tr>
         <td style="padding:14px 32px;text-align:center;">
@@ -666,7 +700,10 @@ const sendNewOrderNotification = async (order) => {
   return sendEmail(
     adminEmail,
     `🛍️ New Order #${orderNumber} — $${Number(total).toFixed(2)} | Air Collection`,
-    shell(content, `New order #${orderNumber} from ${name} — $${Number(total).toFixed(2)}`)
+    shell(
+      content,
+      `New order #${orderNumber} from ${name} — $${Number(total).toFixed(2)}`,
+    ),
   );
 };
 
@@ -674,7 +711,7 @@ const sendNewOrderNotification = async (order) => {
  * 3. Password Reset
  * ═══════════════════════════════════════════════════════════════ */
 const sendPasswordResetEmail = async (to, resetToken) => {
-  const siteUrl  = process.env.FRONTEND_URL || 'http://localhost:3000';
+  const siteUrl = process.env.FRONTEND_URL || "http://localhost:3000";
   const resetUrl = `${siteUrl}/auth/reset-password?token=${resetToken}`;
   const content = `
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
@@ -704,7 +741,7 @@ const sendPasswordResetEmail = async (to, resetToken) => {
         </td>
       </tr>
     </table>`;
-  return sendEmail(to, 'Reset Your Password — Air Collection', shell(content));
+  return sendEmail(to, "Reset Your Password — Air Collection", shell(content));
 };
 
 /* ═══════════════════════════════════════════════════════════════
@@ -713,13 +750,17 @@ const sendPasswordResetEmail = async (to, resetToken) => {
 const sendContactNotification = async (name, email, subject, message) => {
   const adminEmail = getAdminEmail();
   if (!adminEmail) {
-    console.warn('⚠️  ADMIN_EMAIL not set — skipping contact notification');
+    console.warn("⚠️  ADMIN_EMAIL not set — skipping contact notification");
     return false;
   }
-  const safeName    = escapeHtml(String(name    || '').trim());
-  const safeEmail   = escapeHtml(String(email   || '').trim());
-  const safeSubject = escapeHtml(String(subject || '').trim()) || 'General Inquiry';
-  const safeMsg     = escapeHtml(String(message || '').trim()).replace(/\n/g, '<br/>');
+  const safeName = escapeHtml(String(name || "").trim());
+  const safeEmail = escapeHtml(String(email || "").trim());
+  const safeSubject =
+    escapeHtml(String(subject || "").trim()) || "General Inquiry";
+  const safeMsg = escapeHtml(String(message || "").trim()).replace(
+    /\n/g,
+    "<br/>",
+  );
   const content = `
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
       <tr>
@@ -733,8 +774,8 @@ const sendContactNotification = async (name, email, subject, message) => {
                  style="margin-bottom:24px;border-bottom:1px solid ${T.border};">
             <tr><td style="padding:8px 0;">
               <table width="100%"><tr>
-                ${cell2('From', `${safeName} &lt;${safeEmail}&gt;`)}
-                ${cell2('Subject', safeSubject)}
+                ${cell2("From", `${safeName} &lt;${safeEmail}&gt;`)}
+                ${cell2("Subject", safeSubject)}
               </tr></table>
             </td></tr>
           </table>
@@ -751,7 +792,7 @@ const sendContactNotification = async (name, email, subject, message) => {
     adminEmail,
     `Contact: ${safeSubject} — from ${safeName}`,
     shell(content, `New message from ${safeName}: ${safeSubject}`),
-    { replyTo: email }
+    { replyTo: email },
   );
 };
 
