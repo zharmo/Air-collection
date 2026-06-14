@@ -20,11 +20,60 @@ const ensureAdvancePaymentColumn = async (pool) => {
 };
 
 /* ─────────────────────────────────────────────────────────────
+ * Ensure location / city / mobile-money columns exist.
+ * Called once on first request — safe to call multiple times.
+ *
+ * NOTE: "location" defaults to NULL (not 'inside') so that orders
+ * created BEFORE this column existed don't get silently mislabeled.
+ * New orders always explicitly set location, so NULL only ever
+ * appears on legacy rows.
+ * ───────────────────────────────────────────────────────────── */
+const ensureLocationAndMobilePaymentColumns = async (pool) => {
+    await pool.query(`
+        ALTER TABLE orders
+            ADD COLUMN IF NOT EXISTS location               VARCHAR(20)  DEFAULT NULL,
+            ADD COLUMN IF NOT EXISTS city                   VARCHAR(100) DEFAULT NULL,
+            ADD COLUMN IF NOT EXISTS mobile_provider         VARCHAR(50)  DEFAULT NULL,
+            ADD COLUMN IF NOT EXISTS mobile_transfer_phone   VARCHAR(50)  DEFAULT NULL,
+            ADD COLUMN IF NOT EXISTS mobile_transfer_name    VARCHAR(150) DEFAULT NULL,
+            ADD COLUMN IF NOT EXISTS mobile_amount_paid      NUMERIC(10,2) DEFAULT NULL
+    `);
+};
+
+/* ─────────────────────────────────────────────────────────────
+ * Normalise mobile payment data from the checkout request body.
+ * The checkout page sends THREE possible shapes for safety:
+ *   1. mobilePayment  { provider, transferPhone, transferName, amountPaid }
+ *   2. mobile_payment { provider, transfer_phone, transfer_name, amount_paid }
+ *   3. flat fields    mobile_provider, mobile_transfer_phone, etc.
+ * This function reads whichever is present and returns one clean object,
+ * or null if no mobile payment was made.
+ * ───────────────────────────────────────────────────────────── */
+const normaliseMobilePayment = (body) => {
+    const mp = body.mobilePayment || body.mobile_payment || null;
+
+    const provider      = mp?.provider       ?? body.mobile_provider       ?? null;
+    const transferPhone = mp?.transferPhone   ?? mp?.transfer_phone         ?? body.mobile_transfer_phone ?? null;
+    const transferName  = mp?.transferName    ?? mp?.transfer_name          ?? body.mobile_transfer_name  ?? null;
+    const amountPaid    = mp?.amountPaid      ?? mp?.amount_paid            ?? body.mobile_amount_paid    ?? null;
+
+    if (!provider) return null;
+
+    return {
+        provider:      String(provider).toLowerCase(),
+        transferPhone: transferPhone || null,
+        transferName:  transferName  || null,
+        amountPaid:    amountPaid !== null ? Number(amountPaid) : null,
+    };
+};
+
+/* ─────────────────────────────────────────────────────────────
  * GET /orders  — admin sees all, user sees own
  * ───────────────────────────────────────────────────────────── */
 router.get('/', protect, async (req, res) => {
     try {
         await ensureOrderCustomerColumns(pool);
+        await ensureLocationAndMobilePaymentColumns(pool);
 
         const userId   = req.user.id;
         const userRole = req.user.role;
@@ -73,21 +122,46 @@ router.get('/', protect, async (req, res) => {
 router.post('/', protect, async (req, res) => {
     let client;
     try {
-        const { customer, items, subtotal, deliveryFee, total, paymentMethod } = req.body;
+        const {
+            customer, items, subtotal, deliveryFee, total, paymentMethod,
+            /*
+             * location / city are sent at the TOP LEVEL of the request body
+             * by the checkout page — NOT nested inside `customer`.
+             */
+            location,
+            city,
+            shipping_address: shippingAddressFromBody,
+        } = req.body;
 
         await ensureOrderCustomerColumns(pool);
         await ensureAdvancePaymentColumn(pool);
+        await ensureLocationAndMobilePaymentColumns(pool);
 
-        const userId        = req.user.id;
-        const orderNumber   = `AC-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-        const locationLabel = customer.location === 'inside' ? 'Inside Hargeisa' : 'Outside Hargeisa';
-        const shippingAddress = `${customer.address}, ${locationLabel}`;
-        const billingAddress  = shippingAddress;
+        const userId      = req.user.id;
+        const orderNumber = `AC-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+        /*
+         * Shipping address:
+         *   The checkout page already builds a full address string
+         *   like "Street, City, Somaliland" and sends it as
+         *   `shipping_address`. Use that directly when present.
+         *   Fallback (legacy clients): build from customer.address + location.
+         */
+        const locationValue = location || customer?.location || 'inside';
+        const cityValue     = city || (locationValue === 'outside' ? 'Outside Hargeisa' : 'Hargeisa');
+
+        const shippingAddress = shippingAddressFromBody
+            || `${customer?.address || ''}, ${locationValue === 'inside' ? 'Inside Hargeisa' : 'Outside Hargeisa'}`;
+
+        const billingAddress = shippingAddress;
 
         const { customerName, customerEmail, customerPhone } = normalizeCheckoutCustomer(customer);
 
-        // Capture advance payment details (only present for outside Hargeisa orders)
-        const advancePayment = customer.advancePayment
+        /* Mobile money proof — normalised from any shape the checkout sends */
+        const mobilePayment = normaliseMobilePayment(req.body);
+
+        /* Legacy advance_payment JSONB column — keep for backwards compat */
+        const advancePayment = customer?.advancePayment
             ? {
                 provider:    customer.advancePayment.provider    || null,
                 amount:      customer.advancePayment.amount      || deliveryFee,
@@ -106,15 +180,22 @@ router.post('/', protect, async (req, res) => {
                 user_id, order_number, total_amount, shipping_address, billing_address,
                 payment_method, payment_status, status, delivery_fee,
                 customer_name, customer_email, customer_phone,
-                advance_payment
+                advance_payment,
+                location, city,
+                mobile_provider, mobile_transfer_phone, mobile_transfer_name, mobile_amount_paid
              )
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
              RETURNING *`,
             [
                 userId, orderNumber, total, shippingAddress, billingAddress,
                 paymentMethod, 'pending', 'pending', deliveryFee,
                 customerName, customerEmail, customerPhone,
                 advancePayment ? JSON.stringify(advancePayment) : null,
+                locationValue, cityValue,
+                mobilePayment?.provider      || null,
+                mobilePayment?.transferPhone || null,
+                mobilePayment?.transferName  || null,
+                mobilePayment?.amountPaid    ?? null,
             ]
         );
         const order = orderResult.rows[0];
@@ -145,14 +226,17 @@ router.post('/', protect, async (req, res) => {
             customerEmail,
             customerPhone,
             orderNumber,
+            orderId: order.id,
             items,
             subtotal,
             deliveryFee,
             total,
             shippingAddress,
-            location:       customer.location,
+            location: locationValue,
+            city:     cityValue,
             paymentMethod,
-            advancePayment,
+            mobilePayment,   // { provider, transferPhone, transferName, amountPaid } | null
+            advancePayment,  // legacy — kept for backwards compat
         };
 
         // Customer confirmation
@@ -183,6 +267,7 @@ router.post('/', protect, async (req, res) => {
 router.get('/:id', protect, async (req, res) => {
     try {
         await ensureOrderCustomerColumns(pool);
+        await ensureLocationAndMobilePaymentColumns(pool);
 
         const orderId  = req.params.id;
         const userId   = req.user.id;
@@ -218,7 +303,23 @@ router.get('/:id', protect, async (req, res) => {
         const result = await pool.query(query, params);
         if (result.rows.length === 0) return sendError(res, 'Order not found', 404);
 
-        sendSuccess(res, result.rows[0]);
+        const row = result.rows[0];
+
+        /*
+         * Build a `mobile_payment` object from the flat columns so the
+         * frontend (success page, admin page) can read order.mobile_payment
+         * directly, matching the shape used everywhere else.
+         */
+        if (row.mobile_provider) {
+            row.mobile_payment = {
+                provider:       row.mobile_provider,
+                transfer_phone: row.mobile_transfer_phone,
+                transfer_name:  row.mobile_transfer_name,
+                amount_paid:    row.mobile_amount_paid,
+            };
+        }
+
+        sendSuccess(res, row);
     } catch (error) {
         console.error(error);
         sendError(res, 'Server error', 500);

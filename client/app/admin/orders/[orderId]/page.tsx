@@ -24,24 +24,14 @@ interface MobilePayment {
 interface Order {
   id: number; order_number: string; total_amount: number;
   status: string; payment_status: string; payment_method?: string;
-  /* address fields — backend may send any of these */
-  shipping_address?: string;
-  street_address?:   string;
-  location?:         string;   /* "inside" | "outside" */
-  city?:             string;   /* e.g. "burco" */
-  customer_city?:    string;
-  shipping_city?:    string;
-  created_at: string;
-  /* customer identity fields */
-  user_name?:      string; user_email?:      string; user_phone?:      string;
-  customer_name?:  string; customer_email?:  string; customer_phone?:  string;
-  name?:           string; email?:           string; phone?:           string;
+  shipping_address: string; created_at: string;
+  location?: string; city?: string;
+  user_name?: string;    user_email?: string;    user_phone?: string;
+  customer_name?: string; customer_email?: string; customer_phone?: string;
+  name?: string; email?: string; phone?: string;
   customer?: { name?: string; email?: string; phone?: string };
-  userId?: string | number;
-  /* mobile payment — any of these shapes from the backend */
-  advance_payment?:      MobilePayment;  /* JSONB column — primary source */
-  mobile_payment?:       MobilePayment;
-  mobile_provider?:      string;
+  mobile_payment?: MobilePayment;
+  mobile_provider?: string;
   mobile_transfer_phone?: string;
   mobile_transfer_name?:  string;
   mobile_amount_paid?:    number | string;
@@ -67,55 +57,39 @@ const toMoney = (v: number | string | null | undefined) => {
   const n = Number(v); return Number.isFinite(n) ? n.toFixed(2) : '0.00';
 };
 
-/* ─────────────────────────── LOCATION RESOLVER ─────────────── */
-/*
- * Scans EVERY word from EVERY address-related field.
- * Works even when city is embedded in shipping_address with no commas,
- * e.g. "burco october wadada siiney".
- *
- * Returns:
- *   isOutside  — true if delivery is outside Hargeisa
- *   rawCity    — e.g. "Burco", "Berbera"  (empty string for inside)
- *   cityLabel  — full display label:
- *                  "Inside Hargeisa"  or
- *                  "Outside Hargeisa / Burco"
- */
-const OUTSIDE_CITIES_LC = ["burco", "boorama", "berbera", "borama", "others"];
-const OUTSIDE_CITIES_LABELS: Record<string, string> = {
-  burco: "Burco", boorama: "Boorama", borama: "Boorama",
-  berbera: "Berbera", others: "Others",
+/* Known outside-city names — scanned across ALL address text */
+const OUTSIDE_CITIES_LC = ["burco","boorama","berbera","borama","others"];
+const OUTSIDE_CITIES_LABELS: Record<string,string> = {
+  burco:"Burco", boorama:"Boorama", borama:"Boorama", berbera:"Berbera", others:"Others",
 };
 
-const resolveLocation = (order: Order) => {
-  const city    = pick(order.city, order.customer_city, order.shipping_city);
-  const location = order.location || "";
-  const shipping = pick(order.shipping_address, order.street_address);
+/*
+ * resolveCity — scans every word of every address-related field.
+ * Works even when the user types "burco october wadada siiney" with no commas.
+ */
+const resolveCity = (order: Order) => {
+  const combined = [
+    order.location || "",
+    order.city     || "",
+    order.shipping_address || "",
+  ].join(" ").toLowerCase().replace(/[,.\-]/g, " ");
 
-  /* Combine all text and scan every word */
-  const combined = [location, city, shipping]
-    .join(" ")
-    .toLowerCase()
-    .replace(/[,.\-]/g, " ");
-
-  const words     = combined.split(/\s+/).filter(Boolean);
+  const words = combined.split(/\s+/).filter(Boolean);
   const foundWord = words.find(w => OUTSIDE_CITIES_LC.includes(w)) || null;
 
   const isOutside =
-    location === "outside" ||
+    order.location === "outside" ||
     combined.includes("outside") ||
-    (!!city && OUTSIDE_CITIES_LC.includes(city.toLowerCase())) ||
+    (!!order.city && OUTSIDE_CITIES_LC.includes(order.city.toLowerCase())) ||
     foundWord !== null;
 
-  /* Best city key */
   const cityKey =
-    (city && OUTSIDE_CITIES_LC.includes(city.toLowerCase())
-      ? city.toLowerCase()
-      : null) ||
-    foundWord ||
-    null;
+    (order.city && OUTSIDE_CITIES_LC.includes(order.city.toLowerCase())
+      ? order.city.toLowerCase()
+      : foundWord) || null;
 
   const rawCity = cityKey
-    ? (OUTSIDE_CITIES_LABELS[cityKey] || city || "")
+    ? (OUTSIDE_CITIES_LABELS[cityKey] || order.city || "")
     : "";
 
   const cityLabel = isOutside
@@ -125,64 +99,23 @@ const resolveLocation = (order: Order) => {
   return { isOutside, rawCity, cityLabel };
 };
 
-/* ─────────────────────────── MOBILE PAYMENT RESOLVER ───────── */
 /*
- * Reads mobile payment from every possible backend shape:
- *   1. Nested:  order.mobile_payment  (snake_case or camelCase keys)
- *   2. Flat:    order.mobile_provider / mobile_transfer_phone / etc.
+ * resolveProof — reads mobile payment data from every possible backend shape:
+ *   1. Nested object:  order.mobile_payment (camelCase or snake_case keys)
+ *   2. Flat DB cols:   order.mobile_provider / mobile_transfer_phone / etc.
  */
 const resolveProof = (order: Order) => {
-  /*
-   * advance_payment is a JSONB column — PostgreSQL / the backend ORM may return
-   * it as a raw JSON *string* instead of a parsed object.  Parse it if needed.
-   * Priority: advance_payment → mobile_payment → flat DB cols
-   */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let raw: any = order.advance_payment || order.mobile_payment;
-  if (typeof raw === 'string') {
-    try { raw = JSON.parse(raw); } catch { raw = null; }
-  }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const mp: any = raw;
-
+  const mp = order.mobile_payment;
   if (mp && mp.provider) {
-    const p = String(mp.provider).toLowerCase();
+    const p = mp.provider.toLowerCase();
     return {
       provider:      p,
       providerLabel: p === "edahab" ? "E-Dahab" : p === "zaad" ? "Zaad" : mp.provider,
-
-      /*
-       * Exact keys the checkout page saves (camelCase inside mobilePayment):
-       *   transferPhone, transferName, amountPaid
-       * Plus snake_case variants in case backend remaps them.
-       */
-      senderPhone: pick(
-        mp.transferPhone,    mp.transfer_phone,
-        mp.senderPhone,      mp.sender_phone,
-        mp.phoneNumber,      mp.phone_number,
-        mp.phone,            mp.mobile,
-        mp.mobileNumber,     mp.mobile_number,
-      ),
-
-      receiptName: pick(
-        mp.transferName,     mp.transfer_name,
-        mp.senderName,       mp.sender_name,
-        mp.receiptName,      mp.receipt_name,
-        mp.accountName,      mp.account_name,
-        mp.fullName,         mp.full_name,
-        mp.name,
-      ),
-
-      amount: Number(
-        mp.amountPaid    ?? mp.amount_paid  ??
-        mp.amount        ?? mp.paidAmount   ?? mp.paid_amount ??
-        mp.total         ?? mp.totalAmount  ?? mp.total_amount ??
-        0
-      ),
+      senderPhone:   pick(mp.transfer_phone, mp.transferPhone),
+      receiptName:   pick(mp.transfer_name,  mp.transferName),
+      amount:        Number(mp.amount_paid ?? mp.amountPaid ?? 0),
     };
   }
-
-  /* Flat DB columns fallback */
   if (order.mobile_provider) {
     const p = order.mobile_provider.toLowerCase();
     return {
@@ -193,94 +126,70 @@ const resolveProof = (order: Order) => {
       amount:        Number(order.mobile_amount_paid ?? 0),
     };
   }
-
-  /* payment_method tells us it's mobile money but no proof data was saved */
-  if (order.payment_method === "zaad" || order.payment_method === "edahab") {
-    const p = order.payment_method;
-    return {
-      provider:      p,
-      providerLabel: p === "edahab" ? "E-Dahab" : "Zaad",
-      senderPhone:   "",
-      receiptName:   "",
-      amount:        0,
-    };
-  }
-
   return null;
 };
 
 /* ─────────────────────────── SMALL COMPONENTS ──────────────── */
 const StatusPill = ({ status }: { status: string }) => {
-  const c = STATUS_CFG[status] || { label: status, color: "#475569", bg: "#f1f5f9", icon: null as any };
+  const c = STATUS_CFG[status] || { label:status, color:"#475569", bg:"#f1f5f9", icon:null as any };
   return (
-    <span style={{
-      display: "inline-flex", alignItems: "center", gap: 5,
-      background: c.bg, color: c.color, fontSize: "0.71rem", fontWeight: 700,
-      letterSpacing: "0.05em", textTransform: "uppercase", padding: "4px 10px", borderRadius: 100,
-    }}>
+    <span style={{ display:"inline-flex", alignItems:"center", gap:5, background:c.bg, color:c.color,
+      fontSize:"0.71rem", fontWeight:700, letterSpacing:"0.05em", textTransform:"uppercase",
+      padding:"4px 10px", borderRadius:100 }}>
       {c.icon} {c.label}
     </span>
   );
 };
 
 const Card = ({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) => (
-  <div style={{
-    background: "#fff", border: "1px solid #e8ecf0", borderRadius: 12, overflow: "hidden",
-    boxShadow: "0 1px 4px rgba(0,0,0,.04),0 4px 16px rgba(0,0,0,.03)", marginBottom: 16, ...style,
-  }}>
+  <div style={{ background:"#fff", border:"1px solid #e8ecf0", borderRadius:12, overflow:"hidden",
+    boxShadow:"0 1px 4px rgba(0,0,0,.04),0 4px 16px rgba(0,0,0,.03)", marginBottom:16, ...style }}>
     {children}
   </div>
 );
 
 const CardHead = ({ icon, title }: { icon: React.ReactNode; title: string }) => (
-  <div style={{
-    display: "flex", alignItems: "center", gap: 9, padding: "14px 20px",
-    borderBottom: "1px solid #f0f3f6", background: "#fafbfc",
-  }}>
-    <span style={{ color: "#94a3b8", fontSize: 13 }}>{icon}</span>
-    <span style={{ fontSize: "0.8rem", fontWeight: 650, color: "#374151", letterSpacing: "0.02em" }}>{title}</span>
+  <div style={{ display:"flex", alignItems:"center", gap:9, padding:"14px 20px",
+    borderBottom:"1px solid #f0f3f6", background:"#fafbfc" }}>
+    <span style={{ color:"#94a3b8", fontSize:13 }}>{icon}</span>
+    <span style={{ fontSize:"0.8rem", fontWeight:650, color:"#374151", letterSpacing:"0.02em" }}>{title}</span>
   </div>
 );
 
+/* Single info row used in right panel cards */
 const InfoRow = ({
   label, value, icon, last = false, valueStyle,
 }: {
   label: string; value: React.ReactNode; icon?: React.ReactNode;
   last?: boolean; valueStyle?: React.CSSProperties;
 }) => (
-  <div style={{
-    display: "flex", justifyContent: "space-between", alignItems: "center",
-    padding: "8px 0", borderBottom: last ? "none" : "1px solid #f8fafc",
-  }}>
-    <span style={{
-      fontSize: "0.75rem", color: "#94a3b8", fontWeight: 500,
-      display: "flex", alignItems: "center", gap: 4,
-    }}>
+  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center",
+    padding:"8px 0", borderBottom: last ? "none" : "1px solid #f8fafc" }}>
+    <span style={{ fontSize:"0.75rem", color:"#94a3b8", fontWeight:500,
+      display:"flex", alignItems:"center", gap:4 }}>
       {icon}{label}
     </span>
-    <span style={{
-      fontSize: "0.83rem", color: "#374151", fontWeight: 500,
-      textAlign: "right", maxWidth: "60%", wordBreak: "break-all", ...valueStyle,
-    }}>
-      {value || <span style={{ color: "#cbd5e1" }}>—</span>}
+    <span style={{ fontSize:"0.83rem", color:"#374151", fontWeight:500,
+      textAlign:"right", maxWidth:"60%", wordBreak:"break-all", ...valueStyle }}>
+      {value || <span style={{ color:"#cbd5e1" }}>—</span>}
     </span>
   </div>
 );
 
 /* ─────────────────────────── MAIN PAGE ─────────────────────── */
 export default function AdminOrderDetailPage() {
-  const params  = useParams();
-  const router  = useRouter();
-  const orderId = params.orderId;
+  const params   = useParams();
+  const router   = useRouter();
+  const orderId  = params.orderId;
 
-  const [order,    setOrder   ] = useState<Order | null>(null);
-  const [loading,  setLoading ] = useState(true);
-  const [error,    setError   ] = useState("");
-  const [updating, setUpdating] = useState(false);
-  const [newStatus,setNewStatus] = useState("");
-  const [deleting, setDeleting] = useState(false);
+  const [order,     setOrder    ] = useState<Order | null>(null);
+  const [loading,   setLoading  ] = useState(true);
+  const [error,     setError    ] = useState("");
+  const [updating,  setUpdating ] = useState(false);
+  const [newStatus, setNewStatus] = useState("");
+  const [deleting,  setDeleting ] = useState(false);
 
-  const backendUrl = process.env.NEXT_PUBLIC_API_URL?.replace("/api", "") || "http://localhost:5000";
+  const backendUrl = process.env.NEXT_PUBLIC_API_URL?.replace("/api","") || "http://localhost:5000";
   const imgUrl = (p?: string) => {
     if (!p) return "/images/placeholders/placeholder.jpg";
     if (p.startsWith("/uploads")) return `${backendUrl}${p}`;
@@ -293,16 +202,8 @@ export default function AdminOrderDetailPage() {
       try {
         const res  = await axiosInstance.get(`/orders/${orderId}`);
         const data = res.data.data;
-        /* Parse advance_payment / mobile_payment if backend returns them as strings */
-        const parseJsonField = (v: unknown) => {
-          if (!v || typeof v === 'object') return v;
-          try { return JSON.parse(v as string); } catch { return null; }
-        };
-
         setOrder({
           ...data,
-          advance_payment: parseJsonField(data.advance_payment),
-          mobile_payment:  parseJsonField(data.mobile_payment),
           delivery_fee: parseFloat(data.delivery_fee) || 0,
           total_amount: parseFloat(data.total_amount) || 0,
           items: (data.items || []).map((item: OrderItem) => ({
@@ -312,10 +213,6 @@ export default function AdminOrderDetailPage() {
           })),
         });
         setNewStatus(data.status);
-        /* DEBUG — remove after confirming field names */
-        console.log('[OrderDetail] advance_payment:', data.advance_payment);
-        console.log('[OrderDetail] mobile_payment:',  data.mobile_payment);
-        console.log('[OrderDetail] full order keys:', Object.keys(data));
       } catch (e: unknown) {
         setError((e as any)?.response?.data?.message || "Order not found");
       } finally { setLoading(false); }
@@ -341,21 +238,20 @@ export default function AdminOrderDetailPage() {
     } catch { alert("Failed to delete order."); setDeleting(false); }
   };
 
-  /* ── Loading / Error states ── */
   if (loading) return (
     <><style>{CSS}</style>
       <div className="od-loading">
-        <div className="od-spin-lg" />
-        <p style={{ marginTop: 16, color: "#94a3b8", fontSize: "0.85rem" }}>Loading order…</p>
+        <div className="od-spin-lg"/>
+        <p style={{ marginTop:16, color:"#94a3b8", fontSize:"0.85rem" }}>Loading order…</p>
       </div>
     </>
   );
   if (error || !order) return (
     <><style>{CSS}</style>
-      <div className="od-loading" style={{ flexDirection: "column", gap: 16 }}>
-        <div style={{ fontSize: "2.5rem" }}>📦</div>
-        <h2 style={{ fontSize: "1.2rem", fontWeight: 600, color: "#1e293b" }}>Order not found</h2>
-        <p style={{ color: "#94a3b8", fontSize: "0.85rem" }}>{error}</p>
+      <div className="od-loading" style={{ flexDirection:"column", gap:16 }}>
+        <div style={{ fontSize:"2.5rem" }}>📦</div>
+        <h2 style={{ fontSize:"1.2rem", fontWeight:600, color:"#1e293b" }}>Order not found</h2>
+        <p style={{ color:"#94a3b8", fontSize:"0.85rem" }}>{error}</p>
         <Link href="/admin/orders" className="od-btn-primary">Back to Orders</Link>
       </div>
     </>
@@ -366,12 +262,12 @@ export default function AdminOrderDetailPage() {
   const customerEmail = pick(order.user_email, order.customer_email, order.customer?.email, order.email);
   const customerPhone = pick(order.user_phone, order.customer_phone, order.customer?.phone, order.phone);
 
-  const proof = resolveProof(order);
-  const { isOutside, cityLabel } = resolveLocation(order);
+  const proof         = resolveProof(order);
+  const { cityLabel } = resolveCity(order);
 
   /*
-   * isMobileMoney: true if payment_method is zaad/edahab,
-   * or flat column says so, or proof object was successfully built.
+   * isMobileMoney: check payment_method, flat DB column, or proof existing.
+   * proof !== null means mobile payment data was saved, so it WAS mobile money.
    */
   const isMobileMoney =
     order.payment_method === "zaad"  || order.payment_method === "edahab" ||
@@ -379,16 +275,17 @@ export default function AdminOrderDetailPage() {
     proof !== null;
 
   /*
-   * streetAddress: the raw text the customer typed into the address field.
-   * We show this verbatim — do NOT strip commas or split.
+   * streetAddress: the actual address the user typed.
+   * The shipping_address string is "Street, City, Country" OR just "Street" with no commas.
+   * We always show the FULL shipping_address as-is — it's what the user typed.
    */
-  const streetAddress = pick(order.shipping_address, order.street_address);
+  const streetAddress = order.shipping_address || "";
 
   const subtotal  = order.total_amount - (order.delivery_fee || 0);
-  const orderDate = new Date(order.created_at).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
-  const orderTime = new Date(order.created_at).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+  const orderDate = new Date(order.created_at).toLocaleDateString("en-US",{ month:"long", day:"numeric", year:"numeric" });
+  const orderTime = new Date(order.created_at).toLocaleTimeString("en-US",{ hour:"2-digit", minute:"2-digit" });
   const initials  = customerName
-    ? customerName.trim().split(/\s+/).map((w: string) => w[0]).join("").slice(0, 2).toUpperCase()
+    ? customerName.trim().split(/\s+/).map((w:string) => w[0]).join("").slice(0,2).toUpperCase()
     : "?";
 
   return (
@@ -398,22 +295,22 @@ export default function AdminOrderDetailPage() {
         {/* ── Top bar ── */}
         <div className="od-topbar">
           <div className="od-topbar-left">
-            <Link href="/admin/orders" className="od-back"><FaArrowLeft size={11} /> Orders</Link>
+            <Link href="/admin/orders" className="od-back"><FaArrowLeft size={11}/> Orders</Link>
             <div>
               <h1 className="od-title">
                 Order <span className="od-order-num">#{order.order_number}</span>
               </h1>
               <div className="od-meta-row">
-                <StatusPill status={order.status} />
+                <StatusPill status={order.status}/>
                 <span className="od-dot">·</span>
                 <span className="od-meta">{orderDate} at {orderTime}</span>
                 <span className="od-dot">·</span>
                 <span className="od-meta">{order.items.length} item{order.items.length !== 1 ? "s" : ""}</span>
                 <span className="od-dot">·</span>
-                <span className="od-city-badge"><FaMapMarkerAlt size={8} /> {cityLabel}</span>
+                <span className="od-city-badge"><FaMapMarkerAlt size={8}/> {cityLabel}</span>
                 {isMobileMoney && proof && (
                   <><span className="od-dot">·</span>
-                    <span className="od-mm-badge"><FaMobileAlt size={8} /> {proof.providerLabel}</span>
+                    <span className="od-mm-badge"><FaMobileAlt size={8}/> {proof.providerLabel}</span>
                   </>
                 )}
               </div>
@@ -421,8 +318,8 @@ export default function AdminOrderDetailPage() {
           </div>
           <button className="od-btn-danger" onClick={handleDelete} disabled={deleting}>
             {deleting
-              ? <><span className="od-spin od-spin-sm" /> Deleting…</>
-              : <><FaTrash size={12} /> Delete Order</>}
+              ? <><span className="od-spin od-spin-sm"/> Deleting…</>
+              : <><FaTrash size={12}/> Delete Order</>}
           </button>
         </div>
 
@@ -432,15 +329,15 @@ export default function AdminOrderDetailPage() {
           {/* LEFT — items table + invoice */}
           <div>
             <Card>
-              <CardHead icon={<FaBoxOpen />} title="Order Items" />
-              <div style={{ overflowX: "auto" }}>
+              <CardHead icon={<FaBoxOpen/>} title="Order Items"/>
+              <div style={{ overflowX:"auto" }}>
                 <table className="od-table">
                   <thead>
                     <tr>
                       <th>Product</th><th>Variant</th>
-                      <th style={{ textAlign: "center" }}>Qty</th>
-                      <th style={{ textAlign: "right" }}>Unit Price</th>
-                      <th style={{ textAlign: "right" }}>Subtotal</th>
+                      <th style={{ textAlign:"center" }}>Qty</th>
+                      <th style={{ textAlign:"right" }}>Unit Price</th>
+                      <th style={{ textAlign:"right" }}>Subtotal</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -453,26 +350,26 @@ export default function AdminOrderDetailPage() {
                                 className="od-prod-pic"
                                 onError={e => {
                                   (e.target as HTMLImageElement).src = "/images/placeholders/placeholder.jpg";
-                                }} />
+                                }}/>
                             </div>
                             <span className="od-prod-name">{item.product_name}</span>
                           </div>
                         </td>
                         <td>
-                          <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+                          <div style={{ display:"flex", gap:5, flexWrap:"wrap" }}>
                             {item.size  && <span className="od-tag">{item.size}</span>}
                             {item.color && <span className="od-tag">{item.color}</span>}
-                            {!item.size && !item.color && <span style={{ color: "#cbd5e1" }}>—</span>}
+                            {!item.size && !item.color && <span style={{ color:"#cbd5e1" }}>—</span>}
                           </div>
                         </td>
-                        <td style={{ textAlign: "center" }}>
+                        <td style={{ textAlign:"center" }}>
                           <span className="od-qty">×{item.quantity}</span>
                         </td>
-                        <td style={{ textAlign: "right", color: "#64748b", fontSize: "0.85rem" }}>
+                        <td style={{ textAlign:"right", color:"#64748b", fontSize:"0.85rem" }}>
                           ${item.price.toFixed(2)}
                         </td>
-                        <td style={{ textAlign: "right" }}>
-                          <strong style={{ color: "#1e293b", fontSize: "0.9rem" }}>
+                        <td style={{ textAlign:"right" }}>
+                          <strong style={{ color:"#1e293b", fontSize:"0.9rem" }}>
                             ${item.total.toFixed(2)}
                           </strong>
                         </td>
@@ -502,61 +399,55 @@ export default function AdminOrderDetailPage() {
 
             {/* ── Customer ── */}
             <Card>
-              <CardHead icon={<FaUser />} title="Customer" />
-              <div style={{ padding: "16px 20px" }}>
+              <CardHead icon={<FaUser/>} title="Customer"/>
+              <div style={{ padding:"16px 20px" }}>
                 <div className="od-cust-row">
                   <div className="od-avatar">{initials}</div>
                   <div>
                     <div className="od-cust-name">
-                      {customerName || <span style={{ color: "#cbd5e1", fontStyle: "italic" }}>No name</span>}
+                      {customerName || <span style={{ color:"#cbd5e1", fontStyle:"italic" }}>No name</span>}
                     </div>
                     <div className="od-cust-email">
-                      {customerEmail || <span style={{ color: "#cbd5e1" }}>No email</span>}
+                      {customerEmail || <span style={{ color:"#cbd5e1" }}>No email</span>}
                     </div>
                   </div>
                 </div>
-                <InfoRow icon={<FaUser size={9} />}     label="Full Name" value={customerName}  valueStyle={{ color: "#0f172a", fontWeight: 600 }} />
-                <InfoRow icon={<FaEnvelope size={9} />} label="Email"     value={customerEmail} valueStyle={{ color: "#0f172a", fontWeight: 600 }} />
-                <InfoRow icon={<FaPhone size={9} />}    label="Phone"     value={customerPhone} valueStyle={{ color: "#0f172a", fontWeight: 600 }} />
-                <InfoRow                                label="Order date" value={orderDate} />
-                <InfoRow                                label="Time"      value={orderTime} last />
+                <InfoRow icon={<FaUser size={9}/>}     label="Full Name"    value={customerName}  valueStyle={{ color:"#0f172a", fontWeight:600 }}/>
+                <InfoRow icon={<FaEnvelope size={9}/>} label="Email"        value={customerEmail} valueStyle={{ color:"#0f172a", fontWeight:600 }}/>
+                <InfoRow icon={<FaPhone size={9}/>}    label="Phone"        value={customerPhone} valueStyle={{ color:"#0f172a", fontWeight:600 }}/>
+                <InfoRow                               label="Order placed"  value={orderDate}/>
+                <InfoRow                               label="Time"          value={orderTime} last/>
               </div>
             </Card>
 
-            {/* ── Shipping Address ──
-                TWO separate pieces of information:
-                1. The raw text the customer typed (their street / neighbourhood)
-                2. The delivery zone they selected (Inside / Outside Hargeisa + city)
-            ── */}
+            {/* ── Shipping Address ── */}
             <Card>
-              <CardHead icon={<FaMapMarkerAlt />} title="Shipping Address" />
-              <div style={{ padding: "16px 20px" }}>
-
-                {/* 1 — Raw address text the customer typed */}
-                <div className="od-addr-label">Street address</div>
+              <CardHead icon={<FaMapMarkerAlt/>} title="Shipping Address"/>
+              <div style={{ padding:"16px 20px" }}>
+                {/*
+                  Show the FULL shipping address as the user typed it.
+                  City + location shown separately as a tag below.
+                */}
                 {streetAddress
-                  ? <div style={{ fontSize: "0.85rem", color: "#1e293b", lineHeight: 1.8, fontWeight: 500 }}>
+                  ? <div style={{ fontSize:"0.85rem", color:"#1e293b", lineHeight:1.8, fontWeight:500 }}>
                       {streetAddress}
                     </div>
-                  : <span style={{ fontSize: "0.83rem", color: "#cbd5e1" }}>No address provided</span>
+                  : <span style={{ fontSize:"0.83rem", color:"#cbd5e1" }}>No address provided</span>
                 }
-
-                {/* 2 — Delivery zone (inside / outside + city) */}
-                <div className="od-addr-label" style={{ marginTop: 14 }}>Delivery zone</div>
+                {/* Location tag — "Outside Hargeisa / Burco" or "Inside Hargeisa" */}
                 <div className="od-city-tag">
-                  <FaMapMarkerAlt size={9} /> {cityLabel}
+                  <FaMapMarkerAlt size={9}/> {cityLabel}
                 </div>
-
               </div>
             </Card>
 
             {/* ── Order Status ── */}
             <Card>
-              <CardHead icon={<FaTruck />} title="Order Status" />
-              <div style={{ padding: "16px 20px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-                  <span style={{ fontSize: "0.75rem", color: "#94a3b8", fontWeight: 500 }}>Current</span>
-                  <StatusPill status={order.status} />
+              <CardHead icon={<FaTruck/>} title="Order Status"/>
+              <div style={{ padding:"16px 20px" }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
+                  <span style={{ fontSize:"0.75rem", color:"#94a3b8", fontWeight:500 }}>Current</span>
+                  <StatusPill status={order.status}/>
                 </div>
                 <label className="od-select-label" htmlFor="od-sel">Change status</label>
                 <select id="od-sel" className="od-select" value={newStatus}
@@ -568,10 +459,10 @@ export default function AdminOrderDetailPage() {
                   <option value="delivered">Delivered</option>
                   <option value="cancelled">Cancelled</option>
                 </select>
-                <button className="od-btn-primary" style={{ width: "100%", marginTop: 10 }}
+                <button className="od-btn-primary" style={{ width:"100%", marginTop:10 }}
                   onClick={handleStatusUpdate} disabled={updating || newStatus === order.status}>
                   {updating
-                    ? <><span className="od-spin od-spin-sm od-spin-white" /> Updating…</>
+                    ? <><span className="od-spin od-spin-sm od-spin-white"/> Updating…</>
                     : "Update Status"}
                 </button>
               </div>
@@ -579,81 +470,95 @@ export default function AdminOrderDetailPage() {
 
             {/* ══════════════════════════════════════════
                 PAYMENT CARD
-
-                MOBILE MONEY (zaad / e-dahab):
-                  - Provider badge (dark pill)
-                  - Warning banner to verify before shipping
-                  - Receipt Name   (name on the transfer)
-                  - Receipt Number (phone used to send)
-                  - Total Paid     (amount customer claimed)
-
-                CASH ON DELIVERY:
-                  - Green "Cash on Delivery" badge only
-                  (no extra rows — nothing to verify)
-            ══════════════════════════════════════════ */}
+                ── Cash on Delivery: shows method + zone only
+                ── Mobile money:     shows method + zone +
+                                     receipt name + receipt number + total paid
+              ══════════════════════════════════════════ */}
             <Card style={{ marginBottom: 0 }}>
-              <CardHead icon={<FaCreditCard />} title="Payment" />
-              <div style={{ padding: "16px 20px" }}>
+              <CardHead icon={<FaCreditCard/>} title="Payment"/>
+              <div style={{ padding:"16px 20px" }}>
 
                 {isMobileMoney ? (
-                  /* ── MOBILE MONEY ─────────────────────────────── */
                   <>
+                    {/* ── MOBILE MONEY ── */}
+
                     {/* Provider badge */}
                     <div style={{
-                      display: "inline-flex", alignItems: "center", gap: 8,
-                      background: "#0f172a", color: "#fff", padding: "7px 18px",
-                      fontSize: "0.75rem", fontWeight: 700, letterSpacing: "0.1em",
-                      textTransform: "uppercase", marginBottom: 16, borderRadius: 6,
+                      display:"inline-flex", alignItems:"center", gap:8,
+                      background:"#0f172a", color:"#fff", padding:"6px 16px",
+                      fontSize:"0.75rem", fontWeight:700, letterSpacing:"0.1em",
+                      textTransform:"uppercase", marginBottom:16, borderRadius:6,
                     }}>
-                      <FaMobileAlt size={11} />
+                      <FaMobileAlt size={11}/>
                       {proof?.providerLabel || order.payment_method || "Mobile Money"}
                     </div>
 
-                    {/* Warning banner — verify before dispatching */}
-                    <div className="od-warn-banner">
-                      <span className="od-warn-dot" />
-                      <span>
-                        Verify this <strong>{proof?.providerLabel ?? "mobile money"}</strong> transfer
-                        before processing the order.
-                      </span>
-                    </div>
-
-                    {/* Receipt Name — name customer put on the transfer */}
+                    {/* Location / zone */}
                     <InfoRow
-                      icon={<FaReceipt size={9} />}
+                      icon={<FaMapMarkerAlt size={9}/>}
+                      label="Location"
+                      value={cityLabel}
+                    />
+
+                    {/* Warning banner */}
+                    {proof && (
+                      <div className="od-warn-banner">
+                        <span className="od-warn-dot"/>
+                        <span>
+                          Verify <strong>{proof.providerLabel}</strong> payment of{" "}
+                          <strong>${toMoney(proof.amount)}</strong> before processing.
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Receipt Name */}
+                    <InfoRow
+                      icon={<FaReceipt size={9}/>}
                       label="Receipt Name"
                       value={proof?.receiptName || null}
-                      valueStyle={{ color: "#0f172a", fontWeight: 700, fontSize: "0.88rem" }}
+                      valueStyle={{ color:"#0f172a", fontWeight:700, fontSize:"0.88rem" }}
                     />
 
-                    {/* Receipt Number — phone number used to send money */}
+                    {/* Receipt Number */}
                     <InfoRow
-                      icon={<FaPhone size={9} />}
+                      icon={<FaPhone size={9}/>}
                       label="Receipt Number"
                       value={proof?.senderPhone || null}
-                      valueStyle={{ color: "#0f172a", fontWeight: 700, fontSize: "0.88rem" }}
+                      valueStyle={{ color:"#0f172a", fontWeight:700, fontSize:"0.88rem" }}
                     />
 
-                    {/* Total Paid — amount customer claims to have transferred */}
+                    {/* Total Paid */}
                     <InfoRow
                       label="Total Paid"
                       value={proof ? `$${toMoney(proof.amount)}` : null}
                       last
-                      valueStyle={{ color: "#15803d", fontWeight: 800, fontSize: "1rem" }}
+                      valueStyle={{ color:"#15803d", fontWeight:800, fontSize:"1rem" }}
                     />
                   </>
                 ) : (
-                  /* ── CASH ON DELIVERY ─────────────────────────── */
-                  <div style={{
-                    display: "inline-flex", alignItems: "center", gap: 8,
-                    background: "#f0fdf4", color: "#166534",
-                    border: "1px solid #bbf7d0",
-                    padding: "7px 18px", fontSize: "0.75rem", fontWeight: 700,
-                    letterSpacing: "0.1em", textTransform: "uppercase",
-                    borderRadius: 6,
-                  }}>
-                    💵 Cash on Delivery
-                  </div>
+                  <>
+                    {/* ── CASH ON DELIVERY ── */}
+
+                    {/* Method badge */}
+                    <div style={{
+                      display:"inline-flex", alignItems:"center", gap:8,
+                      background:"#f0fdf4", color:"#166534",
+                      border:"1px solid #bbf7d0",
+                      padding:"6px 16px", fontSize:"0.75rem", fontWeight:700,
+                      letterSpacing:"0.1em", textTransform:"uppercase",
+                      marginBottom:16, borderRadius:6,
+                    }}>
+                      💵 Cash on Delivery
+                    </div>
+
+                    {/* Location / zone */}
+                    <InfoRow
+                      icon={<FaMapMarkerAlt size={9}/>}
+                      label="Location"
+                      value={cityLabel}
+                      last
+                    />
+                  </>
                 )}
 
               </div>
@@ -711,17 +616,11 @@ const CSS = `
     padding:3px 9px; border-radius:100px;
   }
 
-  /* address card labels */
-  .od-addr-label {
-    font-size:.7rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase;
-    color:#94a3b8; margin-bottom:6px;
-  }
-
   /* city tag inside address card */
   .od-city-tag {
     display:inline-flex; align-items:center; gap:6px; background:#f0e8d8;
     border:1px solid rgba(200,169,110,.4); padding:5px 12px; font-size:.71rem;
-    font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:#92400e;
+    font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:#92400e; margin-top:10px;
   }
 
   /* buttons */
@@ -805,7 +704,7 @@ const CSS = `
   .od-warn-banner {
     display:flex; align-items:flex-start; gap:8px; background:#fffbeb;
     border:1px solid #fde68a; border-radius:8px; padding:10px 12px;
-    font-size:.78rem; color:#92400e; line-height:1.5; margin-bottom:12px;
+    font-size:.78rem; color:#92400e; line-height:1.5; margin:12px 0;
   }
   .od-warn-dot { width:8px; height:8px; min-width:8px; background:#f59e0b; border-radius:50%; margin-top:3px; flex-shrink:0; }
 
