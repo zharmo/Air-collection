@@ -182,14 +182,14 @@ export default function ContactPage() {
             <div className="text-center">
               <div className="mb-3">
                 <span className="badge bg-light text-dark rounded-pill px-3 py-2" style={{ letterSpacing: '0.2em', fontWeight: 500, fontSize: '0.7rem' }}>
-                  GET IN TOUCH
+                  Nala Soo Xiriir
                 </span>
               </div>
               <h1 className="display-4 fw-semibold" style={{ fontFamily: 'Cormorant Garamond, serif', letterSpacing: '-0.02em', color: '#0a0a0a' }}>
-                We'd love to hear from you
+                Waan ku faraxsanahay inaan kaa maqalno
               </h1>
               <p className="lead text-muted mx-auto" style={{ maxWidth: '600px', fontSize: '1.1rem' }}>
-                Whether you have a question about our pieces, need styling advice, or just want to say hello – our team is here for you.
+                Haddii aad qabto su’aal ku saabsan alaabtayada, aad u baahan tahay talo ku saabsan sida loo xirto (styling), ama aad rabto inaad si fudud noo salaanto – kooxdayadu way kuu diyaar tahay.
               </p>
             </div>
           </div>
@@ -330,7 +330,7 @@ export default function ContactPage() {
                     <div className="mt-5 pt-2">
                       <h3 className="h5 fw-semibold mb-3" style={{ fontFamily: 'Cormorant Garamond, serif' }}>Follow the journey</h3>
                       <div className="d-flex gap-4">
-                        <a href="#" className="text-dark fs-4 social-icon" style={{ transition: 'all 0.2s' }} aria-label="Instagram">
+                        <a href="https://www.instagram.com/air__collection_?igsh=MXJzNWtyNWUzNHludw%3D%3D&utm_source=qr" className="text-dark fs-4 social-icon" style={{ transition: 'all 0.2s' }} aria-label="Instagram">
                           <FaInstagram />
                         </a>
                       </div>

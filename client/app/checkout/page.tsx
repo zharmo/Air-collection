@@ -16,8 +16,8 @@ const OUTSIDE_CITIES = [
 ];
 
 const PROVIDER_NUMBERS: Record<string, string> = {
-    zaad:   '+252 63 4567890',
-    edahab: '+252 65 9876543',
+    zaad:   '464378',
+    edahab: '736865',
 };
 
 const CSS = `
@@ -438,26 +438,26 @@ export default function CheckoutPage() {
 
                                         <div className="co-info-box">
                                             <span className="co-info-eyebrow">
-                                                Send payment to this {form.paymentMethod === 'zaad' ? 'Zaad' : 'E-Dahab'} number
+                                                Fadlan ku dir lacagta {form.paymentMethod === 'zaad' ? 'Zaad' : 'E-Dahab'} aad ku iibsatay number-ka hoose.
                                             </span>
                                             <span className="co-info-number">{PROVIDER_NUMBERS[form.paymentMethod]}</span>
                                             <p className="co-info-text">
-                                                Please send exactly <span className="co-info-amount">${total.toFixed(2)}</span> to the
-                                                number above, then fill in the details below so we can verify your payment.
+                                                Fadlan si sax ah ugu dir <span className="co-info-amount">${total.toFixed(2)}</span> lambarka kore, waa ku iibso
+                                                kadibna buuxi faahfaahinta hoose si aan u xaqiijinno lacag-bixintaada.
                                             </p>
                                         </div>
 
                                         <div className="co-mm-fields">
                                             <div className="co-field">
-                                                <label className="co-label">Number You Sent From *</label>
+                                                <label className="co-label">Number ka aad ka so dirtay</label>
                                                 <input type="tel" name="transferPhone" className="co-input"
                                                     placeholder="+252 63 XXXXXXX"
                                                     value={form.transferPhone} onChange={handleChange} />
                                             </div>
                                             <div className="co-field">
-                                                <label className="co-label">Full Name Used for Transfer *</label>
+                                                <label className="co-label">Magaca Number ka aad kaso dirtay</label>
                                                 <input type="text" name="transferName" className="co-input"
-                                                    placeholder="Name shown on the transfer receipt"
+                                                    placeholder="Gali magaca ku qoran rasiidka lacagta kadib markaad dirto"
                                                     value={form.transferName} onChange={handleChange} />
                                             </div>
                                         </div>

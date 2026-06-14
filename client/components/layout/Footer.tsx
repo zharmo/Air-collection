@@ -132,16 +132,14 @@ export default function Footer() {
                 </h2>
               </div>
               <p className="ft-brand-desc">
-                Premium fashion for the modern world. Consciously crafted pieces
-                that celebrate ethereal design and sustainable luxury — every
-                thread tells a story.
+                Fashion tayo sare leh oo loogu talagalay dunida casriga ah. Waxaan isku darnaa naqshad casri ah iyo tayo aan la tartami karin si aan kuu siino khibrad labis oo aan caadi ahayn.  
               </p>
               <div className="ft-social" aria-label="Follow us">
                 {[
-                  { href: "#", label: "Instagram", Icon: IconInstagram },
-                  { href: "#", label: "Facebook", Icon: IconFacebook },
-                  { href: "#", label: "WhatsApp", Icon: IconWhatsapp },
-                  { href: "#", label: "TikTok", Icon: IconTiktok },
+                  { href: "https://www.instagram.com/air__collection_?igsh=MXJzNWtyNWUzNHludw%3D%3D&utm_source=qr", label: "Instagram", Icon: IconInstagram },
+                  { href: "https://www.facebook.com/share/1RK2rZcmsa/?mibextid=wwXIfr", label: "Facebook", Icon: IconFacebook },
+                  { href: "https://wa.me/+252634818551", label: "WhatsApp", Icon: IconWhatsapp },
+                  { href: "https://www.tiktok.com/@aircollection1?_r=1&_t=ZS-97CPD7QFEmr", label: "TikTok", Icon: IconTiktok },
                 ].map(({ href, label, Icon }) => (
                   <a
                     key={label}

@@ -363,7 +363,8 @@ function OrderSuccessContent() {
                                     <div>
                                         <div className="os-status-label">{statusText}</div>
                                         <div className="os-status-desc">
-                                            Your order is confirmed and will be processed shortly.
+                                            Dalabkaaga waa la xaqiijiyay, waxaana si dhakhso ah loo bilaabi doonaa ka shaqayntiisa.
+
                                         </div>
                                     </div>
                                 </div>
@@ -423,7 +424,8 @@ function OrderSuccessContent() {
                                         </div>
 
                                         <p className="os-cod-desc" style={{ marginBottom: proof ? 0 : undefined }}>
-                                            Your payment is being verified. We will confirm within a few minutes.
+                                           Lacag bixintaada waa la xaqiijinayaa. Waxaan ku xaqiijin doonnaa dhowr daqiiqo gudahood.
+.
                                         </p>
 
                                         {/* ── Proof box — always shown when mobile money ── */}
@@ -484,7 +486,7 @@ function OrderSuccessContent() {
                                     <div className="os-sh-icon" style={{ fontSize:13 }}>📦</div>
                                     <p className="os-sh-title">Estimated Delivery</p>
                                 </div>
-                                <p className="os-delivery-title">3 – 5 Business Days</p>
+                                <p className="os-delivery-title">48 hours</p>
                                 <p className="os-delivery-desc">
                                     We will send you a notification once your order is on its way.
                                     {isOutside && cityLabel && cityLabel !== 'Outside Hargeisa' &&
