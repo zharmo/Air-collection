@@ -4,9 +4,7 @@ const nodemailer = require("nodemailer");
 
 dotenv.config({ path: path.join(__dirname, "../.env") });
 
-/* ═══════════════════════════════════════════════════════════════
- * TRANSPORT
- * ═══════════════════════════════════════════════════════════════ */
+/* ═══════════════ TRANSPORT ═══════════════ */
 const isEmailConfigured = () =>
   Boolean(process.env.EMAIL_USER && process.env.EMAIL_PASS);
 const getAdminEmail = () =>
@@ -28,7 +26,7 @@ const sendEmail = async (to, subject, html, options = {}) => {
       );
       return false;
     }
-    const transporter = createTransporter();
+    const t = createTransporter();
     const mail = {
       from:
         process.env.EMAIL_FROM ||
@@ -38,7 +36,7 @@ const sendEmail = async (to, subject, html, options = {}) => {
       html,
     };
     if (options.replyTo) mail.replyTo = options.replyTo;
-    const info = await transporter.sendMail(mail);
+    const info = await t.sendMail(mail);
     console.log(`✅ Email sent to ${to}: ${info.messageId}`);
     return true;
   } catch (err) {
@@ -55,29 +53,30 @@ const escapeHtml = (v = "") =>
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
 
-/* ═══════════════════════════════════════════════════════════════
- * MOBILE PAYMENT NORMALISATION
- * ═══════════════════════════════════════════════════════════════ */
+/* ═══════════════ NORMALISE MOBILE PAYMENT ═══════════════
+ * Accepts camelCase or snake_case fields from backend.
+ ═══════════════════════════════════════════════════════ */
 const normaliseMP = (mp) => {
   if (!mp || !mp.provider) return null;
-  const provider = (mp.provider || "").toLowerCase();
+  const p = (mp.provider || "").toLowerCase();
   return {
-    provider,
+    provider: p,
     providerLabel:
-      provider === "edahab"
-        ? "E-Dahab"
-        : provider === "zaad"
-          ? "Zaad"
-          : mp.provider,
+      p === "edahab" ? "E-Dahab" : p === "zaad" ? "Zaad" : mp.provider,
     senderPhone: mp.transfer_phone || mp.transferPhone || "",
     receiptName: mp.transfer_name || mp.transferName || "",
     amount: Number(mp.amount_paid ?? mp.amountPaid ?? 0),
   };
 };
 
-/* ═══════════════════════════════════════════════════════════════
- * CITY / LOCATION DETECTION
- * ═══════════════════════════════════════════════════════════════ */
+/* ═══════════════ CITY / LOCATION DETECTION ═══════════════
+ * The backend may NOT save location/city fields reliably.
+ * We scan EVERY WORD from ALL address fields to detect outside cities.
+ *
+ * Usage:
+ *   const { isOutside, cityLabel, rawCity, addrLine } =
+ *     resolveLocation({ location, city, shippingAddress, streetAddress });
+ ═══════════════════════════════════════════════════════════ */
 const OUTSIDE_CITIES_LC = ["burco", "boorama", "berbera", "borama", "others"];
 const OUTSIDE_CITIES_LABELS = {
   burco: "Burco",
@@ -93,6 +92,7 @@ const resolveLocation = ({
   shippingAddress = "",
   streetAddress = "",
 }) => {
+  /* Combine ALL text and scan every word */
   const combined = [location, city, shippingAddress, streetAddress]
     .join(" ")
     .toLowerCase()
@@ -101,12 +101,14 @@ const resolveLocation = ({
   const words = combined.split(/\s+/).filter(Boolean);
   const foundWord = words.find((w) => OUTSIDE_CITIES_LC.includes(w)) || null;
 
+  /* isOutside: any signal is enough */
   const isOutside =
     location === "outside" ||
     combined.includes("outside") ||
     (!!city && OUTSIDE_CITIES_LC.includes(city.toLowerCase())) ||
     foundWord !== null;
 
+  /* Best city key */
   const cityKey =
     (city && OUTSIDE_CITIES_LC.includes(city.toLowerCase())
       ? city.toLowerCase()
@@ -115,12 +117,15 @@ const resolveLocation = ({
     null;
 
   const rawCity = cityKey ? OUTSIDE_CITIES_LABELS[cityKey] || city || "" : "";
+
+  /* Full label */
   const cityLabel = isOutside
     ? rawCity
       ? `Outside Hargeisa / ${rawCity}`
       : "Outside Hargeisa"
     : "Inside Hargeisa";
 
+  /* Street line — first comma segment, or full address if no commas */
   const addrLine =
     streetAddress ||
     (shippingAddress ? shippingAddress.split(",")[0].trim() : "") ||
@@ -129,9 +134,7 @@ const resolveLocation = ({
   return { isOutside, rawCity, cityLabel, addrLine };
 };
 
-/* ═══════════════════════════════════════════════════════════════
- * DESIGN TOKENS
- * ═══════════════════════════════════════════════════════════════ */
+/* ═══════════════ DESIGN TOKENS ═══════════════ */
 const T = {
   bg: "#F9F8F6",
   surface: "#FFFFFF",
@@ -147,32 +150,12 @@ const T = {
   serif: 'Georgia, "Times New Roman", serif',
 };
 
-/* ═══════════════════════════════════════════════════════════════
- * LOGO
- * ═══════════════════════════════════════════════════════════════ */
-const logoHtml = () => {
-  const base = (process.env.FRONTEND_URL || "").replace(/\/$/, "");
-  if (base) {
-    return `<img src="${base}/images/hero/air-collection-hero.jpg" alt="Air Collection"
-                 width="160" style="display:block;max-width:160px;height:auto;margin:0 auto 4px;border:0;"/>`;
-  }
-  return `<span style="font-family:${T.serif};font-size:26px;font-weight:700;
-                        letter-spacing:0.12em;color:${T.text};text-transform:uppercase;">
-            AIR COLLECTION
-          </span>`;
-};
-
-/* ═══════════════════════════════════════════════════════════════
- * EMAIL SHELL — shared header / footer wrapper
- * ═══════════════════════════════════════════════════════════════ */
-const shell = (content, preview = "", hideLogo = false) => `
+/* ═══════════════ SHELL ═══════════════ */
+const shell = (content, preview = "") => `
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-  <title>Air Collection</title>
-</head>
+<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Air Collection</title></head>
 <body style="margin:0;padding:0;background:${T.bg};font-family:${T.sans};-webkit-font-smoothing:antialiased;">
   ${preview ? `<div style="display:none;max-height:0;overflow:hidden;font-size:1px;color:${T.bg};">${preview}</div>` : ""}
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
@@ -181,22 +164,16 @@ const shell = (content, preview = "", hideLogo = false) => `
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
              style="max-width:600px;">
 
-        ${
-          !hideLogo
-            ? `<tr>
-                <td align="center" style="padding:0 0 24px; text-align: center;">
-                  ${logoHtml()}
-                </td>
-              </tr>`
-            : ""
-        }
+        <!-- LOGO -->
 
+        <!-- CONTENT -->
         <tr>
-          <td style="background:${T.surface};border:1px solid ${T.border};">
+          <td style="background:${T.surface};border:1px solid ${T.border};border-top:none;">
             ${content}
           </td>
         </tr>
 
+        <!-- FOOTER -->
         <tr>
           <td style="padding:24px 0 0;text-align:center;">
             <p style="font-size:11px;color:${T.muted};margin:0 0 4px;letter-spacing:0.08em;text-transform:uppercase;">
@@ -214,41 +191,33 @@ const shell = (content, preview = "", hideLogo = false) => `
 </body>
 </html>`;
 
-/* ═══════════════════════════════════════════════════════════════
- * SHARED LAYOUT HELPERS
- * ═══════════════════════════════════════════════════════════════ */
+/* ═══════════════ SHARED HELPERS ═══════════════ */
 const sectionLine = (title) => `
   <tr>
     <td colspan="2" style="padding:28px 32px 0;">
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="padding-bottom:12px;border-bottom:1px solid ${T.border};">
-        <tr>
-          <td style="vertical-align: middle; width: 28px;">
-            <span style="display:block;width:20px;height:1px;background:${T.accent};"></span>
-          </td>
-          <td style="vertical-align: middle;">
-            <span style="font-family:${T.sans};font-size:10px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:${T.muted};">${title}</span>
-          </td>
-        </tr>
-      </table>
+      <div style="padding-bottom:12px;border-bottom:1px solid ${T.border};display:flex;align-items:center;">
+        <span style="display:inline-block;width:20px;height:1px;background:${T.accent};margin-right:8px;"></span>
+        <span style="font-family:${T.sans};font-size:10px;font-weight:700;letter-spacing:0.2em;
+                     text-transform:uppercase;color:${T.muted};">${title}</span>
+      </div>
     </td>
   </tr>`;
 
 const cell2 = (label, value) => `
   <td style="padding:10px 0;vertical-align:top;width:50%;">
-    <div style="font-family:${T.sans};font-size:10px;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;color:${T.muted};margin-bottom:4px;">${label}</div>
+    <div style="font-family:${T.sans};font-size:10px;font-weight:600;letter-spacing:0.18em;
+                text-transform:uppercase;color:${T.muted};margin-bottom:4px;">${label}</div>
     <div style="font-family:${T.sans};font-size:14px;font-weight:500;color:${T.text};line-height:1.4;">
       ${value || "—"}
     </div>
   </td>`;
 
 const cityPill = (label) => `
-  <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="display:inline-block;background:${T.accentBg};border:1px solid rgba(184,149,90,0.35);padding:4px 14px;">
-    <tr>
-      <td style="font-family:${T.sans};font-size:10px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:${T.text};">
-        📍 ${label}
-      </td>
-    </tr>
-  </table>`;
+  <span style="display:inline-flex;align-items:center;gap:5px;background:${T.accentBg};
+               border:1px solid rgba(184,149,90,0.35);padding:4px 14px;font-family:${T.sans};
+               font-size:10px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:${T.text};">
+    📍 ${label}
+  </span>`;
 
 const itemsTable = (items = []) => {
   if (!items.length)
@@ -320,6 +289,7 @@ const totalsBlock = (subtotal, deliveryFee, total) => `
     </tr>
   </table>`;
 
+/* Mobile money proof box — 4 fields in a 2x2 grid */
 const mpProofBox = (proof, forAdmin = false) => {
   if (!proof) return "";
   return `
@@ -329,7 +299,7 @@ const mpProofBox = (proof, forAdmin = false) => {
         <td style="padding:22px 24px;">
           <div style="font-family:${T.sans};font-size:10px;font-weight:700;letter-spacing:0.18em;
                       text-transform:uppercase;color:${T.accent};margin-bottom:14px;">
-            ${forAdmin ? "⚠️   Verify This Transfer Before Shipping" : "Transfer Details You Submitted"}
+            ${forAdmin ? "⚠️  Verify This Transfer Before Shipping" : "Transfer Details You Submitted"}
           </div>
           <table width="100%" cellpadding="0" cellspacing="0">
             <tr>
@@ -380,6 +350,7 @@ const mpProofBox = (proof, forAdmin = false) => {
 const sendOrderConfirmation = async (to, order) => {
   if (!to) return false;
 
+  /* Accept every possible field name */
   const customerName =
     order.customerName || order.customer_name || order.name || "";
   const customerEmail =
@@ -398,6 +369,7 @@ const sendOrderConfirmation = async (to, order) => {
   const isMobileMoney = paymentMethod === "zaad" || paymentMethod === "edahab";
   const proof = normaliseMP(mobilePayment);
 
+  /* City / location — using the shared resolver */
   const { isOutside, cityLabel, addrLine } = resolveLocation({
     location: order.location || "",
     city: order.city || order.customer_city || "",
@@ -412,6 +384,7 @@ const sendOrderConfirmation = async (to, order) => {
   });
 
   const content = `
+    <!-- STATUS HERO -->
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
            style="background:${T.greenBg};border-bottom:1px solid ${T.greenBdr};">
       <tr>
@@ -440,6 +413,7 @@ const sendOrderConfirmation = async (to, order) => {
 
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
 
+      <!-- SHIPPING DETAILS -->
       ${sectionLine("Shipping Details")}
       <tr>
         <td colspan="2" style="padding:16px 32px 8px;">
@@ -457,6 +431,7 @@ const sendOrderConfirmation = async (to, order) => {
         </td>
       </tr>
 
+      <!-- PAYMENT -->
       ${sectionLine("Payment")}
       <tr>
         <td colspan="2" style="padding:16px 32px 8px;">
@@ -483,6 +458,7 @@ const sendOrderConfirmation = async (to, order) => {
         </td>
       </tr>
 
+      <!-- ITEMS -->
       ${sectionLine("Items Ordered")}
       <tr>
         <td colspan="2" style="padding:16px 32px 0;">
@@ -491,6 +467,7 @@ const sendOrderConfirmation = async (to, order) => {
         </td>
       </tr>
 
+      <!-- DELIVERY -->
       ${sectionLine("Estimated Delivery")}
       <tr>
         <td colspan="2" style="padding:16px 32px 36px;">
@@ -506,14 +483,12 @@ const sendOrderConfirmation = async (to, order) => {
 
     </table>`;
 
-  // Notice the 3rd parameter passed here is `true` to hide the logo section
   return sendEmail(
     to,
     `Order Confirmed — #${orderNumber} | Air Collection`,
     shell(
       content,
       `Your order #${orderNumber} is confirmed. Thank you for shopping with Air Collection.`,
-      true,
     ),
   );
 };
@@ -562,22 +537,24 @@ const sendNewOrderNotification = async (order) => {
   const dashLink = `${(process.env.FRONTEND_URL || "").replace(/\/$/, "")}/admin/orders/${orderId}`;
 
   const content = `
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0D0D0D;">
+    <!-- SUCCESS HERO (Changed from black to readable success colors) -->
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" 
+           style="background:${T.greenBg};border-bottom:1px solid ${T.greenBdr};">
       <tr>
         <td style="padding:24px 32px;">
           <table width="100%" cellpadding="0" cellspacing="0">
             <tr>
               <td style="vertical-align:middle;">
                 <div style="font-family:${T.sans};font-size:10px;font-weight:700;letter-spacing:0.18em;
-                            text-transform:uppercase;color:${T.accent};margin-bottom:4px;">New Order Received</div>
-                <div style="font-family:${T.serif};font-size:22px;font-weight:700;color:#fff;line-height:1.2;">
+                            text-transform:uppercase;color:${T.green};margin-bottom:4px;">New Order Received</div>
+                <div style="font-family:${T.serif};font-size:22px;font-weight:700;color:${T.text};line-height:1.2;">
                   Order #${orderNumber} — ${orderDate}
                 </div>
               </td>
               <td style="vertical-align:middle;text-align:right;padding-left:16px;">
                 <span style="font-family:${T.sans};font-size:10px;font-weight:700;letter-spacing:0.14em;
-                             text-transform:uppercase;color:${T.accent};border:1px solid ${T.accent};
-                             padding:5px 12px;white-space:nowrap;">Admin Notification</span>
+                             text-transform:uppercase;color:${T.green};border:1px solid ${T.greenBdr};
+                             background:#style="white-space:nowrap;padding:5px 12px;background:#fff;">Admin Alert</span>
               </td>
             </tr>
           </table>
@@ -585,6 +562,7 @@ const sendNewOrderNotification = async (order) => {
       </tr>
     </table>
 
+    <!-- VIEW IN DASHBOARD -->
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
            style="background:#FBF7F0;border-bottom:1px solid ${T.border};">
       <tr>
@@ -614,6 +592,7 @@ const sendNewOrderNotification = async (order) => {
 
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
 
+      <!-- CUSTOMER -->
       ${sectionLine("Customer")}
       <tr>
         <td colspan="2" style="padding:16px 32px 8px;">
@@ -630,6 +609,7 @@ const sendNewOrderNotification = async (order) => {
         </td>
       </tr>
 
+      <!-- SHIPPING & LOCATION -->
       ${sectionLine("Shipping & Location")}
       <tr>
         <td colspan="2" style="padding:16px 32px 8px;">
@@ -643,6 +623,7 @@ const sendNewOrderNotification = async (order) => {
         </td>
       </tr>
 
+      <!-- PAYMENT METHOD -->
       ${sectionLine("Payment Method")}
       <tr>
         <td colspan="2" style="padding:16px 32px 8px;">
@@ -673,6 +654,7 @@ const sendNewOrderNotification = async (order) => {
         </td>
       </tr>
 
+      <!-- ITEMS -->
       ${sectionLine(`Items — ${items.length} item${items.length !== 1 ? "s" : ""}`)}
       <tr>
         <td colspan="2" style="padding:16px 32px 32px;">
@@ -683,7 +665,8 @@ const sendNewOrderNotification = async (order) => {
 
     </table>
 
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0D0D0D;">
+    <!-- ADMIN FOOTER -->
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${T.bg}; border-top: 1px solid ${T.border};">
       <tr>
         <td style="padding:14px 32px;text-align:center;">
           <span style="font-family:${T.sans};font-size:11px;color:#8A7F76;">
@@ -703,6 +686,7 @@ const sendNewOrderNotification = async (order) => {
     shell(
       content,
       `New order #${orderNumber} from ${name} — $${Number(total).toFixed(2)}`,
+      true, // This 'true' completely hides and removes the top header logo section
     ),
   );
 };
@@ -750,7 +734,7 @@ const sendPasswordResetEmail = async (to, resetToken) => {
 const sendContactNotification = async (name, email, subject, message) => {
   const adminEmail = getAdminEmail();
   if (!adminEmail) {
-    console.warn("⚠️  ADMIN_EMAIL not set — skipping contact notification");
+    console.warn("⚠️  ADMIN_EMAIL not set");
     return false;
   }
   const safeName = escapeHtml(String(name || "").trim());
@@ -796,9 +780,7 @@ const sendContactNotification = async (name, email, subject, message) => {
   );
 };
 
-/* ═══════════════════════════════════════════════════════════════
- * EXPORTS
- * ═══════════════════════════════════════════════════════════════ */
+/* ═══════════════ EXPORTS ═══════════════ */
 module.exports = {
   sendEmail,
   isEmailConfigured,
