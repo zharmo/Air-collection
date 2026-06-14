@@ -215,6 +215,19 @@ export default function Footer() {
                     +252 63 4818551
                   </a>
                 </li>
+                <li>
+                  <a
+                    href="https://maps.app.goo.gl/jjjnpG9H46hy9urd8?g_st=iw"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="ft-contact-row"
+                  >
+                    <span className="ft-contact-ico">
+                      📍
+                    </span>
+                    View on Google Maps
+                  </a>
+                </li>
               </ul>
 
               <div className="ft-newsletter-block">
