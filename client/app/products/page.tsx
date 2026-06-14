@@ -429,7 +429,6 @@ export default function AllProductsPage() {
                     letter-spacing: .08em; text-transform: uppercase;
                     padding: 3px 6px; display: inline-block; width: fit-content;
                 }
-                    
                 .ap-badge-sale    { background: var(--ink); color: #fff; }
                 .ap-badge-new     { background: var(--accent); color: var(--ink); }
                 .ap-badge-sold    { background: rgba(255,255,255,.9); color: var(--danger); border: 1px solid rgba(192,57,43,.2); }
