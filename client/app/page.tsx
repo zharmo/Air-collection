@@ -793,8 +793,9 @@ export default function HomePage() {
             as Air.
           </h1>
           <p className="hero-sub">
-            Effortless silhouettes in breathable linen and natural fabrics. Wear
-            the feeling of weightlessness.
+            Dharka qaabkoodu fudud yahay, lagana sameeyay linen iyo marooyin 
+            dabiici ah oo hawadu si fiican u dhex marto. 
+            Xidho dareenka fudaydka iyo miisaan la'aanta
           </p>
           <div className="hero-actions">
             <Link href="/products?new=true" className="btn-primary-ink">
@@ -855,7 +856,7 @@ export default function HomePage() {
       <div className="trust-bar">
         <div className="trust-inner">
           {[
-            "Free Shipping Over $80",
+            "Free Shipping",
             "✦",
             "Easy Returns",
             "✦",
@@ -865,9 +866,9 @@ export default function HomePage() {
             "✦",
             "New Season Collection",
             "✦",
-            "Handcrafted Quality",
+            "High Quality",
             "✦",
-            "Free Shipping Over $80",
+            "Free Shipping ",
             "✦",
             "Easy Returns",
             "✦",
