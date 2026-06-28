@@ -309,6 +309,8 @@ export default function ProductsManagement() {
   });
   const [colors, setColors] = useState<ColorVariant[]>([]);
   const [productImages, setProductImages] = useState<ProductImageUpload[]>([]);
+  // ── FIX: track IDs of existing server images the user wants to delete ──
+  const [deletedImageIds, setDeletedImageIds] = useState<number[]>([]);
   const [sizes, setSizes] = useState<SizeVariant[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
   const [categoryType, setCategoryType] = useState<string>("");
@@ -441,12 +443,26 @@ export default function ProductsManagement() {
     }));
     setProductImages([...productImages, ...uploads]);
   };
+
+  // ── FIX: removeProductImage now works for both new uploads AND existing server images ──
   const removeProductImage = (i: number) => {
+    const img = productImages[i];
+
+    // If this is an existing server image (has an id), track it for deletion on save
+    if (img.id) {
+      setDeletedImageIds((prev) => [...prev, img.id!]);
+    }
+
     const u = productImages.filter((_, j) => j !== i);
-    if (productImages[i]?.isPrimary && u.length > 0)
+
+    // If the removed image was primary, promote the next one
+    if (img.isPrimary && u.length > 0) {
       u[0] = { ...u[0], isPrimary: true };
+    }
+
     setProductImages(u);
   };
+
   const setPrimaryProductImage = (i: number) =>
     setProductImages(
       productImages.map((img, j) => ({ ...img, isPrimary: j === i })),
@@ -493,6 +509,7 @@ export default function ProductsManagement() {
     });
     return r.data.data.image_url;
   };
+
   const handleSaveProduct = async () => {
     setModalLoading(true);
     try {
@@ -517,6 +534,16 @@ export default function ProductsManagement() {
         const r = await axiosInstance.post("/products", payload);
         productId = r.data.data.id;
       }
+
+      // ── FIX: delete any server images the user removed during editing ──
+      for (const imgId of deletedImageIds) {
+        try {
+          await axiosInstance.delete(`/products/${productId}/images/${imgId}`);
+        } catch (e) {
+          console.error(`Failed to delete image ${imgId}:`, e);
+        }
+      }
+
       const primaryExisting = productImages.find(
         (img) => img.id && img.isPrimary,
       );
@@ -542,7 +569,6 @@ export default function ProductsManagement() {
       const sizesPayload = sizes.map((s) => ({
         colorName: s.colorName || "",
         sizeName: s.sizeName,
-        // Use the size's own sizeType (set when loaded or added), fall back to current categoryType
         sizeType: s.sizeType || categoryType,
         measurements: s.measurements,
         stock: s.stock,
@@ -567,6 +593,7 @@ export default function ProductsManagement() {
       setModalLoading(false);
     }
   };
+
   const resetForm = () => {
     setEditingProduct(null);
     setFormData({
@@ -583,9 +610,11 @@ export default function ProductsManagement() {
     setSizes([]);
     setSelectedCategoryId("");
     setCategoryType("");
+    // ── FIX: clear deleted image tracking on reset ──
+    setDeletedImageIds([]);
   };
+
   const handleEdit = async (p: Product) => {
-    // Always fetch the full single product so colors and sizes are guaranteed present
     let full: any = p;
     try {
       const r = await axiosInstance.get(`/products/${p.id}`);
@@ -620,6 +649,9 @@ export default function ProductsManagement() {
       })) || [],
     );
 
+    // ── FIX: reset deleted image IDs when opening edit modal ──
+    setDeletedImageIds([]);
+
     const loadedColors = full.colors || [];
     setColors(
       loadedColors.map((c: any) => ({
@@ -633,7 +665,6 @@ export default function ProductsManagement() {
 
     setSizes(
       (full.sizes || []).map((s: any) => {
-        // Look up color name from the freshly loaded colors
         const matchedColor = loadedColors.find((c: any) => c.id === s.color_id);
         return {
           id: s.id,
@@ -1907,24 +1938,23 @@ export default function ProductsManagement() {
                                   <FaStar size={8} /> Primary
                                 </span>
                               )}
-                              {img.imageFile && (
-                                <button
-                                  onClick={() => removeProductImage(idx)}
-                                  style={{
-                                    background: "rgba(239,68,68,.85)",
-                                    border: "none",
-                                    borderRadius: 5,
-                                    color: "#fff",
-                                    fontSize: 9,
-                                    fontWeight: 700,
-                                    letterSpacing: ".08em",
-                                    padding: "4px 8px",
-                                    cursor: "pointer",
-                                  }}
-                                >
-                                  Remove
-                                </button>
-                              )}
+                              {/* ── FIX: Remove button now shows for ALL images (new uploads AND existing server images) ── */}
+                              <button
+                                onClick={() => removeProductImage(idx)}
+                                style={{
+                                  background: "rgba(239,68,68,.85)",
+                                  border: "none",
+                                  borderRadius: 5,
+                                  color: "#fff",
+                                  fontSize: 9,
+                                  fontWeight: 700,
+                                  letterSpacing: ".08em",
+                                  padding: "4px 8px",
+                                  cursor: "pointer",
+                                }}
+                              >
+                                Remove
+                              </button>
                             </div>
                             {img.isPrimary && (
                               <div

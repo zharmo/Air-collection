@@ -9,6 +9,7 @@ const {
     deleteProduct,
     uploadProductImage,
     setPrimaryProductImage,
+    deleteProductImage,
 } = require('../controllers/productController');
 const { protect, adminOnly } = require('../middleware/authMiddleware');
 const multer = require('multer');
@@ -40,6 +41,8 @@ router.put('/:id/full', protect, adminOnly, updateFullProduct);
 router.delete('/:id', protect, adminOnly, deleteProduct);
 router.post('/:id/images', protect, adminOnly, upload.single('image'), uploadProductImage);
 router.put('/:id/images/:imageId/primary', protect, adminOnly, setPrimaryProductImage);
+// ── NEW: delete a single product image ──
+router.delete('/:id/images/:imageId', protect, adminOnly, deleteProductImage);
 
 // DELETE /api/products/:id/colors
 router.delete('/:id/colors', protect, adminOnly, async (req, res) => {

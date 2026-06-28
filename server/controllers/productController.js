@@ -315,6 +315,32 @@ const setPrimaryProductImage = async (req, res) => {
     }
 };
 
+// ── Add this function to your productController.js ──
+// Also add 'deleteProductImage' to the exports at the bottom
+
+const deleteProductImage = async (req, res) => {
+    try {
+        const { id, imageId } = req.params;
+
+        // Check the image belongs to this product
+        const check = await pool.query(
+            'SELECT id FROM product_images WHERE id = $1 AND product_id = $2',
+            [imageId, id]
+        );
+
+        if (check.rows.length === 0) {
+            return res.status(404).json({ message: 'Image not found for this product' });
+        }
+
+        await pool.query('DELETE FROM product_images WHERE id = $1', [imageId]);
+
+        sendSuccess(res, null, 'Image deleted');
+    } catch (error) {
+        console.error('deleteProductImage error:', error);
+        res.status(500).json({ message: 'Failed to delete image' });
+    }
+};
+
 module.exports = {
     getProducts,
     getProduct,
@@ -325,4 +351,5 @@ module.exports = {
     deleteProduct,
     uploadProductImage,
     setPrimaryProductImage,
+    deleteProductImage,
 };
