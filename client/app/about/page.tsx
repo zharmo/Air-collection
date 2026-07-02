@@ -683,7 +683,7 @@ export default function AboutPage() {
         <div className="about-hero-inner">
           <div className="about-eyebrow">
             <span className="about-eyebrow-line" />
-            <span className="about-eyebrow-label">Est. 2024 · Slow Fashion</span>
+            <span className="about-eyebrow-label">Air Collection Fashion</span>
             <span className="about-eyebrow-line" />
           </div>
           <h1 className="about-hero-title">About Air Collection</h1>
@@ -701,13 +701,19 @@ export default function AboutPage() {
             <div className="section-label">Our Story</div>
             <h2 className="section-title">Born from a<br />Simple Idea</h2>
             <p className="section-body">
-              Founded in 2024, Air Collection was born from a simple idea: clothing should feel like a second skin — weightless, breathable, and effortless.
+              Air Collection waxaa la aasaasay iyadoo la lahaa hal himilo oo cad: in qof kasta uu helo dhar isku darsaday tayo, qurux, iyo raaxo, 
+              isla markaana uu si kalsooni leh u xirto maalin kasta.
             </p>
             <p className="section-body">
-              We started with a small atelier in the city, sourcing organic European flax and working with artisans who share our passion for slow fashion. Today, we create pieces that transcend seasons, designed to age with grace and reduce waste.
+               Tan iyo maalintii la aasaasay, waxaan diiradda saarnay xulashada alaabo tayo sare leh oo waarta, 
+               annagoo mudnaanta siinayna baahida iyo qanacsanaanta macaamiisheenna. Waxaan rumaysanahay in dharku aanu ahayn oo keliya wax la xirto, 
+               balse uu yahay qayb ka tarjumaysa qofnimada iyo kalsoonida qofka.
             </p>
             <p className="section-body">
-              Every garment is a testament to mindful production, ethical labor, and uncompromised comfort.
+              Qayb kasta oo aan kuu soo bandhigno waxay ka tarjumaysaa dadaal, daacadnimo, 
+              iyo ballanqaadkeenna ah inaan ku siino adeeg iyo alaabo aad ku kalsoonaan karto.
+              <br />
+              Air Collection – Tayada, Quruxda, iyo Kalsoonida Aad Maalin Walba Xiran Karto.
             </p>
           </div>
           <div className="brand-block">
@@ -740,17 +746,17 @@ export default function AboutPage() {
           <div className="value-card">
             <div className="value-icon-wrap"><FaLeaf /></div>
             <div className="value-title">Sustainable</div>
-            <p className="value-desc">100% organic, biodegradable materials from ethical sources.</p>
+            <p className="value-desc">Qalab dabiici ah oo 100% tayo leh, deegaanka u wanaagsan, kana yimid ilo lagu kalsoon yahay.</p>
           </div>
           <div className="value-card">
             <div className="value-icon-wrap"><FaFeatherAlt /></div>
             <div className="value-title">Light as Air</div>
-            <p className="value-desc">Weightless fabrics that move with you, never against you.</p>
+            <p className="value-desc">Dharka fudud ee kuu raaca dhaqdhaqaaqaaga, kuna siiya raaxo maalin kasta.</p>
           </div>
           <div className="value-card">
             <div className="value-icon-wrap"><FaRecycle /></div>
             <div className="value-title">Circular Design</div>
-            <p className="value-desc">Garments made to last, repair, and eventually return to nature.</p>
+            <p className="value-desc">Dharka loo sameeyay inuu waqti dheer jiro, la dayactiri karo, isla markaana deegaanka u roon.</p>
           </div>
           <div className="value-card">
             <div className="value-icon-wrap"><FaHandsHelping /></div>
@@ -764,10 +770,11 @@ export default function AboutPage() {
       <div className="quote-section">
         <div className="quote-inner">
           <p className="quote-text">
-            "We believe that luxury is not about price, but about feeling — the feel of the fabric, the freedom of movement, the quiet confidence of wearing less but better."
+            "Waxaan aaminsanahay in qiimaha dhabta ahi uusan ku jirin lacagta, 
+            balse uu ku jiro tayada, raaxada, iyo kalsoonida aad dareemayso marka aad xirato dhar si qurux badan loo sameeyey."
           </p>
           <div className="quote-divider" />
-          <p className="quote-author">Elena Marchetti — Creative Director</p>
+          <p className="quote-author">Air Collection</p>
         </div>
       </div>
 
