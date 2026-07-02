@@ -1046,6 +1046,11 @@ export default function ProductsManagement() {
 
                 .pm-color-card { background:var(--pm-muted); border:1px solid var(--pm-border); border-radius:10px; padding:16px; position:relative; }
 
+                /* ── Layout helpers for the modal form (allow mobile override) ── */
+                .pm-modal-2col { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+                .pm-price-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+                .pm-size-table-scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+
                 .pm-btn { display:inline-flex; align-items:center; justify-content:center; gap:7px; padding:0 18px; height:38px; font-family:'Inter',sans-serif; font-size:12px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; border-radius:8px; cursor:pointer; transition:all .2s; border:none; }
                 .pm-btn-primary { background:var(--pm-indigo); color:#fff; box-shadow:0 2px 8px rgba(99,102,241,.35); }
                 .pm-btn-primary:hover:not(:disabled) { background:#4f46e5; box-shadow:0 4px 16px rgba(99,102,241,.45); }
@@ -1061,7 +1066,75 @@ export default function ProductsManagement() {
                 .pm-product-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
 
                 @media (max-width:900px)  { .pm-product-grid { grid-template-columns:1fr; } }
-                @media (max-width:700px)  { .pm-modal-body { padding:16px; } .pm-modal-head,.pm-modal-foot { padding:18px 20px; } }
+
+                /* ══════════════════════════════════════════════════════════
+                   MOBILE — Add / Edit Product modal
+                   Goal: full-screen modal, header + footer always in view,
+                   footer buttons never lost, and no iOS Safari auto-zoom
+                   (which was the real cause of the "zoom" / lost button bug —
+                   Safari zooms the page when a focused input is under 16px).
+                   ══════════════════════════════════════════════════════════ */
+                @media (max-width:700px) {
+                    .pm-modal-overlay {
+                        padding:0;
+                        align-items:stretch;
+                        justify-content:stretch;
+                    }
+                    .pm-modal {
+                        width:100%;
+                        max-width:100%;
+                        height:100dvh;
+                        max-height:100dvh;
+                        border-radius:0;
+                        display:flex;
+                        flex-direction:column;
+                        animation:pmFadeIn .2s ease;
+                    }
+                    .pm-modal-head {
+                        flex:0 0 auto;
+                        padding:16px 18px;
+                    }
+                    .pm-modal-body {
+                        flex:1 1 auto;
+                        max-height:none;
+                        padding:16px 16px 28px;
+                        overflow-y:auto;
+                        -webkit-overflow-scrolling:touch;
+                    }
+                    .pm-modal-foot {
+                        flex:0 0 auto;
+                        padding:12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+                        gap:10px;
+                        flex-wrap:nowrap;
+                        box-shadow:0 -4px 16px rgba(0,0,0,.06);
+                    }
+                    /* Hide the helper caption on small screens so the action
+                       buttons always have room and stay visible/tappable */
+                    .pm-modal-foot p { display:none; }
+                    .pm-modal-foot .pm-btn {
+                        flex:1 1 0;
+                        height:46px;
+                        font-size:12px;
+                    }
+
+                    .pm-modal-2col { grid-template-columns:1fr; gap:0; }
+                    .pm-price-grid { grid-template-columns:1fr 1fr; }
+
+                    /* 16px minimum stops iOS Safari from zooming the viewport
+                       on focus — this was pushing the Save/Update button
+                       off-screen */
+                    .pm-input, .pm-select, .pm-textarea { font-size:16px !important; }
+                    .pm-input, .pm-select { height:46px; }
+                    .pm-textarea { min-height:110px; }
+
+                    .pm-size-table-scroll > div { min-width:560px; }
+
+                    .pm-upload-zone { padding:22px 16px; }
+                    .pm-fab { bottom:calc(20px + env(safe-area-inset-bottom, 0px)); right:20px; width:50px; height:50px; }
+                }
+                @media (max-width:420px) {
+                    .pm-price-grid { grid-template-columns:1fr; }
+                }
                 @media (max-width:480px)  { .pm-product-img-wrap { width:90px; } }
             `}</style>
 
@@ -1684,14 +1757,7 @@ export default function ProductsManagement() {
 
             {/* Modal body */}
             <div className="pm-modal-body">
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: 16,
-                  marginBottom: 0,
-                }}
-              >
+              <div className="pm-modal-2col">
                 {/* ── Col 1: Basic Info ── */}
                 <div>
                   <FormSection icon={FaTag} title="Basic Information">
@@ -1739,13 +1805,7 @@ export default function ProductsManagement() {
                 {/* ── Col 2: Pricing & Images ── */}
                 <div>
                   <FormSection icon={FaTag} title="Pricing & Inventory">
-                    <div
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: "1fr 1fr",
-                        gap: 12,
-                      }}
-                    >
+                    <div className="pm-price-grid">
                       <Field label="Regular Price (USD)">
                         <div style={{ position: "relative" }}>
                           <span
@@ -2156,48 +2216,6 @@ export default function ProductsManagement() {
               {/* ── Size Variants ── */}
               {selectedCategoryId && (
                 <FormSection icon={FaRuler} title="Size Variants">
-                  {/* Column headers */}
-                  {sizes.length > 0 && (
-                    <div
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns:
-                          categoryType === "footwear"
-                            ? "1fr 1fr 80px auto 36px"
-                            : "1fr 1fr 1fr 1fr 80px auto 36px",
-                        gap: 8,
-                        marginBottom: 4,
-                      }}
-                    >
-                      {[
-                        "Color",
-                        "Size",
-                        ...(categoryType === "footwear"
-                          ? []
-                          : categoryType === "pants"
-                            ? ["Waist", "Length"]
-                            : ["Chest", "Length"]),
-                        "Stock",
-                        "Status",
-                        "",
-                      ].map((h, i) => (
-                        <div
-                          key={i}
-                          style={{
-                            fontFamily: "Inter,sans-serif",
-                            fontSize: 9,
-                            fontWeight: 700,
-                            letterSpacing: ".14em",
-                            textTransform: "uppercase",
-                            color: "#94a3b8",
-                            padding: "0 0 8px",
-                          }}
-                        >
-                          {h}
-                        </div>
-                      ))}
-                    </div>
-                  )}
                   {sizes.length === 0 && (
                     <div
                       style={{
@@ -2211,7 +2229,51 @@ export default function ProductsManagement() {
                       No sizes added. Click below to add a size variant.
                     </div>
                   )}
-                  {renderSizeRows()}
+                  {sizes.length > 0 && (
+                    <div className="pm-size-table-scroll">
+                      {/* Column headers */}
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns:
+                            categoryType === "footwear"
+                              ? "1fr 1fr 80px auto 36px"
+                              : "1fr 1fr 1fr 1fr 80px auto 36px",
+                          gap: 8,
+                          marginBottom: 4,
+                        }}
+                      >
+                        {[
+                          "Color",
+                          "Size",
+                          ...(categoryType === "footwear"
+                            ? []
+                            : categoryType === "pants"
+                              ? ["Waist", "Length"]
+                              : ["Chest", "Length"]),
+                          "Stock",
+                          "Status",
+                          "",
+                        ].map((h, i) => (
+                          <div
+                            key={i}
+                            style={{
+                              fontFamily: "Inter,sans-serif",
+                              fontSize: 9,
+                              fontWeight: 700,
+                              letterSpacing: ".14em",
+                              textTransform: "uppercase",
+                              color: "#94a3b8",
+                              padding: "0 0 8px",
+                            }}
+                          >
+                            {h}
+                          </div>
+                        ))}
+                      </div>
+                      {renderSizeRows()}
+                    </div>
+                  )}
                   <div style={{ marginTop: 14 }}>
                     <button
                       className="pm-btn pm-btn-outline pm-btn-sm"
