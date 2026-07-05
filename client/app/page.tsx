@@ -1197,7 +1197,7 @@ export default function HomePage() {
                   color: "var(--ink)",
                 }}
               >
-                Olivia Chen
+                Ahmed Maxamed
               </div>
               <div
                 style={{

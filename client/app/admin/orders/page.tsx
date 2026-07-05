@@ -269,6 +269,15 @@ export default function AdminOrdersPage() {
         { id: 5, type: 'new_order',      message: 'New order #ORD-10087 received',          time: '5 hr ago',   read: true  },
     ]);
 
+    /* ── Status dropdown: self-contained, viewport-fixed positioning ──
+       (Replaces the previous Bootstrap-JS-driven dropdown for this one
+       control, which was being clipped / mispositioned regardless of
+       screen size. This does not touch updateOrderStatus or any other
+       business logic — it only controls where the menu is drawn.) */
+    const [openStatusId,   setOpenStatusId  ] = useState<number | null>(null);
+    const [statusMenuPos,  setStatusMenuPos ] = useState<{ left: number; top?: number; bottom?: number } | null>(null);
+    const statusMenuRef = useRef<HTMLDivElement>(null);
+
     const backendUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000';
 
     /* Fetch */
@@ -294,6 +303,34 @@ export default function AdminOrdersPage() {
             } finally { setLoading(false); }
         })();
     }, []);
+
+    /* Close the status menu on outside click / scroll / resize / escape */
+    useEffect(() => {
+        if (openStatusId === null) return;
+
+        const close = () => { setOpenStatusId(null); setStatusMenuPos(null); };
+
+        const handleMouseDown = (e: MouseEvent) => {
+            const target = e.target as HTMLElement;
+            // Clicks on any "Status" trigger button manage their own open/close
+            // via toggleStatusMenu — don't let this listener fight with that.
+            if (target.closest('.ao-action-status')) return;
+            if (statusMenuRef.current && !statusMenuRef.current.contains(target)) close();
+        };
+        const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
+
+        document.addEventListener('mousedown', handleMouseDown);
+        document.addEventListener('keydown', handleKey);
+        window.addEventListener('scroll', close, true);
+        window.addEventListener('resize', close);
+
+        return () => {
+            document.removeEventListener('mousedown', handleMouseDown);
+            document.removeEventListener('keydown', handleKey);
+            window.removeEventListener('scroll', close, true);
+            window.removeEventListener('resize', close);
+        };
+    }, [openStatusId]);
 
     /* Analytics */
     const analytics = useMemo(() => {
@@ -450,6 +487,39 @@ export default function AdminOrdersPage() {
     /* ── Regions / methods for filter dropdowns ── */
     const allRegions  = [...new Set(orders.map(o => o.shipping_region).filter(Boolean))];
     const allMethods  = [...new Set(orders.map(o => o.payment_method).filter(Boolean))];
+
+    /* ── Toggle the status menu for a given row ──
+       Computes the menu's position from the clicked button's own screen
+       position (getBoundingClientRect), then renders the menu with
+       position:fixed. Because it's fixed to the viewport rather than to
+       any scrollable ancestor, it can never be clipped by the table's
+       horizontal-scroll wrapper, and it flips upward automatically if
+       there isn't room below. */
+    const MENU_WIDTH = 190;
+    const MENU_EST_HEIGHT = 250;
+    const toggleStatusMenu = (e: React.MouseEvent<HTMLButtonElement>, orderId: number) => {
+        if (openStatusId === orderId) {
+            setOpenStatusId(null);
+            setStatusMenuPos(null);
+            return;
+        }
+        const rect = e.currentTarget.getBoundingClientRect();
+        let left = rect.right - MENU_WIDTH;
+        left = Math.max(8, Math.min(left, window.innerWidth - MENU_WIDTH - 8));
+
+        const spaceBelow = window.innerHeight - rect.bottom;
+        const spaceAbove = rect.top;
+        const openUp = spaceBelow < MENU_EST_HEIGHT && spaceAbove > spaceBelow;
+
+        setStatusMenuPos(
+            openUp
+                ? { left, bottom: window.innerHeight - rect.top + 8 }
+                : { left, top: rect.bottom + 8 }
+        );
+        setOpenStatusId(orderId);
+    };
+
+    const activeStatusOrder = openStatusId !== null ? pageOrders.find(o => o.id === openStatusId) : undefined;
 
     /* ── Loading ── */
     if (loading) return (
@@ -740,31 +810,16 @@ export default function AdminOrdersPage() {
                                                     <Link href={`/admin/orders/${order.id}`} className="ao-action-view" title="View order">
                                                         <FaEye size={13}/>
                                                     </Link>
-                                                    <div className="dropdown">
-                                                        <button
-                                                            className="ao-action-status dropdown-toggle"
-                                                            data-bs-toggle="dropdown"
-                                                            disabled={updatingId === order.id}
-                                                            title="Update status"
-                                                        >
-                                                            {updatingId === order.id
-                                                                ? <span className="spinner-border spinner-border-sm"/>
-                                                                : 'Status'}
-                                                        </button>
-                                                        <ul className="dropdown-menu dropdown-menu-end" style={{ minWidth: 160, fontSize: '0.83rem' }}>
-                                                            {ALL_STATUSES.map(s => (
-                                                                <li key={s}>
-                                                                    <button
-                                                                        className={`dropdown-item ${order.status === s ? 'active' : ''} ${s === 'cancelled' ? 'text-danger' : ''}`}
-                                                                        onClick={() => updateOrderStatus(order.id, s)}
-                                                                    >
-                                                                        <span style={{ marginRight: 6 }}>{STATUS_CONFIG[s].icon}</span>
-                                                                        {STATUS_CONFIG[s].label}
-                                                                    </button>
-                                                                </li>
-                                                            ))}
-                                                        </ul>
-                                                    </div>
+                                                    <button
+                                                        className="ao-action-status"
+                                                        onClick={(e) => toggleStatusMenu(e, order.id)}
+                                                        disabled={updatingId === order.id}
+                                                        title="Update status"
+                                                    >
+                                                        {updatingId === order.id
+                                                            ? <span className="spinner-border spinner-border-sm"/>
+                                                            : 'Status'}
+                                                    </button>
                                                 </div>
                                             </td>
                                         </tr>
@@ -793,6 +848,34 @@ export default function AdminOrdersPage() {
                         </div>
                     </div>
                 </div>
+
+                {/* ─────────── STATUS MENU (viewport-fixed, always visible) ─────────── */}
+                {openStatusId !== null && statusMenuPos && activeStatusOrder && (
+                    <div
+                        ref={statusMenuRef}
+                        className="ao-status-menu"
+                        style={{
+                            left: statusMenuPos.left,
+                            ...(statusMenuPos.top !== undefined ? { top: statusMenuPos.top } : {}),
+                            ...(statusMenuPos.bottom !== undefined ? { bottom: statusMenuPos.bottom } : {}),
+                        }}
+                    >
+                        {ALL_STATUSES.map(s => (
+                            <button
+                                key={s}
+                                className={`ao-status-menu-item ${activeStatusOrder.status === s ? 'active' : ''} ${s === 'cancelled' ? 'danger' : ''}`}
+                                onClick={() => {
+                                    updateOrderStatus(activeStatusOrder.id, s);
+                                    setOpenStatusId(null);
+                                    setStatusMenuPos(null);
+                                }}
+                            >
+                                <span className="ao-status-menu-icon">{STATUS_CONFIG[s].icon}</span>
+                                {STATUS_CONFIG[s].label}
+                            </button>
+                        ))}
+                    </div>
+                )}
             </div>
         </>
     );
@@ -997,9 +1080,9 @@ const css = (dark: boolean) => `
 
   /* Bulk bar */
   .ao-bulk-bar {
-    display: flex; align-items: center; gap: 6px;
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
     background: var(--surface); border: 1px solid var(--border);
-    border-radius: 10px; padding: 4px 12px 4px 10px;
+    border-radius: 10px; padding: 6px 12px 6px 10px;
   }
   .ao-bulk-count { font-size: 0.8rem; font-weight: 700; color: var(--accent); white-space: nowrap; }
   .ao-bulk-select {
@@ -1065,10 +1148,11 @@ const css = (dark: boolean) => `
   .ao-table-wrap { flex: 1; min-width: 0; width: 100%; max-width: 100%; }
   .ao-table-scroll {
     background: var(--surface); border: 1px solid var(--border);
-    border-radius: 14px; overflow-x: auto; overflow-y: hidden;
+    border-radius: 14px 14px 0 0; overflow-x: auto; overflow-y: hidden;
     box-shadow: 0 2px 16px rgba(0,0,0,0.055);
     max-width: 100%;
     -webkit-overflow-scrolling: touch;
+    position: relative;
   }
   .ao-table {
     width: 100%; min-width: 1120px; border-collapse: collapse; font-size: 0.83rem;
@@ -1076,7 +1160,7 @@ const css = (dark: boolean) => `
   .ao-table thead tr {
     border-bottom: 1px solid var(--border);
     background: var(--bg);
-    position: sticky; top: 0; z-index: 10;
+    position: sticky; top: 0; z-index: 5;
   }
   .ao-table thead th {
     padding: 12px 14px; font-size: 0.72rem; font-weight: 700;
@@ -1088,6 +1172,21 @@ const css = (dark: boolean) => `
   .ao-table tbody tr:hover { background: rgba(79,70,229,0.03); }
   .ao-row-selected { background: rgba(79,70,229,0.05) !important; }
   .ao-table td { padding: 13px 14px; vertical-align: middle; color: var(--text-1); }
+
+  /* Keep the Actions column reachable at all times: it stays pinned to the
+     right edge of the table while the row scrolls horizontally underneath it,
+     so the Status control never requires scrolling to find. */
+  .ao-table th:last-child,
+  .ao-table td:last-child {
+    position: sticky;
+    right: 0;
+    background: var(--surface);
+    box-shadow: -6px 0 10px -6px rgba(0,0,0,0.10);
+  }
+  .ao-table thead th:last-child { background: var(--bg); z-index: 6; box-shadow: none; }
+  .ao-table tbody tr:hover td:last-child { background: #fbfbff; }
+  .dark .ao-table tbody tr:hover td:last-child { background: #24304a; }
+  .ao-row-selected td:last-child { background: rgba(79,70,229,0.08) !important; }
 
   /* CB button */
   .ao-cb { background: none; border: none; cursor: pointer; padding: 2px; display: flex; align-items: center; }
@@ -1111,6 +1210,7 @@ const css = (dark: boolean) => `
     width: 30px; height: 30px; border-radius: 8px;
     background: var(--bg); border: 1px solid var(--border);
     color: var(--text-2); transition: all 0.15s;
+    flex-shrink: 0;
   }
   .ao-action-view:hover { border-color: var(--accent); color: var(--accent); background: rgba(79,70,229,0.06); }
   .ao-action-status {
@@ -1119,9 +1219,73 @@ const css = (dark: boolean) => `
     font-size: 0.75rem; font-weight: 700; cursor: pointer;
     transition: opacity 0.15s; white-space: nowrap;
     display: flex; align-items: center; gap: 5px;
+    flex-shrink: 0;
   }
   .ao-action-status:hover:not(:disabled) { opacity: 0.85; }
   .ao-action-status:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* ── Status menu ──
+     Rendered once, fixed to the viewport, positioned in JS from the
+     clicked button's own coordinates — this is what guarantees it is
+     never clipped by the table's scrollable wrapper and always fully
+     visible, on phone, tablet, or laptop. */
+  .ao-status-menu {
+    position: fixed;
+    z-index: 5000;
+    width: 190px;
+    max-height: 260px;
+    overflow-y: auto;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: 0 16px 44px rgba(0,0,0,0.2);
+    padding: 6px;
+    animation: aoStatusMenuIn .12s ease;
+  }
+  @keyframes aoStatusMenuIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .ao-status-menu-item {
+    display: flex; align-items: center; gap: 8px;
+    width: 100%; text-align: left;
+    background: none; border: none; border-radius: 7px;
+    padding: 9px 10px; font-size: 0.83rem; font-weight: 600;
+    color: var(--text-1); cursor: pointer; font-family: inherit;
+  }
+  .ao-status-menu-item:hover { background: rgba(79,70,229,0.08); color: var(--accent); }
+  .ao-status-menu-item.active { background: var(--accent); color: #fff; }
+  .ao-status-menu-item.danger { color: #dc2626; }
+  .ao-status-menu-item.danger:hover { background: rgba(239,68,68,0.08); color: #b91c1c; }
+  .ao-status-menu-item.danger.active { background: #dc2626; color: #fff; }
+  .ao-status-menu-icon { display: flex; align-items: center; flex-shrink: 0; }
+
+  /* Bootstrap's export dropdown menu (unchanged mechanism, just tidied) */
+  .ao-shell .dropdown-menu {
+    z-index: 3000;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    box-shadow: 0 14px 40px rgba(0,0,0,0.16);
+    padding: 6px;
+    font-size: 0.83rem;
+  }
+  .ao-shell .dropdown-item {
+    display: flex; align-items: center;
+    border-radius: 7px;
+    padding: 8px 10px;
+    color: var(--text-1);
+    font-size: 0.83rem;
+    white-space: nowrap;
+  }
+  .ao-shell .dropdown-item:hover,
+  .ao-shell .dropdown-item:focus {
+    background: rgba(79,70,229,0.08);
+    color: var(--accent);
+  }
+  .dark .ao-shell .dropdown-menu { background: #1e293b; border-color: #334155; }
+  .dark .ao-shell .dropdown-item { color: #f1f5f9; }
+  .dark .ao-shell .dropdown-item:hover { background: #334155; color: #c7d2fe; }
 
   /* ── Pagination ── */
   .ao-pagination {
@@ -1130,7 +1294,7 @@ const css = (dark: boolean) => `
     background: var(--surface); border-radius: 0 0 14px 14px; flex-wrap: wrap; gap: 10px;
   }
   .ao-page-info { font-size: 0.78rem; color: var(--text-2); }
-  .ao-page-controls { display: flex; gap: 4px; }
+  .ao-page-controls { display: flex; gap: 4px; flex-wrap: wrap; }
   .ao-page-btn {
     width: 32px; height: 32px; border-radius: 8px;
     border: 1px solid var(--border); background: var(--surface);
@@ -1142,30 +1306,68 @@ const css = (dark: boolean) => `
   .ao-page-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
   .ao-page-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
-  /* ── Dark mode overrides for Bootstrap dropdowns ── */
-  .dark .dropdown-menu {
-    background: #1e293b; border-color: #334155;
-  }
-  .dark .dropdown-item { color: #f1f5f9; }
-  .dark .dropdown-item:hover { background: #334155; }
-  .dark .dropdown-item.active { background: #4f46e5; }
+  /* ══════════════════════════════════════════════════════════
+     RESPONSIVE — tablet & mobile
+     Priority columns kept visible at every size: Order #, Customer,
+     Items, Total, Status, Actions. Secondary columns (Email, Method,
+     Payment, Date) fold away as space gets tighter, and stay reachable
+     by scrolling the table horizontally if ever needed.
+     ══════════════════════════════════════════════════════════ */
 
-  /* ── Mobile ── */
+  /* ── Laptop / tablet (≤1200px) ── */
+  @media (max-width: 1200px) {
+    .acard { padding: 16px; gap: 12px; }
+    .acard-value { font-size: 1.2rem; }
+  }
+
+  /* ── Tablet (≤992px): sidebar becomes full-width, stacks above table ── */
   @media (max-width: 992px) {
     .ao-filter-sidebar { width: 100%; }
     .ao-layout { flex-direction: column; width: 100%; }
+    .ao-table { min-width: 900px; }
   }
+
+  /* ── Small tablet / large phone (≤768px): drop secondary columns ── */
+  @media (max-width: 768px) {
+    .ao-table { min-width: 760px; }
+    .ao-table th:nth-child(4), .ao-table td:nth-child(4),   /* Email */
+    .ao-table th:nth-child(8), .ao-table td:nth-child(8) {  /* Method */
+      display: none;
+    }
+    .ao-ai-grid { grid-template-columns: 1fr 1fr; }
+  }
+
+  /* ── Phone (≤640px) ── */
   @media (max-width: 640px) {
     .ao-shell { padding: 0 0 32px; }
     .ao-topbar { flex-direction: column; }
-    .ao-ai-grid { grid-template-columns: 1fr 1fr; }
     .ao-toolbar { width: 100%; }
     .ao-search-wrap { flex-basis: 100%; min-width: 0; }
     .ao-toolbar-right { width: 100%; }
+    .ao-bulk-bar { width: 100%; justify-content: space-between; }
     .ao-filter-btn { width: 100%; justify-content: center; }
-    .ao-table-scroll { border-radius: 12px; }
+    .ao-table-scroll { border-radius: 12px 12px 0 0; }
+    .ao-pagination { border-radius: 0 0 12px 12px; justify-content: center; text-align: center; }
+    .ao-page-info { width: 100%; text-align: center; }
+
+    /* 16px minimum stops iOS Safari from zooming the page on focus,
+       which was making inputs/selects hard to use on phones */
+    .ao-search-input, .ao-fs-select, .ao-bulk-select { font-size: 16px; }
+    .ao-search-input { height: 44px; }
+    .ao-fs-select { padding: 9px 10px; }
   }
-  @media (max-width: 420px) {
+
+  /* ── Small phone (≤480px): drop Payment + Date too, keep essentials ── */
+  @media (max-width: 480px) {
     .ao-ai-grid { grid-template-columns: 1fr; }
+    .ao-table { min-width: 560px; }
+    .ao-table th:nth-child(7), .ao-table td:nth-child(7),   /* Payment */
+    .ao-table th:nth-child(10), .ao-table td:nth-child(10) { /* Date */
+      display: none;
+    }
+    .ao-avatar { width: 26px; height: 26px; font-size: 0.66rem; }
+    .ao-customer-name { font-size: 0.8rem; }
+    .ao-status-menu { width: 170px; }
+    .ao-panel { width: calc(100vw - 32px); right: -8px; }
   }
 `;
