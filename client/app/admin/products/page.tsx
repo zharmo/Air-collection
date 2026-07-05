@@ -65,6 +65,10 @@ interface Product {
   sizes?: SizeVariant[];
   is_active: boolean;
   size_description?: string;
+  // Not every list endpoint returns this, but the full product fetch used in
+  // handleEdit often does — kept optional so we can read it defensively
+  // without fighting the type checker (see the is_featured fix below).
+  is_featured?: boolean;
 }
 
 /* ── Skeleton block ── */
@@ -510,13 +514,49 @@ export default function ProductsManagement() {
     return r.data.data.image_url;
   };
 
+  // ── FIX: slugs are now always unique, so two products can share the same
+  // name. Previously the slug was just name.toLowerCase().replace(...) with
+  // nothing else, so "Classic Shirt" and "Classic Shirt" produced the exact
+  // same slug — if the backend enforces a unique constraint on slug (which
+  // is standard), the second save would be rejected. This appends the
+  // product's own id when editing (keeps the slug stable across edits) or a
+  // timestamp + random suffix when creating (guarantees uniqueness). ──
+  const generateUniqueSlug = (name: string, existingId?: number) => {
+    const base = name
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
+    const suffix = existingId
+      ? String(existingId)
+      : `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+    return `${base}-${suffix}`;
+  };
+
   const handleSaveProduct = async () => {
+    // ── FIX: basic guard so we don't silently send NaN/empty values to the
+    // backend when a required field was skipped (name, category, price). ──
+    if (!formData.name.trim()) {
+      alert("Please enter a product name.");
+      return;
+    }
+    if (!formData.categoryId) {
+      alert("Please select a category.");
+      return;
+    }
+    if (!formData.regularPrice || parseFloat(formData.regularPrice) <= 0) {
+      alert("Please enter a valid regular price.");
+      return;
+    }
+
     setModalLoading(true);
     try {
       let productId: number;
       const payload = {
         name: formData.name,
-        slug: formData.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+        // ── FIX: unique slug (see generateUniqueSlug above) so duplicate
+        // product names are allowed ──
+        slug: generateUniqueSlug(formData.name, editingProduct?.id),
         description: formData.description,
         price: parseFloat(formData.regularPrice),
         compare_price: formData.discountPrice
@@ -524,7 +564,14 @@ export default function ProductsManagement() {
           : null,
         stock_quantity: parseInt(formData.initialStock) || 0,
         category_id: parseInt(formData.categoryId),
-        is_featured: false,
+        // ── FIX: this used to be hardcoded to false on every save, which
+        // meant editing any product (even just fixing a typo) would
+        // silently un-feature it if it had been marked featured elsewhere.
+        // Now it preserves whatever the product already had, and only
+        // defaults to false for brand-new products. ──
+        is_featured: editingProduct
+          ? Boolean((editingProduct as any).is_featured)
+          : false,
         size_description: formData.sizeDescription || null,
       };
       if (editingProduct) {
@@ -623,7 +670,10 @@ export default function ProductsManagement() {
       console.error("Failed to fetch full product for edit, using list data", e);
     }
 
-    const catId = full.category_id.toString();
+    // ── FIX: category_id.toString() would throw if this ever came back
+    // null/undefined from the API — guard it instead of assuming it's
+    // always present. ──
+    const catId = full.category_id != null ? full.category_id.toString() : "";
     const catType = getCategoryType(catId);
 
     setEditingProduct(full);
@@ -699,8 +749,11 @@ export default function ProductsManagement() {
     const colorOpts = (
       <>
         <option value="">All Colors</option>
-        {colors.map((c) => (
-          <option key={c.colorName} value={c.colorName}>
+        {colors.map((c, ci) => (
+          // ── FIX: index-based key instead of colorName, since two color
+          // variants can briefly share the same (or empty) name while
+          // being typed, which caused a React duplicate-key warning ──
+          <option key={`color-opt-${ci}`} value={c.colorName}>
             {c.colorName}
           </option>
         ))}
@@ -1761,7 +1814,7 @@ export default function ProductsManagement() {
                 {/* ── Col 1: Basic Info ── */}
                 <div>
                   <FormSection icon={FaTag} title="Basic Information">
-                    <Field label="Product Name">
+                    <Field label="Product Name *">
                       <input
                         className="pm-input"
                         type="text"
@@ -1772,7 +1825,7 @@ export default function ProductsManagement() {
                         }
                       />
                     </Field>
-                    <Field label="Category">
+                    <Field label="Category *">
                       <select
                         className="pm-select"
                         value={formData.categoryId}
@@ -1806,7 +1859,7 @@ export default function ProductsManagement() {
                 <div>
                   <FormSection icon={FaTag} title="Pricing & Inventory">
                     <div className="pm-price-grid">
-                      <Field label="Regular Price (USD)">
+                      <Field label="Regular Price (USD) *">
                         <div style={{ position: "relative" }}>
                           <span
                             style={{
