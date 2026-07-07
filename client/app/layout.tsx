@@ -5,8 +5,9 @@ import BootstrapClient from '@/components/BootstrapClient';
 import AppProvider from '@/context/AppProvider';
 
 export const metadata = {
-  title: 'Air Collection - Premium Fashion E-commerce',
-  description: 'Shop the latest trends in fashion with Air Collection',
+  title: 'Air Collection',
+  description:
+    'Air Collection is a clothing and fashion store in Hargeisa offering streetwear, casual wear, and modern styles online at aircollection.shop.',
 };
 
 export default function RootLayout({

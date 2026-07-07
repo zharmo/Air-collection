@@ -296,7 +296,7 @@ export default function Footer() {
               <span className="ft-credit">
                 Developed by{" "}
                 <Link
-                  href="https://github.com/zharmo"
+                  href="https://wa.me/8801341933649"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="ft-credit-link"

@@ -326,17 +326,17 @@ export default function CheckoutPage() {
                                     <div className="co-field">
                                         <label className="co-label">Full Name *</label>
                                         <input type="text" name="fullName" className="co-input"
-                                            placeholder="John Doe" value={form.fullName} onChange={handleChange} />
+                                            placeholder="" value={form.fullName} onChange={handleChange} />
                                     </div>
                                     <div className="co-field">
                                         <label className="co-label">Email Address *</label>
                                         <input type="email" name="email" className="co-input"
-                                            placeholder="john@example.com" value={form.email} onChange={handleChange} />
+                                            placeholder="air@example.com" value={form.email} onChange={handleChange} />
                                     </div>
                                     <div className="co-field">
                                         <label className="co-label">Phone Number *</label>
                                         <input type="tel" name="phone" className="co-input"
-                                            placeholder="+252 63 123456" value={form.phone} onChange={handleChange} />
+                                            placeholder="063 4123456" value={form.phone} onChange={handleChange} />
                                     </div>
                                 </div>
                             </div>
@@ -444,6 +444,9 @@ export default function CheckoutPage() {
                                             <p className="co-info-text">
                                                 Fadlan si sax ah ugu dir <span className="co-info-amount">${total.toFixed(2)}</span> lambarka kore, waa ku iibso
                                                 kadibna buuxi faahfaahinta hoose si aan u xaqiijinno lacag-bixintaada.
+                                                <br />
+                                                <br />
+                                                Fadlan hubi inay kuu soo baxdo air collection ka hor inta aadan dirin
                                             </p>
                                         </div>
 
@@ -451,7 +454,7 @@ export default function CheckoutPage() {
                                             <div className="co-field">
                                                 <label className="co-label">Number ka aad ka so dirtay</label>
                                                 <input type="tel" name="transferPhone" className="co-input"
-                                                    placeholder="+252 63 XXXXXXX"
+                                                    placeholder="063 XXXXXXX"
                                                     value={form.transferPhone} onChange={handleChange} />
                                             </div>
                                             <div className="co-field">
