@@ -1,4 +1,5 @@
 const express = require('express');
+const crypto = require('crypto');
 const { protect, adminOnly } = require('../middleware/authMiddleware');
 const pool = require('../config/db');
 const { sendSuccess, sendError } = require('../utils/responseHandler');
@@ -137,8 +138,7 @@ router.post('/', protect, async (req, res) => {
         await ensureAdvancePaymentColumn(pool);
         await ensureLocationAndMobilePaymentColumns(pool);
 
-        const userId      = req.user.id;
-        const orderNumber = `AC-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+        const userId = req.user.id;
 
         /*
          * Shipping address:
@@ -175,6 +175,16 @@ router.post('/', protect, async (req, res) => {
 
         await validateAndReserveOrderStock(client, items);
 
+        // ── ORDER NUMBER CHANGE ──
+        // order_number is no longer built from Date.now() (that produced
+        // "AC-1783..." for logged-in users). We insert the order first
+        // with a throwaway placeholder — just to satisfy the NOT NULL +
+        // UNIQUE constraint on order_number for a split second — then set
+        // order_number to the row's own database id: a Postgres SERIAL
+        // that's already unique and sequential across EVERY order, guest
+        // or registered, since both flows insert into this same table.
+        const tempOrderNumber = `TEMP-${crypto.randomUUID()}`;
+
         const orderResult = await client.query(
             `INSERT INTO orders (
                 user_id, order_number, total_amount, shipping_address, billing_address,
@@ -187,7 +197,7 @@ router.post('/', protect, async (req, res) => {
              VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
              RETURNING *`,
             [
-                userId, orderNumber, total, shippingAddress, billingAddress,
+                userId, tempOrderNumber, total, shippingAddress, billingAddress,
                 paymentMethod, 'pending', 'pending', deliveryFee,
                 customerName, customerEmail, customerPhone,
                 advancePayment ? JSON.stringify(advancePayment) : null,
@@ -198,7 +208,15 @@ router.post('/', protect, async (req, res) => {
                 mobilePayment?.amountPaid    ?? null,
             ]
         );
-        const order = orderResult.rows[0];
+        let order = orderResult.rows[0];
+
+        // Now assign the short, sequential order number based on the row's own id
+        const orderNumber = String(order.id);
+        const updateResult = await client.query(
+            `UPDATE orders SET order_number = $1 WHERE id = $2 RETURNING *`,
+            [orderNumber, order.id]
+        );
+        order = updateResult.rows[0];
 
         for (const item of items) {
             await client.query(
