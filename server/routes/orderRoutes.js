@@ -42,6 +42,19 @@ const ensureLocationAndMobilePaymentColumns = async (pool) => {
 };
 
 /* ─────────────────────────────────────────────────────────────
+ * Ensure promo code columns exist.
+ * ───────────────────────────────────────────────────────────── */
+const ensurePromoCodeColumns = async (pool) => {
+    await pool.query(`
+        ALTER TABLE orders
+            ADD COLUMN IF NOT EXISTS promo_code       VARCHAR(50)   DEFAULT NULL,
+            ADD COLUMN IF NOT EXISTS discount         NUMERIC(10,2) DEFAULT 0,
+            ADD COLUMN IF NOT EXISTS discount_type    VARCHAR(20)   DEFAULT NULL,
+            ADD COLUMN IF NOT EXISTS discount_value   NUMERIC(10,2) DEFAULT NULL
+    `);
+};
+
+/* ─────────────────────────────────────────────────────────────
  * Normalise mobile payment data from the checkout request body.
  * The checkout page sends THREE possible shapes for safety:
  *   1. mobilePayment  { provider, transferPhone, transferName, amountPaid }
@@ -69,12 +82,26 @@ const normaliseMobilePayment = (body) => {
 };
 
 /* ─────────────────────────────────────────────────────────────
+ * Normalise discount data from the checkout request body.
+ * Handles both camelCase and snake_case variants.
+ * ───────────────────────────────────────────────────────────── */
+const normaliseDiscount = (body) => {
+    const promoCode = body.promoCode || body.promo_code || null;
+    const discount = body.discount !== undefined ? parseFloat(body.discount) : 0;
+    const discountType = body.discountType || body.discount_type || null;
+    const discountValue = body.discountValue !== undefined ? parseFloat(body.discountValue) 
+                        : (body.discount_value !== undefined ? parseFloat(body.discount_value) : null);
+    return { promoCode, discount, discountType, discountValue };
+};
+
+/* ─────────────────────────────────────────────────────────────
  * GET /orders  — admin sees all, user sees own
  * ───────────────────────────────────────────────────────────── */
 router.get('/', protect, async (req, res) => {
     try {
         await ensureOrderCustomerColumns(pool);
         await ensureLocationAndMobilePaymentColumns(pool);
+        await ensurePromoCodeColumns(pool);
 
         const userId   = req.user.id;
         const userRole = req.user.role;
@@ -134,9 +161,13 @@ router.post('/', protect, async (req, res) => {
             shipping_address: shippingAddressFromBody,
         } = req.body;
 
+        // ── Normalise discount fields ──
+        const { promoCode, discount, discountType, discountValue } = normaliseDiscount(req.body);
+
         await ensureOrderCustomerColumns(pool);
         await ensureAdvancePaymentColumn(pool);
         await ensureLocationAndMobilePaymentColumns(pool);
+        await ensurePromoCodeColumns(pool);
 
         const userId = req.user.id;
 
@@ -192,9 +223,10 @@ router.post('/', protect, async (req, res) => {
                 customer_name, customer_email, customer_phone,
                 advance_payment,
                 location, city,
-                mobile_provider, mobile_transfer_phone, mobile_transfer_name, mobile_amount_paid
+                mobile_provider, mobile_transfer_phone, mobile_transfer_name, mobile_amount_paid,
+                promo_code, discount, discount_type, discount_value
              )
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)
              RETURNING *`,
             [
                 userId, tempOrderNumber, total, shippingAddress, billingAddress,
@@ -206,6 +238,10 @@ router.post('/', protect, async (req, res) => {
                 mobilePayment?.transferPhone || null,
                 mobilePayment?.transferName  || null,
                 mobilePayment?.amountPaid    ?? null,
+                promoCode,          // now correctly normalised
+                discount,           // now correctly normalised (number)
+                discountType,       // now correctly normalised
+                discountValue,      // now correctly normalised (number)
             ]
         );
         let order = orderResult.rows[0];
@@ -255,6 +291,10 @@ router.post('/', protect, async (req, res) => {
             paymentMethod,
             mobilePayment,   // { provider, transferPhone, transferName, amountPaid } | null
             advancePayment,  // legacy — kept for backwards compat
+            promoCode,
+            discount,
+            discountType,
+            discountValue,
         };
 
         // Customer confirmation
@@ -286,6 +326,7 @@ router.get('/:id', protect, async (req, res) => {
     try {
         await ensureOrderCustomerColumns(pool);
         await ensureLocationAndMobilePaymentColumns(pool);
+        await ensurePromoCodeColumns(pool);
 
         const orderId  = req.params.id;
         const userId   = req.user.id;

@@ -23,6 +23,7 @@ interface ProductDetails {
   stock_quantity?: number;
   colors?: ProductColor[];
   sizes?: ProductSize[];
+  category_id?: number; // <-- added for promo category validation
 }
 
 interface SizeOption {
@@ -261,6 +262,7 @@ export default function CartPage() {
     useCart();
   const [promoCode, setPromoCode] = useState("");
   const [discount, setDiscount] = useState(0);
+  const [promoMessage, setPromoMessage] = useState("");
   const [productDetails, setProductDetails] = useState<
     Record<number, ProductDetails>
   >({});
@@ -281,6 +283,7 @@ export default function CartPage() {
   );
   const total = subtotal - discount;
 
+  // ── Fetch product details (including category_id) for all cart items ──
   useEffect(() => {
     const productIds = Array.from(
       new Set(cart.items.map((item) => item.product_id)),
@@ -295,9 +298,16 @@ export default function CartPage() {
         missingIds.map(async (productId) => {
           try {
             const res = await axiosInstance.get(`/products/${productId}`);
-            return [productId, res.data.data as ProductDetails] as const;
+            const product = res.data.data;
+            // Ensure we capture category_id
+            return [productId, {
+              stock_quantity: product.stock_quantity,
+              colors: product.colors,
+              sizes: product.sizes,
+              category_id: product.category_id, // <-- added
+            } as ProductDetails] as const;
           } catch (error) {
-            console.error("Failed to fetch product sizes", {
+            console.error("Failed to fetch product details", {
               productId,
               error,
             });
@@ -404,13 +414,94 @@ export default function CartPage() {
     });
   }, [cart.items, productDetails]);
 
-  const handleApplyPromo = () => {
-    if (promoCode.toUpperCase() === "AIR10") {
-      setDiscount(subtotal * 0.1);
-    } else {
-      alert("Invalid promo code");
+  // ── helper: collect category IDs from cart items ──
+  const getCategoryIds = (): number[] => {
+    const ids: number[] = [];
+    cart.items.forEach((item) => {
+      const details = productDetails[item.product_id];
+      if (details?.category_id) {
+        ids.push(details.category_id);
+      }
+    });
+    return ids;
+  };
+
+  // ── handleApplyPromo with category IDs ──
+  const handleApplyPromo = async () => {
+    if (!promoCode.trim()) {
+      alert("Please enter a promo code");
+      return;
+    }
+
+    // Get category IDs from cart items
+    const categoryIds = getCategoryIds();
+
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+      const response = await fetch(`${apiUrl}/promocodes/validate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: promoCode.trim(),
+          subtotal: subtotal,
+          categoryIds: categoryIds, // <-- send category IDs
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.message || "Invalid promo code");
+        setDiscount(0);
+        setPromoMessage("");
+        sessionStorage.removeItem("checkoutDiscount");
+        return;
+      }
+
+      if (data.valid) {
+        let discountAmount = 0;
+        if (data.discountType === "percentage") {
+          discountAmount = subtotal * (data.discountValue / 100);
+        } else {
+          discountAmount = Math.min(data.discountValue, subtotal);
+        }
+        setDiscount(discountAmount);
+        const typeLabel = data.discountType === "percentage"
+          ? `${data.discountValue}% off`
+          : `$${data.discountValue.toFixed(2)} off`;
+        setPromoMessage(`✅ ${data.code} applied (${typeLabel})`);
+
+        // Save complete discount info to sessionStorage
+        const discountData = {
+          discount: discountAmount,
+          code: data.code,
+          discountType: data.discountType,
+          discountValue: data.discountValue,
+        };
+        sessionStorage.setItem("checkoutDiscount", JSON.stringify(discountData));
+
+        console.log("✅ Discount saved:", discountData);
+      } else {
+        alert(data.message || "Invalid promo code");
+        setDiscount(0);
+        setPromoMessage("");
+        sessionStorage.removeItem("checkoutDiscount");
+      }
+    } catch (error) {
+      console.error("Promo validation error:", error);
+      alert("Network error – please try again");
+      setDiscount(0);
+      setPromoMessage("");
+      sessionStorage.removeItem("checkoutDiscount");
     }
   };
+
+  // If discount becomes 0 (e.g., cart changes, code removed), clear storage
+  useEffect(() => {
+    if (discount === 0) {
+      sessionStorage.removeItem("checkoutDiscount");
+    }
+  }, [discount]);
 
   // No login check – always show cart (empty or full)
   if (cart.items.length === 0) {
@@ -584,9 +675,12 @@ export default function CartPage() {
                     APPLY
                   </button>
                 </div>
-                {discount > 0 && (
+                {promoMessage && (
+                  <div className="text-success small mt-2">{promoMessage}</div>
+                )}
+                {discount > 0 && !promoMessage && (
                   <div className="text-success small mt-2">
-                    10% discount applied!
+                    Discount applied!
                   </div>
                 )}
               </div>

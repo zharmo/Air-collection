@@ -47,7 +47,7 @@ const IconWhatsapp = () => (
 
 const IconTiktok = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.27 6.27 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.69a8.18 8.18 0 004.79 1.54V6.79a4.85 4.85 0 01-1.02-.1z" />
+    <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.27 6.27 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 0 006.34 6.34 6.34 0 006.33-6.34V8.69a8.18 8.18 0 004.79 1.54V6.79a4.85 4.85 0 01-1.02-.1z" />
   </svg>
 );
 
@@ -98,16 +98,64 @@ const IconArrow = () => (
   </svg>
 );
 
+const IconSpinner = () => (
+  <svg
+    width="14"
+    height="14"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.2"
+    strokeLinecap="round"
+    className="ft-spin"
+  >
+    <path d="M21 12a9 9 0 11-6.219-8.56" />
+  </svg>
+);
+
 /* ── Footer ──────────────────────────────────────────────────── */
 export default function Footer() {
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(""); // <-- THIS WAS MISSING — NOW FIXED
   const [subscribed, setSubscribed] = useState(false);
+  const [existingSubscriber, setExistingSubscriber] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleSubscribe = (e: React.FormEvent) => {
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+
+  const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (email.trim()) {
+    if (!email.trim() || loading) return;
+
+    setLoading(true);
+    setError("");
+    setExistingSubscriber(false);
+
+    try {
+      const res = await fetch(`${API_URL}/subscribers`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        if (res.status === 409 || data.message?.toLowerCase().includes("already exists") || data.message?.toLowerCase().includes("exists")) {
+          setExistingSubscriber(true);
+          setEmail("");
+          return;
+        }
+        setError(data.message || "Something went wrong");
+        return;
+      }
+
       setSubscribed(true);
       setEmail("");
+    } catch (err) {
+      setError("Network error — please try again");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -253,12 +301,26 @@ export default function Footer() {
                     </svg>
                     You're in. Welcome to the universe.
                   </div>
+                ) : existingSubscriber ? (
+                  <div className="ft-subscribed" role="status" style={{ color: '#b8965a' }}>
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      width="13"
+                      height="13"
+                    >
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="12" y1="8" x2="12" y2="12" />
+                      <line x1="12" y1="16" x2="12.01" y2="16" />
+                    </svg>
+                    You're already part of the Air Collection universe! ❤️
+                  </div>
                 ) : (
-                  <form
-                    onSubmit={handleSubscribe}
-                    className="ft-form"
-                    noValidate
-                  >
+                  <form onSubmit={handleSubscribe} className="ft-form" noValidate>
                     <label htmlFor="ft-nl-email" className="ft-sr">
                       Email address
                     </label>
@@ -271,16 +333,19 @@ export default function Footer() {
                       required
                       className="ft-input"
                       autoComplete="email"
+                      disabled={loading}
                     />
                     <button
                       type="submit"
                       className="ft-form-btn"
                       aria-label="Subscribe"
+                      disabled={loading}
                     >
-                      <IconArrow />
+                      {loading ? <IconSpinner /> : <IconArrow />}
                     </button>
                   </form>
                 )}
+                {error && <p className="ft-error">{error}</p>}
               </div>
             </div>
           </div>
@@ -522,6 +587,7 @@ const CSS = `
   min-width: 0;
 }
 .ft-input::placeholder { color: #3e3c36; }
+.ft-input:disabled { opacity: 0.6; }
 .ft-form-btn {
   width: 38px; height: 38px; flex-shrink: 0;
   background: #b8965a;
@@ -533,6 +599,7 @@ const CSS = `
   transition: background .2s, transform .15s;
 }
 .ft-form-btn:hover { background: #d4af6e; transform: scale(1.05); }
+.ft-form-btn:disabled { background: #7a6a48; cursor: not-allowed; transform: none; }
 
 .ft-subscribed {
   display: flex; align-items: center; gap: 8px;
@@ -543,6 +610,21 @@ const CSS = `
 @keyframes ft-pop {
   from { opacity:0; transform:translateY(5px); }
   to   { opacity:1; transform:translateY(0); }
+}
+
+.ft-error {
+  font-size: 0.72rem;
+  color: #e07a5f;
+  margin: 8px 0 0;
+  font-weight: 300;
+}
+
+.ft-spin {
+  animation: ft-spin-rotate 0.8s linear infinite;
+}
+@keyframes ft-spin-rotate {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
 }
 
 /* ── Bottom bar ── */

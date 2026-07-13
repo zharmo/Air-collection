@@ -7,6 +7,7 @@ import {
   FaArrowLeft, FaTruck, FaCreditCard, FaUser, FaMapMarkerAlt,
   FaTrash, FaCheckCircle, FaClock, FaBoxOpen, FaShippingFast,
   FaBan, FaSpinner, FaPhone, FaEnvelope, FaReceipt, FaMobileAlt,
+  FaTag,
 } from "react-icons/fa";
 import axiosInstance from "@/utils/axiosConfig";
 
@@ -37,6 +38,11 @@ interface Order {
   mobile_amount_paid?:    number | string;
   items: OrderItem[];
   delivery_fee?: number;
+  // ── DISCOUNT FIELDS ──
+  discount?: number;          // discount amount in dollars
+  promo_code?: string;        // code used
+  discount_type?: string;     // 'percentage' or 'fixed'
+  discount_value?: number;    // e.g., 10 for 10% or 20 for $20
 }
 
 /* ─────────────────────────── STATUS CONFIG ─────────────────── */
@@ -206,6 +212,8 @@ export default function AdminOrderDetailPage() {
           ...data,
           delivery_fee: parseFloat(data.delivery_fee) || 0,
           total_amount: parseFloat(data.total_amount) || 0,
+          discount: parseFloat(data.discount) || 0,
+          discount_value: parseFloat(data.discount_value) || 0,
           items: (data.items || []).map((item: OrderItem) => ({
             ...item,
             price: parseFloat(String(item.price)) || 0,
@@ -281,7 +289,22 @@ export default function AdminOrderDetailPage() {
    */
   const streetAddress = order.shipping_address || "";
 
-  const subtotal  = order.total_amount - (order.delivery_fee || 0);
+  // ── Compute all totals ──
+  const subtotal = order.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const discountAmount = order.discount || 0;
+  const deliveryFee = order.delivery_fee || 0;
+  const finalTotal = subtotal - discountAmount + deliveryFee;
+
+  // ── Format discount percentage display ──
+  let discountDisplay = "";
+  if (order.promo_code && order.discount_type) {
+    if (order.discount_type === "percentage" && order.discount_value) {
+      discountDisplay = `${order.discount_value}% off`;
+    } else if (order.discount_type === "fixed" && order.discount_value) {
+      discountDisplay = `$${order.discount_value.toFixed(2)} off`;
+    }
+  }
+
   const orderDate = new Date(order.created_at).toLocaleDateString("en-US",{ month:"long", day:"numeric", year:"numeric" });
   const orderTime = new Date(order.created_at).toLocaleTimeString("en-US",{ hour:"2-digit", minute:"2-digit" });
   const initials  = customerName
@@ -311,6 +334,11 @@ export default function AdminOrderDetailPage() {
                 {isMobileMoney && proof && (
                   <><span className="od-dot">·</span>
                     <span className="od-mm-badge"><FaMobileAlt size={8}/> {proof.providerLabel}</span>
+                  </>
+                )}
+                {order.promo_code && (
+                  <><span className="od-dot">·</span>
+                    <span className="od-promo-badge"><FaTag size={8}/> {order.promo_code}</span>
                   </>
                 )}
               </div>
@@ -378,17 +406,51 @@ export default function AdminOrderDetailPage() {
                   </tbody>
                 </table>
               </div>
-              {/* Invoice totals */}
+              {/* ── INVOICE TOTALS ── */}
               <div className="od-invoice">
-                <div className="od-inv-row"><span>Subtotal</span><span>${subtotal.toFixed(2)}</span></div>
-                {(order.delivery_fee || 0) > 0 && (
-                  <div className="od-inv-row">
-                    <span>Delivery fee</span>
-                    <span>${(order.delivery_fee || 0).toFixed(2)}</span>
+                <div className="od-inv-row">
+                  <span>Subtotal</span>
+                  <span>${subtotal.toFixed(2)}</span>
+                </div>
+
+                {/* ── DISCOUNT SECTION ── */}
+                {discountAmount > 0 && order.promo_code && (
+                  <>
+                    <div className="od-inv-row" style={{ color:"#15803d" }}>
+                      <span>
+                        <FaTag size={11} style={{ marginRight:6 }}/>
+                        {order.promo_code}
+                        {discountDisplay && ` (${discountDisplay})`}
+                      </span>
+                      <span>-${discountAmount.toFixed(2)}</span>
+                    </div>
+                    <div className="od-inv-row" style={{ color:"#15803d", fontSize:"0.7rem", paddingTop:0 }}>
+                      <span style={{ color:"#94a3b8" }}>
+                        {order.discount_type === "percentage" 
+                          ? `${order.discount_value}% discount applied` 
+                          : `$${order.discount_value?.toFixed(2)} discount applied`}
+                      </span>
+                      <span></span>
+                    </div>
+                  </>
+                )}
+                {discountAmount > 0 && !order.promo_code && (
+                  <div className="od-inv-row" style={{ color:"#15803d" }}>
+                    <span>Discount</span>
+                    <span>-${discountAmount.toFixed(2)}</span>
                   </div>
                 )}
+
+                {(deliveryFee > 0) && (
+                  <div className="od-inv-row">
+                    <span>Delivery fee</span>
+                    <span>${deliveryFee.toFixed(2)}</span>
+                  </div>
+                )}
+
                 <div className="od-inv-row od-inv-total">
-                  <span>Total</span><span>${order.total_amount.toFixed(2)}</span>
+                  <span>Total</span>
+                  <span>${finalTotal.toFixed(2)}</span>
                 </div>
               </div>
             </Card>
@@ -424,17 +486,12 @@ export default function AdminOrderDetailPage() {
             <Card>
               <CardHead icon={<FaMapMarkerAlt/>} title="Shipping Address"/>
               <div style={{ padding:"16px 20px" }}>
-                {/*
-                  Show the FULL shipping address as the user typed it.
-                  City + location shown separately as a tag below.
-                */}
                 {streetAddress
                   ? <div style={{ fontSize:"0.85rem", color:"#1e293b", lineHeight:1.8, fontWeight:500 }}>
                       {streetAddress}
                     </div>
                   : <span style={{ fontSize:"0.83rem", color:"#cbd5e1" }}>No address provided</span>
                 }
-                {/* Location tag — "Outside Hargeisa / Burco" or "Inside Hargeisa" */}
                 <div className="od-city-tag">
                   <FaMapMarkerAlt size={9}/> {cityLabel}
                 </div>
@@ -469,19 +526,67 @@ export default function AdminOrderDetailPage() {
             </Card>
 
             {/* ══════════════════════════════════════════
-                PAYMENT CARD
-                ── Cash on Delivery: shows method + zone only
-                ── Mobile money:     shows method + zone +
-                                     receipt name + receipt number + total paid
+                PAYMENT CARD — FULL DISCOUNT INFO DISPLAY
               ══════════════════════════════════════════ */}
             <Card style={{ marginBottom: 0 }}>
-              <CardHead icon={<FaCreditCard/>} title="Payment"/>
+              <CardHead icon={<FaCreditCard/>} title="Payment &amp; Discount"/>
               <div style={{ padding:"16px 20px" }}>
 
+                {/* ── PROMO CODE & DISCOUNT INFO ── */}
+                {order.promo_code ? (
+                  <>
+                    <div style={{
+                      display:"flex", alignItems:"center", gap:10,
+                      background:"#f0fdf4", border:"1px solid #bbf7d0",
+                      borderRadius:8, padding:"12px 16px", marginBottom:16,
+                    }}>
+                      <FaTag size={16} style={{ color:"#15803d" }}/>
+                      <div>
+                        <div style={{ fontSize:"0.9rem", fontWeight:700, color:"#0f172a" }}>
+                          {order.promo_code}
+                        </div>
+                        <div style={{ fontSize:"0.75rem", color:"#15803d" }}>
+                          {order.discount_type === "percentage" 
+                            ? `${order.discount_value}% off` 
+                            : `$${order.discount_value?.toFixed(2)} off`}
+                        </div>
+                      </div>
+                    </div>
+
+                    <InfoRow
+                      icon={<FaReceipt size={9}/>}
+                      label="Promo Code"
+                      value={order.promo_code}
+                      valueStyle={{ color:"#0f172a", fontWeight:700, fontFamily:"monospace", fontSize:"0.9rem" }}
+                    />
+                    <InfoRow
+                      icon={null}
+                      label="Discount Type"
+                      value={order.discount_type === "percentage" 
+                        ? `Percentage (${order.discount_value}%)` 
+                        : `Fixed Amount ($${order.discount_value?.toFixed(2)})`}
+                      valueStyle={{ color:"#0f172a", fontWeight:500 }}
+                    />
+                    <InfoRow
+                      icon={null}
+                      label="Discount Amount"
+                      value={`-$${discountAmount.toFixed(2)}`}
+                      valueStyle={{ color:"#15803d", fontWeight:700, fontSize:"1rem" }}
+                    />
+                    <div style={{ height:8, borderBottom:"1px solid #f8fafc", margin:"4px 0 12px" }} />
+                  </>
+                ) : (
+                  <div style={{
+                    textAlign:"center", padding:"12px 0", color:"#94a3b8", fontSize:"0.8rem",
+                    marginBottom:12,
+                  }}>
+                    No promo code used
+                  </div>
+                )}
+
+                {/* ── PAYMENT METHOD ── */}
                 {isMobileMoney ? (
                   <>
-                    {/* ── MOBILE MONEY ── */}
-
                     {/* Provider badge */}
                     <div style={{
                       display:"inline-flex", alignItems:"center", gap:8,
@@ -537,8 +642,6 @@ export default function AdminOrderDetailPage() {
                   </>
                 ) : (
                   <>
-                    {/* ── CASH ON DELIVERY ── */}
-
                     {/* Method badge */}
                     <div style={{
                       display:"inline-flex", alignItems:"center", gap:8,
@@ -614,6 +717,11 @@ const CSS = `
     display:inline-flex; align-items:center; gap:5px; font-size:.71rem; font-weight:600;
     letter-spacing:.06em; text-transform:uppercase; background:#dbeafe; color:#1e40af;
     padding:3px 9px; border-radius:100px;
+  }
+  .od-promo-badge {
+    display:inline-flex; align-items:center; gap:5px; font-size:.71rem; font-weight:600;
+    letter-spacing:.06em; text-transform:uppercase; background:#dcfce7; color:#15803d;
+    padding:3px 9px; border-radius:100px; font-family:monospace;
   }
 
   /* city tag inside address card */

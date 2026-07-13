@@ -122,6 +122,31 @@ export default function CheckoutPage() {
     const [loading, setLoading] = useState(false);
     const [error,   setError  ] = useState('');
 
+    // ── Read discount from sessionStorage ──
+    const [discountInfo, setDiscountInfo] = useState<{
+        discount: number;
+        code: string;
+        discountType: string;
+        discountValue: number;
+    } | null>(null);
+
+    useEffect(() => {
+        const stored = sessionStorage.getItem('checkoutDiscount');
+        console.log("📦 Checkout - Raw sessionStorage:", stored);
+        if (stored) {
+            try {
+                const parsed = JSON.parse(stored);
+                console.log("✅ Checkout - Parsed discount:", parsed);
+                setDiscountInfo(parsed);
+            } catch (e) {
+                console.error("❌ Checkout - Failed to parse discount:", e);
+                setDiscountInfo(null);
+            }
+        } else {
+            console.log("❌ Checkout - No discount found in sessionStorage");
+        }
+    }, []);
+
     const [form, setForm] = useState({
         fullName:      '',
         email:         '',
@@ -144,8 +169,9 @@ export default function CheckoutPage() {
         if (user) setForm(p => ({ ...p, email: user.email || '', fullName: user.name || '' }));
     }, [user]);
 
-    const subtotal      = cart.items.reduce((s, i) => s + i.price * i.quantity, 0);
-    const total         = subtotal;
+    const subtotal = cart.items.reduce((s, i) => s + i.price * i.quantity, 0);
+    const discountAmount = discountInfo?.discount || 0;
+    const total = subtotal - discountAmount;
     const isMobileMoney = form.paymentMethod === 'zaad' || form.paymentMethod === 'edahab';
 
     const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -182,11 +208,6 @@ export default function CheckoutPage() {
                 ? `${form.streetAddress}, ${cityLabel}, Somaliland`
                 : `${form.streetAddress}, Hargeisa, Somaliland`;
 
-            /*
-             * IMPORTANT: we save the payment data to sessionStorage RIGHT HERE
-             * before the API call. This guarantees the success page can show
-             * the mobile money details even if the backend doesn't return them yet.
-             */
             if (isMobileMoney) {
                 sessionStorage.setItem('lastOrderPayment', JSON.stringify({
                     paymentMethod: form.paymentMethod,
@@ -199,24 +220,18 @@ export default function CheckoutPage() {
             }
 
             const orderData = {
-                /* Customer */
                 customer: {
                     name:    form.fullName,
                     email:   form.email,
                     phone:   form.phone,
                     address: form.streetAddress,
                 },
-                /* Also at top level for backends that read flat fields */
                 customer_name:  form.fullName,
                 customer_email: form.email,
                 customer_phone: form.phone,
-
-                /* Location */
                 location:        form.location,
                 city:            cityLabel,
                 shipping_address: shippingAddress,
-
-                /* Items */
                 items: cart.items.map(item => ({
                     productId: item.product_id,
                     name:      item.name,
@@ -226,33 +241,29 @@ export default function CheckoutPage() {
                     color:     item.color ?? null,
                     image:     item.image ?? null,
                 })),
-
-                /* Totals */
                 subtotal,
                 deliveryFee: 0,
-                total,
-
-                /* Payment — both naming conventions */
+                total, // discounted total
+                // ── Include COMPLETE discount info ──
+                promoCode: discountInfo?.code || null,
+                discount: discountAmount,
+                discount_type: discountInfo?.discountType || null,
+                discount_value: discountInfo?.discountValue || null,
                 paymentMethod:  form.paymentMethod,
                 payment_method: form.paymentMethod,
-
-                /* Mobile money proof — only when used */
                 ...(isMobileMoney && {
-                    /* camelCase */
                     mobilePayment: {
                         provider:      form.paymentMethod,
                         transferPhone: form.transferPhone,
                         transferName:  form.transferName,
                         amountPaid:    total,
                     },
-                    /* snake_case */
                     mobile_payment: {
                         provider:       form.paymentMethod,
                         transfer_phone: form.transferPhone,
                         transfer_name:  form.transferName,
                         amount_paid:    total,
                     },
-                    /* flat fields — some backends read these */
                     mobile_provider:       form.paymentMethod,
                     mobile_transfer_phone: form.transferPhone,
                     mobile_transfer_name:  form.transferName,
@@ -260,10 +271,14 @@ export default function CheckoutPage() {
                 }),
             };
 
+            console.log("📦 Checkout - Sending order data:", JSON.stringify(orderData, null, 2));
+
             const endpoint = user ? '/orders' : '/guest-orders';
             const response = await axiosInstance.post(endpoint, orderData);
             const orderId  = response.data.data.orderId;
             clearCart();
+            // Clear discount storage after order placed
+            sessionStorage.removeItem('checkoutDiscount');
             router.push(`/order-success?orderId=${orderId}`);
         } catch (e: any) {
             console.error('Order error:', e);
@@ -502,9 +517,24 @@ export default function CheckoutPage() {
                                 </div>
                             ))}
                         </div>
-                        <div className="sum-total-row">
-                            <span className="sum-total-label">Total</span>
-                            <span className="sum-total-val">${total.toFixed(2)}</span>
+                        <div className="sum-total-row" style={{ display:'flex', flexDirection:'column', alignItems:'stretch', gap:'8px', padding:'20px 32px' }}>
+                            <div style={{ display:'flex', justifyContent:'space-between' }}>
+                                <span className="sum-total-label">Subtotal</span>
+                                <span className="sum-total-val" style={{ fontSize:'20px' }}>${subtotal.toFixed(2)}</span>
+                            </div>
+                            {discountAmount > 0 && discountInfo && (
+                                <div style={{ display:'flex', justifyContent:'space-between', color:'#22c55e' }}>
+                                    <span className="sum-total-label" style={{ color:'#22c55e' }}>
+                                        {discountInfo.code} ({discountInfo.discountType === 'percentage' ? `${discountInfo.discountValue}% off` : `$${discountInfo.discountValue} off`})
+                                    </span>
+                                    <span className="sum-total-val" style={{ fontSize:'20px', color:'#22c55e' }}>-${discountAmount.toFixed(2)}</span>
+                                </div>
+                            )}
+                            <hr style={{ margin:'6px 0', borderColor:'var(--border)' }} />
+                            <div style={{ display:'flex', justifyContent:'space-between' }}>
+                                <span className="sum-total-label">Total</span>
+                                <span className="sum-total-val">${total.toFixed(2)}</span>
+                            </div>
                         </div>
                         <p className="sum-note">
                             {isMobileMoney

@@ -19,6 +19,32 @@ const ensureAdvancePaymentColumn = async (pool) => {
 };
 
 /* ─────────────────────────────────────────────────────────────
+ * Ensure promo code columns exist.
+ * ───────────────────────────────────────────────────────────── */
+const ensurePromoCodeColumns = async (pool) => {
+    await pool.query(`
+        ALTER TABLE orders
+            ADD COLUMN IF NOT EXISTS promo_code       VARCHAR(50)   DEFAULT NULL,
+            ADD COLUMN IF NOT EXISTS discount         NUMERIC(10,2) DEFAULT 0,
+            ADD COLUMN IF NOT EXISTS discount_type    VARCHAR(20)   DEFAULT NULL,
+            ADD COLUMN IF NOT EXISTS discount_value   NUMERIC(10,2) DEFAULT NULL
+    `);
+};
+
+/* ─────────────────────────────────────────────────────────────
+ * Normalise discount data from the checkout request body.
+ * Handles both camelCase and snake_case variants.
+ * ───────────────────────────────────────────────────────────── */
+const normaliseDiscount = (body) => {
+    const promoCode = body.promoCode || body.promo_code || null;
+    const discount = body.discount !== undefined ? parseFloat(body.discount) : 0;
+    const discountType = body.discountType || body.discount_type || null;
+    const discountValue = body.discountValue !== undefined ? parseFloat(body.discountValue) 
+                        : (body.discount_value !== undefined ? parseFloat(body.discount_value) : null);
+    return { promoCode, discount, discountType, discountValue };
+};
+
+/* ─────────────────────────────────────────────────────────────
  * POST /guest-orders  — guest checkout
  * ───────────────────────────────────────────────────────────── */
 router.post('/', async (req, res) => {
@@ -26,8 +52,12 @@ router.post('/', async (req, res) => {
     try {
         const { customer, items, subtotal, deliveryFee, total, paymentMethod } = req.body;
 
+        // ── Normalise discount fields ──
+        const { promoCode, discount, discountType, discountValue } = normaliseDiscount(req.body);
+
         await ensureOrderCustomerColumns(pool);
         await ensureAdvancePaymentColumn(pool);
+        await ensurePromoCodeColumns(pool);
 
         const locationLabel   = customer.location === 'inside' ? 'Inside Hargeisa' : 'Outside Hargeisa';
         const shippingAddress = `${customer.address}, ${locationLabel}`;
@@ -65,15 +95,20 @@ router.post('/', async (req, res) => {
                 user_id, order_number, total_amount, shipping_address, billing_address,
                 payment_method, payment_status, status, delivery_fee,
                 customer_name, customer_email, customer_phone,
-                advance_payment
+                advance_payment,
+                promo_code, discount, discount_type, discount_value
              )
-             VALUES (NULL,$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+             VALUES (NULL,$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
              RETURNING *`,
             [
                 tempOrderNumber, total, shippingAddress, billingAddress,
                 paymentMethod, 'pending', 'pending', deliveryFee,
                 customerName, customerEmail, customerPhone,
                 advancePayment ? JSON.stringify(advancePayment) : null,
+                promoCode,          // now correctly normalised
+                discount,           // now correctly normalised (number)
+                discountType,       // now correctly normalised
+                discountValue,      // now correctly normalised (number)
             ]
         );
         let order = orderResult.rows[0];
@@ -120,6 +155,10 @@ router.post('/', async (req, res) => {
             location:     customer.location,
             paymentMethod,
             advancePayment,
+            promoCode,
+            discount,
+            discountType,
+            discountValue,
         };
 
         // Customer confirmation
@@ -150,6 +189,7 @@ router.post('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
     try {
         await ensureOrderCustomerColumns(pool);
+        await ensurePromoCodeColumns(pool);
 
         const orderId = req.params.id;
 
