@@ -54,6 +54,7 @@ export default function Navbar() {
   const handleLogout = () => {
     logout();
     setShowUserMenu(false);
+    setIsMenuOpen(false);
     window.location.href = "/";
   };
 
@@ -63,6 +64,31 @@ export default function Navbar() {
     { label: "About", href: "/about" },
     { label: "Contact", href: "/contact" },
   ];
+
+  // Drawer's account section mirrors the desktop dropdown, so tablet/mobile
+  // users get the same routes (Profile, Orders, Admin Panel, Logout) the
+  // icon-based dropdown gives desktop users.
+  interface DrawerAccountLink {
+    label: string;
+    href: string;
+    icon: React.ReactNode;
+    count?: number;
+  }
+
+  const drawerAccountLinks: DrawerAccountLink[] = user
+    ? [
+        { label: "My Account", href: "/profile", icon: <FaUserCircle size={11} /> },
+        { label: "My Orders", href: "/orders", icon: <FaBoxOpen size={11} /> },
+        { label: "Wishlist", href: "/wishlist", icon: <FaHeart size={11} />, count: wishlistCount },
+        ...(user.role === "admin"
+          ? [{ label: "Admin Panel", href: "/admin/dashboard", icon: <FaTachometerAlt size={11} /> }]
+          : []),
+      ]
+    : [
+        { label: "Wishlist", href: "/wishlist", icon: <FaHeart size={11} />, count: wishlistCount },
+        { label: "Login", href: "/auth/signin", icon: <FaUserCircle size={11} /> },
+        { label: "Register", href: "/auth/signup", icon: <FaUserCircle size={11} /> },
+      ];
 
   return (
     <>
@@ -187,10 +213,10 @@ export default function Navbar() {
                 }
                 .ac-logo:hover { opacity: 0.6; color: var(--ink); }
 
-                /* ─── Right: icons — ALWAYS visible at all screen sizes ─── */
+                /* ─── Right: icons ─── */
                 .ac-icons {
                     flex: 1;
-                    display: flex;           /* never hidden */
+                    display: flex;
                     align-items: center;
                     justify-content: flex-end;
                     gap: 6px;
@@ -240,6 +266,13 @@ export default function Navbar() {
                     background: rgba(0,0,0,0.12);
                     flex-shrink: 0;
                     margin: 0 2px;
+                }
+
+                /* Icons that only make sense once the desktop account dropdown
+                   is available — hidden on tablet/mobile, where the drawer
+                   carries Wishlist and account links instead. */
+                @media (max-width: 1024px) {
+                    .ac-icon-desktop-only { display: none; }
                 }
 
                 /* ─── User dropdown ─── */
@@ -338,6 +371,8 @@ export default function Navbar() {
                     transition: transform 0.34s cubic-bezier(0.16,1,0.3,1),
                                 opacity 0.3s ease;
                     overflow: hidden;
+                    max-height: calc(100vh - var(--nav-h));
+                    overflow-y: auto;
                 }
                 .ac-drawer.drawer-closed {
                     transform: translateY(-8px);
@@ -361,6 +396,11 @@ export default function Navbar() {
                     letter-spacing: 0.18em; text-transform: uppercase;
                     color: var(--ink); text-decoration: none;
                     border-bottom: 1px solid var(--border);
+                    background: none;
+                    border-left: none; border-right: none; border-top: none;
+                    width: 100%;
+                    cursor: pointer;
+                    text-align: left;
                     transition: background 0.15s, padding-left 0.22s, color 0.15s;
                 }
                 .ac-drawer-link:last-child { border-bottom: none; }
@@ -372,6 +412,58 @@ export default function Navbar() {
                 .ac-drawer-link.drawer-active { color: var(--accent); }
                 .ac-drawer-link svg { opacity: 0.2; transition: opacity 0.2s, transform 0.2s; }
                 .ac-drawer-link:hover svg { opacity: 0.5; transform: translateX(3px); }
+
+                .ac-drawer-link-left {
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                }
+
+                .ac-drawer-link-left svg { opacity: 0.35; flex-shrink: 0; }
+
+                .ac-drawer-link-right {
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                }
+
+                .ac-drawer-count {
+                    font-family: 'Jost', sans-serif;
+                    font-size: 10px;
+                    font-weight: 700;
+                    letter-spacing: 0.02em;
+                    color: var(--ink);
+                    background: var(--warm);
+                    border: 1px solid var(--border);
+                    min-width: 20px;
+                    height: 20px;
+                    padding: 0 5px;
+                    border-radius: 10px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+
+                .ac-drawer-link.is-logout {
+                    color: #b3413d;
+                }
+                .ac-drawer-link.is-logout svg { opacity: 0.5; color: #b3413d; }
+
+                .ac-drawer-divider {
+                    height: 1px;
+                    background: var(--border);
+                    margin: 4px 28px;
+                }
+
+                .ac-drawer-eyebrow {
+                    padding: 14px 28px 6px;
+                    font-family: 'Jost', sans-serif;
+                    font-size: 10px;
+                    font-weight: 600;
+                    letter-spacing: 0.2em;
+                    text-transform: uppercase;
+                    color: var(--ink-faint);
+                }
 
                 /* ─── Keyframes ─── */
                 @keyframes acFadeIn  { from { opacity:0 } to { opacity:1 } }
@@ -450,9 +542,9 @@ export default function Navbar() {
             Air Collection
           </Link>
 
-          {/* ── RIGHT: icons — always shown on every screen size ── */}
+          {/* ── RIGHT: icons ── */}
           <div className="ac-icons">
-            {/* Search */}
+            {/* Search — always visible */}
             <button
               className="ac-icon"
               onClick={() => {
@@ -466,8 +558,12 @@ export default function Navbar() {
 
             <span className="ac-divider" />
 
-            {/* Wishlist */}
-            <Link href="/wishlist" className="ac-icon" aria-label="Wishlist">
+            {/* Wishlist — desktop only; lives in the drawer on tablet/mobile */}
+            <Link
+              href="/wishlist"
+              className="ac-icon ac-icon-desktop-only"
+              aria-label="Wishlist"
+            >
               <FaHeart size={15} />
               {wishlistCount > 0 && (
                 <span className="ac-badge">
@@ -476,7 +572,7 @@ export default function Navbar() {
               )}
             </Link>
 
-            {/* Cart */}
+            {/* Cart — always visible */}
             <Link href="/cart" className="ac-icon" aria-label="Cart">
               <FaShoppingCart size={15} />
               {cartCount > 0 && (
@@ -486,8 +582,8 @@ export default function Navbar() {
               )}
             </Link>
 
-            {/* Account */}
-            <div className="ac-user-wrap">
+            {/* Account — desktop only; lives in the drawer on tablet/mobile */}
+            <div className="ac-user-wrap ac-icon-desktop-only">
               <button
                 className="ac-icon"
                 onClick={() => setShowUserMenu((prev) => !prev)}
@@ -583,7 +679,10 @@ export default function Navbar() {
       )}
 
       {/* ── Mobile / tablet drawer ── */}
-      {/* Only nav links here — icons always stay in the navbar above */}
+      {/* Nav links, then an account section that reflects real login state:
+          logged-out visitors see Login/Register, logged-in users see
+          My Account/Orders/Wishlist (+ Admin Panel if they're an admin)
+          plus a working Logout — the same routes the desktop dropdown offers. */}
       <div
         className={`ac-drawer ${isMenuOpen ? "drawer-open" : "drawer-closed"}`}
       >
@@ -600,6 +699,50 @@ export default function Navbar() {
               </Link>
             </li>
           ))}
+        </ul>
+
+        <div className="ac-drawer-divider" />
+
+        {user && (
+          <div className="ac-drawer-eyebrow">
+            Signed in as {user.name || user.email}
+          </div>
+        )}
+
+        <ul className="ac-drawer-list">
+          {drawerAccountLinks.map((link) => (
+            <li key={link.href}>
+              <Link
+                href={link.href}
+                className={`ac-drawer-link${pathname === link.href ? " drawer-active" : ""}`}
+                onClick={() => setIsMenuOpen(false)}
+              >
+                <span className="ac-drawer-link-left">
+                  {link.icon}
+                  {link.label}
+                </span>
+                <span className="ac-drawer-link-right">
+                  {(link.count ?? 0) > 0 && (
+                    <span className="ac-drawer-count">
+                      {(link.count ?? 0) > 9 ? "9+" : link.count}
+                    </span>
+                  )}
+                  <FaArrowRight size={10} />
+                </span>
+              </Link>
+            </li>
+          ))}
+
+          {user && (
+            <li>
+              <button className="ac-drawer-link is-logout" onClick={handleLogout}>
+                <span className="ac-drawer-link-left">
+                  <FaSignOutAlt size={11} />
+                  Logout
+                </span>
+              </button>
+            </li>
+          )}
         </ul>
       </div>
 
