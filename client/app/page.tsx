@@ -44,6 +44,7 @@ export default function HomePage() {
   const [dbCategories, setDbCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Fallback categories, shown only if the database has none at all.
   const categories: Category[] = [
     {
       name: "Baggy Pants",
@@ -60,6 +61,10 @@ export default function HomePage() {
       desc: "Effortless Drape",
     },
   ];
+
+  // The four categories the homepage should always show, in this order —
+  // everything else in the catalog is reached via "View All" instead.
+  const homepageSlugs = ["baggy-pants", "tshirt", "footwear", "drop-shoulder"];
 
   const backendUrl =
     process.env.NEXT_PUBLIC_API_URL?.replace("/api", "") ||
@@ -131,9 +136,20 @@ export default function HomePage() {
     return "✦";
   };
 
-  const displayCategories = (
-    dbCategories.length ? dbCategories : categories
-  ).slice(0, 4);
+  // Pin the four categories the homepage should feature, by slug, in the
+  // exact order given — rather than whatever four the database happens to
+  // return first. Falls back gracefully if the database has no categories
+  // at all, or if none of the target slugs exist yet.
+  const displayCategories: Category[] = (() => {
+    if (dbCategories.length) {
+      const matched = homepageSlugs
+        .map((slug) => dbCategories.find((c) => c.slug === slug))
+        .filter((c): c is Category => Boolean(c));
+      if (matched.length) return matched;
+      return dbCategories.slice(0, 4);
+    }
+    return categories;
+  })();
 
   const renderStars = (rating: number = 5) => {
     const full = Math.floor(rating);
@@ -570,69 +586,93 @@ export default function HomePage() {
         }
 
         .category-card {
-          background: var(--surface);
-          padding: 40px 24px 32px;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 16px;
-          text-decoration: none;
           position: relative;
+          display: block;
+          aspect-ratio: 3/4;
           overflow: hidden;
-          transition: box-shadow 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+          text-decoration: none;
+          background: var(--product-bg);
           border: 1px solid var(--border);
         }
 
-        .category-card::before {
-          content: '';
+        .category-card-media {
           position: absolute;
-          bottom: 0;
-          left: 0;
-          right: 0;
-          height: 2px;
-          background: var(--accent);
-          transform: scaleX(0);
-          transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+          inset: 0;
         }
 
-        .category-card:hover::before { transform: scaleX(1); }
-
-        .category-card:hover {
-          box-shadow: 0 8px 40px rgba(0,0,0,0.1);
+        .category-card-media img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          object-position: center;
+          transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
-        .category-icon {
-          width: 64px;
-          height: 64px;
-          font-size: 48px;
-          line-height: 1;
+        .category-card:hover .category-card-media img {
+          transform: scale(1.07);
+        }
+
+        .category-card-fallback {
+          position: absolute;
+          inset: 0;
           display: flex;
           align-items: center;
           justify-content: center;
+          font-size: 56px;
+          background: linear-gradient(160deg, #f4f2ef 0%, #ebe5da 100%);
         }
 
-        .category-icon img {
-          width: 100%;
-          height: 100%;
-          object-fit: contain;
+        .category-card-scrim {
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(
+            to top,
+            rgba(10,10,10,0.85) 0%,
+            rgba(10,10,10,0.35) 42%,
+            rgba(10,10,10,0) 65%
+          );
+        }
+
+        .category-card-content {
+          position: absolute;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          padding: 22px 22px 24px;
+          z-index: 2;
+        }
+
+        .category-card-line {
+          width: 30px;
+          height: 1px;
+          background: var(--accent);
+          margin-bottom: 12px;
+          transform: scaleX(0.55);
+          transform-origin: left;
+          transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .category-card:hover .category-card-line {
+          transform: scaleX(1);
         }
 
         .category-name {
           font-family: 'Jost', sans-serif;
-          font-size: 12px;
+          font-size: 13px;
           font-weight: 600;
           letter-spacing: 0.2em;
           text-transform: uppercase;
-          color: var(--ink);
-          text-align: center;
+          color: #ffffff;
+          display: block;
+          margin-bottom: 6px;
         }
 
         .category-desc {
           font-family: 'Jost', sans-serif;
           font-size: 12px;
           font-weight: 300;
-          color: var(--ink-soft);
-          text-align: center;
+          color: rgba(255,255,255,0.72);
+          display: block;
         }
 
         /* ── Marquee / Trust Bar ── */
@@ -769,6 +809,7 @@ export default function HomePage() {
 
         @media (max-width: 640px) {
           :root { --home-x: 16px; }
+          .category-card { aspect-ratio: 1/1; }
         }
 
         @media (max-width: 480px) {
@@ -992,17 +1033,23 @@ export default function HomePage() {
                 href={`/categories/${cat.slug}`}
                 className="category-card"
               >
-                <span className="category-icon">
+                <div className="category-card-media">
                   {categoryImage ? (
                     <img src={categoryImage} alt={cat.name} />
                   ) : (
-                    getCategoryIcon(cat)
+                    <div className="category-card-fallback">
+                      {getCategoryIcon(cat)}
+                    </div>
                   )}
-                </span>
-                <span className="category-name">{cat.name}</span>
-                <span className="category-desc">
-                  {cat.description || cat.desc || "Explore Collection"}
-                </span>
+                </div>
+                <div className="category-card-scrim" />
+                <div className="category-card-content">
+                  <span className="category-card-line" />
+                  <span className="category-name">{cat.name}</span>
+                  <span className="category-desc">
+                    {cat.description || cat.desc || "Explore Collection"}
+                  </span>
+                </div>
               </Link>
             );
           })}
