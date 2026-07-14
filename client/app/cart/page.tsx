@@ -400,6 +400,16 @@ export default function CartPage() {
     return Number.isFinite(productStock) ? productStock : undefined;
   };
 
+  // ── helper: distinguishes "no size chosen yet" from an actual stock-out ──
+  const needsSizeSelection = (item: {
+    product_id: number;
+    color?: string;
+    size?: string;
+  }) => {
+    const sizeOptions = getSizeOptions(item);
+    return sizeOptions.length > 0 && !item.size;
+  };
+
   const stockBlockedItems = cart.items.filter((item) => {
     const stock = getAvailableStock(item);
     return stock !== undefined && (stock <= 0 || item.quantity > stock);
@@ -540,6 +550,7 @@ export default function CartPage() {
                   availableStock !== undefined && availableStock <= 0;
                 const overStock =
                   availableStock !== undefined && item.quantity > availableStock;
+                const missingSize = needsSizeSelection(item);
 
                 return (
                   <div
@@ -647,7 +658,9 @@ export default function CartPage() {
                       </div>
                       {(stockOut || overStock) && (
                         <p className="cart-stock-note">
-                          {stockOut
+                          {missingSize
+                            ? "Please select a size."
+                            : stockOut
                             ? "Stock out. Please remove this item."
                             : `Only ${availableStock} left in stock.`}
                         </p>
