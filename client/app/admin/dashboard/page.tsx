@@ -147,18 +147,17 @@ export default function AdminDashboard() {
         const productsRes = await axiosInstance.get("/products");
         const products = productsRes.data.data || [];
 
+        // ── Total Customers now reflects active email subscribers ──
         let totalCustomers = 0;
         try {
-          const usersRes = await axiosInstance.get("/users");
-          const users = usersRes.data.data || [];
-          totalCustomers = users.filter(
-            (u: any) => u.role === "customer",
+          const subscribersRes = await axiosInstance.get("/subscribers");
+          const subscribers = subscribersRes.data.data || [];
+          totalCustomers = subscribers.filter(
+            (s: any) => s.is_active,
           ).length;
-        } catch {
-          const userIds = new Set(
-            orders.filter((o: any) => o.user_id).map((o: any) => o.user_id),
-          );
-          totalCustomers = userIds.size;
+        } catch (error) {
+          console.error("Failed to fetch subscribers", error);
+          totalCustomers = 0;
         }
 
         const today = new Date().toISOString().split("T")[0];
@@ -664,7 +663,7 @@ export default function AdminDashboard() {
             <div className="ad-kpi-sub">vs last month</div>
           </div>
 
-          {/* Customers */}
+          {/* Subscribers */}
           <div className="ad-card ad-kpi" style={{ animationDelay: ".1s" }}>
             <div className="ad-kpi-top">
               <div
@@ -678,8 +677,8 @@ export default function AdminDashboard() {
             <div className="ad-kpi-value">
               {stats.totalCustomers.toLocaleString()}
             </div>
-            <div className="ad-kpi-label">Total Customers</div>
-            <div className="ad-kpi-sub">Registered accounts</div>
+            <div className="ad-kpi-label">Total Customers Subscribed</div>
+            <div className="ad-kpi-sub">Subscribed emails</div>
           </div>
 
           {/* Total Orders */}

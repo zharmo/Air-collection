@@ -1272,7 +1272,7 @@ export default function HomePage() {
             { num: "5K+", label: "Happy Customers" },
             { num: "4.9", label: "Average Rating" },
             { num: "98%", label: "Would Recommend" },
-            { num: "3yr", label: "Trusted Brand" },
+            { num: "5yr", label: "Trusted Brand" },
           ].map((s) => (
             <div key={s.label} className="review-stat">
               <div className="review-stat-num">{s.num}</div>
