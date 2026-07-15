@@ -244,11 +244,6 @@ function SignInContent() {
             </p>
 
             <footer className="auth-footer">
-              <Link href="/privacy">Privacy</Link>
-              <span aria-hidden="true">·</span>
-              <Link href="/terms">Terms</Link>
-              <span aria-hidden="true">·</span>
-              <Link href="/help">Help</Link>
               <span aria-hidden="true">·</span>
               <span>© 2025 Air Collection</span>
             </footer>
