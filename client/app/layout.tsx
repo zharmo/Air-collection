@@ -3,6 +3,7 @@ import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 import BootstrapClient from '@/components/BootstrapClient';
 import AppProvider from '@/context/AppProvider';
+import ScrollToTop from '@/components/ScrollToTop';
 
 export const metadata = {
   title: 'Air Collection',
@@ -19,6 +20,7 @@ export default function RootLayout({
     <html lang="en" data-scroll-behavior="smooth">
       <body className="d-flex flex-column min-vh-100">
         <AppProvider>
+          <ScrollToTop />
           <Navbar />
           <main className="flex-grow-1">{children}</main>
           <Footer />

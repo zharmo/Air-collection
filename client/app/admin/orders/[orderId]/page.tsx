@@ -7,7 +7,7 @@ import {
   FaArrowLeft, FaTruck, FaCreditCard, FaUser, FaMapMarkerAlt,
   FaTrash, FaCheckCircle, FaClock, FaBoxOpen, FaShippingFast,
   FaBan, FaSpinner, FaPhone, FaEnvelope, FaReceipt, FaMobileAlt,
-  FaTag,
+  FaTag, FaPrint,
 } from "react-icons/fa";
 import axiosInstance from "@/utils/axiosConfig";
 
@@ -246,6 +246,10 @@ export default function AdminOrderDetailPage() {
     } catch { alert("Failed to delete order."); setDeleting(false); }
   };
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   if (loading) return (
     <><style>{CSS}</style>
       <div className="od-loading">
@@ -311,6 +315,9 @@ export default function AdminOrderDetailPage() {
     ? customerName.trim().split(/\s+/).map((w:string) => w[0]).join("").slice(0,2).toUpperCase()
     : "?";
 
+  const statusLabel = STATUS_CFG[order.status]?.label || order.status;
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&margin=0&data=${encodeURIComponent("https://aircollection.shop")}`;
+
   return (
     <><style>{CSS}</style>
       <div className="od-page">
@@ -344,11 +351,16 @@ export default function AdminOrderDetailPage() {
               </div>
             </div>
           </div>
-          <button className="od-btn-danger" onClick={handleDelete} disabled={deleting}>
-            {deleting
-              ? <><span className="od-spin od-spin-sm"/> Deleting…</>
-              : <><FaTrash size={12}/> Delete Order</>}
-          </button>
+          <div className="od-topbar-actions">
+            <button className="od-btn-print" onClick={handlePrint}>
+              <FaPrint size={12}/> Print Receipt
+            </button>
+            <button className="od-btn-danger" onClick={handleDelete} disabled={deleting}>
+              {deleting
+                ? <><span className="od-spin od-spin-sm"/> Deleting…</>
+                : <><FaTrash size={12}/> Delete Order</>}
+            </button>
+          </div>
         </div>
 
         {/* ── Main grid ── */}
@@ -669,6 +681,94 @@ export default function AdminOrderDetailPage() {
 
           </div>
         </div>
+
+        {/* ══════════════════════════════════════════════════════
+            PRINT-ONLY RECEIPT — hidden on screen, only rendered
+            when the browser's print dialog is triggered. Tuned for
+            an 80mm thermal roll. If your printer uses 58mm paper,
+            change the two "80mm" values inside "@media print" in
+            the CSS block below to "58mm".
+          ══════════════════════════════════════════════════════ */}
+        <div className="od-print-receipt">
+          <div className="pr-center">
+            <div className="pr-brand">AIR COLLECTION</div>
+            <div className="pr-sub">aircollection.shop</div>
+          </div>
+          <div className="pr-divider"/>
+
+          <div className="pr-row"><span>Order</span><span>#{order.order_number}</span></div>
+          <div className="pr-row"><span>Date</span><span>{orderDate}</span></div>
+          <div className="pr-row"><span>Time</span><span>{orderTime}</span></div>
+          <div className="pr-row"><span>Status</span><span>{statusLabel}</span></div>
+          <div className="pr-divider"/>
+
+          <div className="pr-section-title">Customer</div>
+          <div className="pr-line">{customerName || "—"}</div>
+          {customerPhone && <div className="pr-line">{customerPhone}</div>}
+          {customerEmail && <div className="pr-line">{customerEmail}</div>}
+          <div className="pr-divider"/>
+
+          <div className="pr-section-title">Ship To</div>
+          <div className="pr-line">{streetAddress || "—"}</div>
+          <div className="pr-line">{cityLabel}</div>
+          <div className="pr-divider"/>
+
+          <div className="pr-section-title">Items</div>
+          {order.items.map(item => (
+            <div key={item.id} className="pr-item">
+              <div className="pr-item-name">{item.product_name}</div>
+              {(item.size || item.color) && (
+                <div className="pr-item-variant">
+                  {[item.size, item.color].filter(Boolean).join(" / ")}
+                </div>
+              )}
+              <div className="pr-row">
+                <span>{item.quantity} x ${item.price.toFixed(2)}</span>
+                <span>${item.total.toFixed(2)}</span>
+              </div>
+            </div>
+          ))}
+          <div className="pr-divider"/>
+
+          <div className="pr-row"><span>Subtotal</span><span>${subtotal.toFixed(2)}</span></div>
+          {discountAmount > 0 && (
+            <div className="pr-row">
+              <span>{order.promo_code ? `Promo ${order.promo_code}` : "Discount"}</span>
+              <span>-${discountAmount.toFixed(2)}</span>
+            </div>
+          )}
+          {deliveryFee > 0 && (
+            <div className="pr-row"><span>Delivery</span><span>${deliveryFee.toFixed(2)}</span></div>
+          )}
+          <div className="pr-divider"/>
+          <div className="pr-row pr-total"><span>TOTAL</span><span>${finalTotal.toFixed(2)}</span></div>
+          <div className="pr-divider"/>
+
+          <div className="pr-row">
+            <span>Payment</span>
+            <span>{isMobileMoney ? (proof?.providerLabel || "Mobile Money") : "Cash on Delivery"}</span>
+          </div>
+          {isMobileMoney && proof && (
+            <>
+              <div className="pr-row"><span>Paid</span><span>${toMoney(proof.amount)}</span></div>
+              {proof.senderPhone && (
+                <div className="pr-row"><span>Sender</span><span>{proof.senderPhone}</span></div>
+              )}
+            </>
+          )}
+          <div className="pr-divider"/>
+
+          <div className="pr-center pr-qr-wrap">
+            <img
+              src={qrUrl}
+              alt="aircollection.shop QR code"
+              className="pr-qr"
+            />
+            <div className="pr-qr-label">Scan to shop again</div>
+            <div className="pr-thanks">Thank you for shopping with us!</div>
+          </div>
+        </div>
+
       </div>
     </>
   );
@@ -696,6 +796,7 @@ const CSS = `
   /* top bar */
   .od-topbar { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:24px; flex-wrap:wrap; }
   .od-topbar-left { display:flex; align-items:flex-start; gap:14px; flex-wrap:wrap; }
+  .od-topbar-actions { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
   .od-back {
     display:inline-flex; align-items:center; gap:6px; font-size:.78rem; font-weight:500;
     color:#64748b; text-decoration:none; background:#fff; border:1px solid #e2e8f0;
@@ -749,6 +850,14 @@ const CSS = `
   }
   .od-btn-danger:hover:not(:disabled) { background:#fff5f5; border-color:#f87171; }
   .od-btn-danger:disabled { opacity:.5; cursor:not-allowed; }
+  .od-btn-print {
+    display:inline-flex; align-items:center; gap:7px; background:#0f172a; color:#fff;
+    border:1px solid #0f172a; border-radius:9px; padding:9px 16px; font-size:.82rem;
+    font-weight:600; cursor:pointer; font-family:inherit; white-space:nowrap;
+    transition:background .15s,transform .1s,box-shadow .15s;
+    box-shadow:0 2px 8px rgba(15,23,42,.16);
+  }
+  .od-btn-print:hover { background:#1e293b; transform:translateY(-1px); box-shadow:0 4px 14px rgba(15,23,42,.2); }
 
   /* spinner */
   .od-spin { display:inline-block; border-radius:50%; animation:od-spin .7s linear infinite; flex-shrink:0; }
@@ -823,5 +932,47 @@ const CSS = `
     .od-topbar { flex-direction:column; }
     .od-topbar-left { flex-direction:column; gap:10px; }
     .od-table thead th, .od-table tbody td { padding:10px 12px; }
+  }
+
+  /* ── PRINT-ONLY RECEIPT (hidden on screen) ── */
+  .od-print-receipt { display:none; }
+
+  @media print {
+    /* Tuned for an 80mm thermal roll. For 58mm paper, change the
+       two "80mm" values just below to "58mm". */
+    @page { size: 80mm auto; margin: 0; }
+
+    body * { visibility: hidden; }
+    .od-print-receipt, .od-print-receipt * { visibility: visible; }
+
+    .od-print-receipt {
+      display: block !important;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 80mm;
+      padding: 8px 10px 14px;
+      font-family: 'Courier New', Courier, monospace;
+      color: #000;
+      font-size: 11px;
+      line-height: 1.35;
+    }
+
+    .pr-center { text-align: center; }
+    .pr-brand { font-size: 15px; font-weight: 700; letter-spacing: 1.5px; }
+    .pr-sub { font-size: 10px; margin-bottom: 2px; }
+    .pr-divider { border-top: 1px dashed #000; margin: 6px 0; }
+    .pr-section-title { font-weight: 700; text-transform: uppercase; font-size: 10px; margin-bottom: 3px; letter-spacing: .04em; }
+    .pr-row { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; padding: 1px 0; }
+    .pr-row span:first-child { max-width: 60%; }
+    .pr-line { font-size: 11px; }
+    .pr-item { margin-bottom: 5px; }
+    .pr-item-name { font-weight: 700; font-size: 11px; }
+    .pr-item-variant { font-size: 10px; margin-bottom: 1px; }
+    .pr-total span { font-weight: 700 !important; font-size: 13px !important; }
+    .pr-qr-wrap { margin-top: 8px; }
+    .pr-qr { width: 100px; height: 100px; display: block; margin: 0 auto; }
+    .pr-qr-label { font-size: 9px; margin-top: 4px; letter-spacing: .03em; }
+    .pr-thanks { font-size: 10px; margin-top: 8px; font-style: italic; }
   }
 `;

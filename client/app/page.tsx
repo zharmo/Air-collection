@@ -276,6 +276,7 @@ export default function HomePage() {
         /* ── Hero ── */
         .hero {
           min-height: calc(100vh - 72px);
+          min-height: calc(100svh - 72px);
           background: var(--surface-warm);
           position: relative;
           overflow: hidden;
@@ -385,6 +386,7 @@ export default function HomePage() {
         .hero-visual {
           height: 100%;
           min-height: calc(100vh - 72px);
+          min-height: calc(100svh - 72px);
           position: relative;
           display: flex;
           align-items: center;
@@ -792,7 +794,7 @@ export default function HomePage() {
         /* ── Responsive ── */
         @media (max-width: 1024px) {
           :root { --home-x: 24px; }
-          .hero { grid-template-columns: 1fr; min-height: 80vh; }
+          .hero { grid-template-columns: 1fr; min-height: 80vh; min-height: 80svh; }
           .hero-visual { display: none; }
           .hero-content { padding-top: 80px; padding-bottom: 80px; }
           .product-grid-4 { grid-template-columns: repeat(2, 1fr); }
