@@ -688,6 +688,10 @@ export default function AdminOrderDetailPage() {
             an 80mm thermal roll. If your printer uses 58mm paper,
             change the two "80mm" values inside "@media print" in
             the CSS block below to "58mm".
+
+            NOTE: per request, the printed receipt intentionally
+            omits the promo code, subtotal breakdown, and discount
+            line — it only shows the items and the final total.
           ══════════════════════════════════════════════════════ */}
         <div className="od-print-receipt">
           <div className="pr-center">
@@ -730,17 +734,12 @@ export default function AdminOrderDetailPage() {
           ))}
           <div className="pr-divider"/>
 
-          <div className="pr-row"><span>Subtotal</span><span>${subtotal.toFixed(2)}</span></div>
-          {discountAmount > 0 && (
-            <div className="pr-row">
-              <span>{order.promo_code ? `Promo ${order.promo_code}` : "Discount"}</span>
-              <span>-${discountAmount.toFixed(2)}</span>
-            </div>
-          )}
+          {/* Only the delivery fee (a real, separate charge) and the
+              final total are shown here — no subtotal, no promo code,
+              no discount line, as requested. */}
           {deliveryFee > 0 && (
             <div className="pr-row"><span>Delivery</span><span>${deliveryFee.toFixed(2)}</span></div>
           )}
-          <div className="pr-divider"/>
           <div className="pr-row pr-total"><span>TOTAL</span><span>${finalTotal.toFixed(2)}</span></div>
           <div className="pr-divider"/>
 
