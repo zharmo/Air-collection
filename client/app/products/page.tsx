@@ -39,11 +39,30 @@ const SORT_LABELS: Record<SortOption, string> = {
   "name-asc": "Name A–Z",
 };
 
+// Module-scope cache. Survives a component unmount/remount within the
+// same browser session (e.g. navigating to a product page and then
+// hitting Back), so a revisit paints the real grid immediately instead
+// of dropping into skeleton loaders and refetching. That refetch+skeleton
+// swap was the actual cause of scroll position resetting on Back: the
+// skeleton grid uses a different image aspect ratio than the real cards,
+// so the page's height changes between the two states, which breaks the
+// browser's scroll restoration.
+interface ProductsData {
+  products: Product[];
+  categories: Category[];
+}
+let productsCache: ProductsData | null = null;
+
 export default function AllProductsPage() {
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<Product[]>(
+    productsCache?.products ?? [],
+  );
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [categories, setCategories] = useState<Category[]>(
+    productsCache?.categories ?? [],
+  );
+  // Only block on loading when nothing is cached yet.
+  const [loading, setLoading] = useState(!productsCache);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
   const [sortBy, setSortBy] = useState<SortOption>("default");
@@ -59,6 +78,7 @@ export default function AllProductsPage() {
 
   /* ── Data fetching ── */
   useEffect(() => {
+    if (productsCache) return; // already have data, skip refetch
     fetchProducts();
     fetchCategories();
   }, []);
@@ -87,7 +107,9 @@ export default function AllProductsPage() {
   const fetchProducts = async () => {
     try {
       const res = await axiosInstance.get("/products");
-      setProducts(res.data.data);
+      const data: Product[] = res.data.data ?? [];
+      setProducts(data);
+      productsCache = { products: data, categories: productsCache?.categories ?? [] };
     } catch (error) {
       console.error("Failed to fetch products", error);
     } finally {
@@ -98,7 +120,9 @@ export default function AllProductsPage() {
   const fetchCategories = async () => {
     try {
       const res = await axiosInstance.get("/categories");
-      setCategories(res.data.data);
+      const data: Category[] = res.data.data ?? [];
+      setCategories(data);
+      productsCache = { products: productsCache?.products ?? [], categories: data };
     } catch (error) {
       console.error("Failed to fetch categories", error);
     }
@@ -156,6 +180,8 @@ export default function AllProductsPage() {
     p.compare_price
       ? Math.round(((p.compare_price - p.price) / p.compare_price) * 100)
       : null;
+
+  const formatPrice = (value: number) => Number(value).toFixed(2);
 
   /* ─────────────────────────────────────────────────── */
 
@@ -527,7 +553,7 @@ export default function AllProductsPage() {
                     overflow: hidden;
                 }
                 .ap-skeleton-img {
-                    aspect-ratio: 1/1;
+                    aspect-ratio: 6/7;
                     background: linear-gradient(90deg, var(--muted) 25%, var(--warm) 50%, var(--muted) 75%);
                     background-size: 200% 100%;
                     animation: shimmer 1.4s infinite;
@@ -762,7 +788,6 @@ export default function AllProductsPage() {
             <div className="ap-grid">
               {filteredProducts.map((product, idx) => {
                 const discount = getDiscount(product);
-                const isNew = idx < 4;
                 const outOfStock = product.stock_quantity === 0;
 
                 return (
@@ -827,10 +852,10 @@ export default function AllProductsPage() {
                         {product.name}
                       </Link>
                       <div className="ap-card-price-row">
-                        <span className="ap-card-price">${product.price}</span>
+                        <span className="ap-card-price">${formatPrice(product.price)}</span>
                         {product.compare_price && (
                           <span className="ap-card-compare">
-                            ${product.compare_price}
+                            ${formatPrice(product.compare_price)}
                           </span>
                         )}
                       </div>

@@ -20,7 +20,7 @@ export default function RootLayout({
     <html lang="en" data-scroll-behavior="smooth">
       <body className="d-flex flex-column min-vh-100">
         <AppProvider>
-          <ScrollToTop />
+          {/* <ScrollToTop /> */}
           <Navbar />
           <main className="flex-grow-1">{children}</main>
           <Footer />

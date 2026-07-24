@@ -32,17 +32,47 @@ interface Category {
   desc?: string;
 }
 
+type BadgeType = "new" | "ai" | "sale" | "sold" | null;
+
+// ─────────────────────────────────────────────────────────────────────────
+// Session-level cache. This lives in module scope, so it survives a
+// component unmount/remount (e.g. navigating to a product page and back)
+// as long as the JS module itself isn't reloaded. That means: on back
+// navigation we paint the already-known data immediately instead of
+// dropping into the full-page spinner and refetching, which is what was
+// causing the scroll position to reset to the top.
+// ─────────────────────────────────────────────────────────────────────────
+interface HomeData {
+  featuredProducts: Product[];
+  bestSellers: Product[];
+  newArrivals: Product[];
+  aiRecommended: Product[];
+  dbCategories: Category[];
+}
+let homeDataCache: HomeData | null = null;
+
 export default function HomePage() {
-  const [email, setEmail] = useState("");
-  const [subscribed, setSubscribed] = useState(false);
   const { addToCart } = useCart();
 
-  const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
-  const [bestSellers, setBestSellers] = useState<Product[]>([]);
-  const [newArrivals, setNewArrivals] = useState<Product[]>([]);
-  const [aiRecommended, setAiRecommended] = useState<Product[]>([]);
-  const [dbCategories, setDbCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [featuredProducts, setFeaturedProducts] = useState<Product[]>(
+    homeDataCache?.featuredProducts ?? [],
+  );
+  const [bestSellers, setBestSellers] = useState<Product[]>(
+    homeDataCache?.bestSellers ?? [],
+  );
+  const [newArrivals, setNewArrivals] = useState<Product[]>(
+    homeDataCache?.newArrivals ?? [],
+  );
+  const [aiRecommended, setAiRecommended] = useState<Product[]>(
+    homeDataCache?.aiRecommended ?? [],
+  );
+  const [dbCategories, setDbCategories] = useState<Category[]>(
+    homeDataCache?.dbCategories ?? [],
+  );
+  // Only block the whole page on the very first load, when we have
+  // nothing cached yet. On a cached revisit this stays false, so the
+  // page paints at full height immediately and scroll position holds.
+  const [loading, setLoading] = useState(!homeDataCache);
 
   // Fallback categories, shown only if the database has none at all.
   const categories: Category[] = [
@@ -71,19 +101,66 @@ export default function HomePage() {
     "http://localhost:5000";
 
   useEffect(() => {
+    // Already have data cached from a previous visit this session — skip
+    // the network round-trip entirely.
+    if (homeDataCache) return;
+
     const fetchProducts = async () => {
       try {
         const [productsRes, categoriesRes] = await Promise.all([
           axiosInstance.get("/products"),
           axiosInstance.get("/categories"),
         ]);
-        const allProducts = productsRes.data.data;
-        const allCategories = categoriesRes.data.data;
-        setFeaturedProducts(allProducts.slice(0, 6));
-        setBestSellers(allProducts.slice(0, 6));
-        setNewArrivals(allProducts.slice(0, 6));
-        setAiRecommended(allProducts.slice(8, 12));
-        setDbCategories(allCategories);
+        const allProducts: Product[] = productsRes.data.data ?? [];
+        const allCategories: Category[] = categoriesRes.data.data ?? [];
+
+        // NOTE: the Product shape returned by the API has no
+        // "featured" / "bestseller" / "created_at" flag to sort by, so
+        // there's no real signal for "best seller" or "new" beyond what
+        // the backend gives us. Until the API exposes that, we derive
+        // three genuinely different, non-overlapping slices instead of
+        // showing the same 6 products under three different headings:
+        //   - New Arrivals: highest id first (id is an autoincrement PK,
+        //     so this is the closest available proxy for "most recently
+        //     added").
+        //   - Featured: the catalog's natural/original order.
+        //   - Best Sellers: lowest stock first, excluding sold-out items,
+        //     as a rough "selling fast" proxy.
+        // Each section excludes products already used by an earlier
+        // section so nothing is duplicated across the homepage.
+        const used = new Set<number>();
+        const take = (list: Product[], n: number) => {
+          const picked = list.filter((p) => !used.has(p.id)).slice(0, n);
+          picked.forEach((p) => used.add(p.id));
+          return picked;
+        };
+
+        const byNewest = [...allProducts].sort((a, b) => b.id - a.id);
+        const newArrivalsData = take(byNewest, 6);
+
+        const featuredData = take(allProducts, 6);
+
+        const byLowStock = [...allProducts]
+          .filter((p) => p.stock_quantity > 0)
+          .sort((a, b) => a.stock_quantity - b.stock_quantity);
+        const bestSellersData = take(byLowStock, 6);
+
+        const aiRecommendedData = take(allProducts, 4);
+
+        const data: HomeData = {
+          featuredProducts: featuredData,
+          bestSellers: bestSellersData,
+          newArrivals: newArrivalsData,
+          aiRecommended: aiRecommendedData,
+          dbCategories: allCategories,
+        };
+
+        homeDataCache = data;
+        setFeaturedProducts(data.featuredProducts);
+        setBestSellers(data.bestSellers);
+        setNewArrivals(data.newArrivals);
+        setAiRecommended(data.aiRecommended);
+        setDbCategories(data.dbCategories);
       } catch (error) {
         console.error("Failed to fetch home data", error);
       } finally {
@@ -92,15 +169,6 @@ export default function HomePage() {
     };
     fetchProducts();
   }, []);
-
-  const handleSubscribe = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (email) {
-      setSubscribed(true);
-      setEmail("");
-      setTimeout(() => setSubscribed(false), 4000);
-    }
-  };
 
   const handleAddToCart = (product: Product) => {
     const imageUrl = getPrimaryImage(product);
@@ -165,6 +233,77 @@ export default function HomePage() {
           <FaRegStar key={i} style={{ color: "#c8a96e" }} />
         ))}
       </span>
+    );
+  };
+
+  const formatPrice = (value: number) => Number(value).toFixed(2);
+
+  // Single shared product card. Used by every product section so badge
+  // logic, discount math, and markup only exist in one place.
+  const ProductCard = ({
+    product,
+    badge = null,
+  }: {
+    product: Product;
+    badge?: BadgeType;
+  }) => {
+    const discount =
+      product.compare_price && product.compare_price > product.price
+        ? Math.round(
+            ((product.compare_price - product.price) /
+              product.compare_price) *
+              100,
+          )
+        : null;
+    const outOfStock = product.stock_quantity === 0;
+    const showSaleBadge = discount && !outOfStock && badge !== "new" && badge !== "ai";
+
+    return (
+      <div className="product-card">
+        <div className="product-card-image">
+          <div className="ap-badge-wrap">
+            {outOfStock && <span className="ap-badge ap-badge-sold">Sold Out</span>}
+            {!outOfStock && badge === "new" && (
+              <div className="product-card-badge new">New</div>
+            )}
+            {!outOfStock && badge === "ai" && (
+              <div className="product-card-badge ai">AI Pick</div>
+            )}
+            {showSaleBadge && (
+              <span className="ap-badge ap-badge-sale">−{discount}%</span>
+            )}
+          </div>
+
+          <Link href={`/products/${product.id}`}>
+            <img src={getPrimaryImage(product)} alt={product.name} />
+          </Link>
+
+          <div className="product-card-overlay">
+            <button onClick={() => handleAddToCart(product)} disabled={outOfStock}>
+              {outOfStock ? (
+                "Out of Stock"
+              ) : (
+                <>
+                  Add to Cart <FaArrowRight size={10} />
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+        <div className="product-card-body">
+          <Link href={`/products/${product.id}`} className="product-card-name">
+            {product.name}
+          </Link>
+          <div>
+            <span className="product-card-price">${formatPrice(product.price)}</span>
+            {product.compare_price && (
+              <span className="product-card-compare">
+                ${formatPrice(product.compare_price)}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
     );
   };
 
@@ -840,8 +979,8 @@ export default function HomePage() {
             as Air.
           </h1>
           <p className="hero-sub">
-            Dharka qaabkoodu fudud yahay, lagana sameeyay linen iyo marooyin 
-            dabiici ah oo hawadu si fiican u dhex marto. 
+            Dharka qaabkoodu fudud yahay, lagana sameeyay linen iyo marooyin
+            dabiici ah oo hawadu si fiican u dhex marto.
             Xidho dareenka fudaydka iyo miisaan la'aanta
           </p>
           <div className="hero-actions">
@@ -860,38 +999,23 @@ export default function HomePage() {
               <div className="h-section" style={{ fontSize: 28 }}>
                 5K+
               </div>
-              <div
-                className="label-caps"
-                style={{ marginTop: 4, fontSize: 10 }}
-              >
+              <div className="label-caps" style={{ marginTop: 4, fontSize: 10 }}>
                 Happy Customers
               </div>
             </div>
-            <div
-              className="hero-stat"
-              style={{ borderLeft: "1px solid rgba(0,0,0,0.08)" }}
-            >
+            <div className="hero-stat" style={{ borderLeft: "1px solid rgba(0,0,0,0.08)" }}>
               <div className="h-section" style={{ fontSize: 28 }}>
                 4.9
               </div>
-              <div
-                className="label-caps"
-                style={{ marginTop: 4, fontSize: 10 }}
-              >
+              <div className="label-caps" style={{ marginTop: 4, fontSize: 10 }}>
                 Avg Rating
               </div>
             </div>
-            <div
-              className="hero-stat"
-              style={{ borderLeft: "1px solid rgba(0,0,0,0.08)" }}
-            >
+            <div className="hero-stat" style={{ borderLeft: "1px solid rgba(0,0,0,0.08)" }}>
               <div className="h-section" style={{ fontSize: 28 }}>
                 100%
               </div>
-              <div
-                className="label-caps"
-                style={{ marginTop: 4, fontSize: 10 }}
-              >
+              <div className="label-caps" style={{ marginTop: 4, fontSize: 10 }}>
                 Natural Fabrics
               </div>
             </div>
@@ -903,30 +1027,10 @@ export default function HomePage() {
       <div className="trust-bar">
         <div className="trust-inner">
           {[
-            "Free Shipping",
-            "✦",
-            "Easy Returns",
-            "✦",
-            "Natural Fabrics",
-            "✦",
-            "5000+ Happy Customers",
-            "✦",
-            "New Season Collection",
-            "✦",
-            "High Quality",
-            "✦",
-            "Free Shipping ",
-            "✦",
-            "Easy Returns",
-            "✦",
-            "Natural Fabrics",
-            "✦",
-            "5000+ Happy Customers",
-            "✦",
-            "New Season Collection",
-            "✦",
-            "Handcrafted Quality",
-            "✦",
+            "Free Shipping", "✦", "Easy Returns", "✦", "Natural Fabrics", "✦",
+            "5000+ Happy Customers", "✦", "New Season Collection", "✦", "High Quality", "✦",
+            "Free Shipping ", "✦", "Easy Returns", "✦", "Natural Fabrics", "✦",
+            "5000+ Happy Customers", "✦", "New Season Collection", "✦", "Handcrafted Quality", "✦",
           ].map((item, i) => (
             <span key={i} className={item === "✦" ? "trust-sep" : "trust-item"}>
               {item}
@@ -947,71 +1051,9 @@ export default function HomePage() {
             </Link>
           </div>
           <div className="product-grid-4">
-            {featuredProducts.map((product) => {
-              const discount =
-                product.compare_price && product.compare_price > product.price
-                  ? Math.round(
-                      ((product.compare_price - product.price) /
-                        product.compare_price) *
-                        100,
-                    )
-                  : null;
-              const outOfStock = product.stock_quantity === 0;
-
-              return (
-                <div key={product.id} className="product-card">
-                  <div className="product-card-image">
-                    <div className="ap-badge-wrap">
-                      {outOfStock && (
-                        <span className="ap-badge ap-badge-sold">Sold Out</span>
-                      )}
-                      {discount && !outOfStock && (
-                        <span className="ap-badge ap-badge-sale">
-                          −{discount}%
-                        </span>
-                      )}
-                    </div>
-
-                    <Link href={`/products/${product.id}`}>
-                      <img src={getPrimaryImage(product)} alt={product.name} />
-                    </Link>
-
-                    <div className="product-card-overlay">
-                      <button
-                        onClick={() => handleAddToCart(product)}
-                        disabled={outOfStock}
-                      >
-                        {outOfStock ? (
-                          "Out of Stock"
-                        ) : (
-                          <>
-                            Add to Cart <FaArrowRight size={10} />
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                  <div className="product-card-body">
-                    <Link
-                      href={`/products/${product.id}`}
-                      className="product-card-name"
-                    >
-                      {product.name}
-                    </Link>
-                    <div>
-                      <span className="product-card-price">
-                        ${product.price}
-                      </span>
-                      {product.compare_price && (
-                        <span className="product-card-compare">
-                          ${product.compare_price}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+            {featuredProducts.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
           </div>
         </section>
       )}
@@ -1030,18 +1072,12 @@ export default function HomePage() {
           {displayCategories.map((cat) => {
             const categoryImage = getCategoryImage(cat);
             return (
-              <Link
-                key={cat.slug}
-                href={`/categories/${cat.slug}`}
-                className="category-card"
-              >
+              <Link key={cat.slug} href={`/categories/${cat.slug}`} className="category-card">
                 <div className="category-card-media">
                   {categoryImage ? (
                     <img src={categoryImage} alt={cat.name} />
                   ) : (
-                    <div className="category-card-fallback">
-                      {getCategoryIcon(cat)}
-                    </div>
+                    <div className="category-card-fallback">{getCategoryIcon(cat)}</div>
                   )}
                 </div>
                 <div className="category-card-scrim" />
@@ -1070,81 +1106,16 @@ export default function HomePage() {
             </Link>
           </div>
           <div className="product-grid-4">
-            {bestSellers.map((product) => {
-              const discount =
-                product.compare_price && product.compare_price > product.price
-                  ? Math.round(
-                      ((product.compare_price - product.price) /
-                        product.compare_price) *
-                        100,
-                    )
-                  : null;
-              const outOfStock = product.stock_quantity === 0;
-
-              return (
-                <div key={product.id} className="product-card">
-                  <div className="product-card-image">
-                    <div className="ap-badge-wrap">
-                      {outOfStock && (
-                        <span className="ap-badge ap-badge-sold">Sold Out</span>
-                      )}
-                      {discount && !outOfStock && (
-                        <span className="ap-badge ap-badge-sale">
-                          −{discount}%
-                        </span>
-                      )}
-                    </div>
-
-                    <Link href={`/products/${product.id}`}>
-                      <img src={getPrimaryImage(product)} alt={product.name} />
-                    </Link>
-
-                    <div className="product-card-overlay">
-                      <button
-                        onClick={() => handleAddToCart(product)}
-                        disabled={outOfStock}
-                      >
-                        {outOfStock ? (
-                          "Out of Stock"
-                        ) : (
-                          <>
-                            Add to Cart <FaArrowRight size={10} />
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                  <div className="product-card-body">
-                    <Link
-                      href={`/products/${product.id}`}
-                      className="product-card-name"
-                    >
-                      {product.name}
-                    </Link>
-                    <div>
-                      <span className="product-card-price">
-                        ${product.price}
-                      </span>
-                      {product.compare_price && (
-                        <span className="product-card-compare">
-                          ${product.compare_price}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+            {bestSellers.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
           </div>
         </section>
       )}
 
       {/* ── NEW ARRIVALS ── */}
       {newArrivals.length > 0 && (
-        <section
-          className="section"
-          style={{ background: "var(--surface-muted)" }}
-        >
+        <section className="section" style={{ background: "var(--surface-muted)" }}>
           <div className="section-header">
             <div>
               <h2 className="h-section">New Arrivals</h2>
@@ -1154,75 +1125,28 @@ export default function HomePage() {
             </Link>
           </div>
           <div className="product-grid-4">
-            {newArrivals.map((product, idx) => {
-              const discount =
-                product.compare_price && product.compare_price > product.price
-                  ? Math.round(
-                      ((product.compare_price - product.price) /
-                        product.compare_price) *
-                        100,
-                    )
-                  : null;
-              const outOfStock = product.stock_quantity === 0;
-              const isNew = idx < 4;
+            {newArrivals.map((product) => (
+              <ProductCard key={product.id} product={product} badge="new" />
+            ))}
+          </div>
+        </section>
+      )}
 
-              return (
-                <div key={product.id} className="product-card">
-                  <div className="product-card-image">
-                    <div className="ap-badge-wrap">
-                      {outOfStock && (
-                        <span className="ap-badge ap-badge-sold">Sold Out</span>
-                      )}
-                      {isNew && !outOfStock && (
-                        <div className="product-card-badge new">New</div>
-                      )}
-                      {discount && !outOfStock && !isNew && (
-                        <span className="ap-badge ap-badge-sale">
-                          −{discount}%
-                        </span>
-                      )}
-                    </div>
-
-                    <Link href={`/products/${product.id}`}>
-                      <img src={getPrimaryImage(product)} alt={product.name} />
-                    </Link>
-
-                    <div className="product-card-overlay">
-                      <button
-                        onClick={() => handleAddToCart(product)}
-                        disabled={outOfStock}
-                      >
-                        {outOfStock ? (
-                          "Out of Stock"
-                        ) : (
-                          <>
-                            Add to Cart <FaArrowRight size={10} />
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                  <div className="product-card-body">
-                    <Link
-                      href={`/products/${product.id}`}
-                      className="product-card-name"
-                    >
-                      {product.name}
-                    </Link>
-                    <div>
-                      <span className="product-card-price">
-                        ${product.price}
-                      </span>
-                      {product.compare_price && (
-                        <span className="product-card-compare">
-                          ${product.compare_price}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+      {/* ── AI RECOMMENDED ── */}
+      {aiRecommended.length > 0 && (
+        <section className="section">
+          <div className="section-header">
+            <div>
+              <h2 className="h-section">Picked For You</h2>
+            </div>
+            <Link href="/products" className="btn-ghost-ink">
+              View All <FaArrowRight size={10} />
+            </Link>
+          </div>
+          <div className="product-grid-4">
+            {aiRecommended.map((product) => (
+              <ProductCard key={product.id} product={product} badge="ai" />
+            ))}
           </div>
         </section>
       )}
@@ -1250,19 +1174,9 @@ export default function HomePage() {
               >
                 Ahmed Maxamed
               </div>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  marginTop: 4,
-                }}
-              >
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
                 {renderStars(5)}
-                <span
-                  className="label-caps"
-                  style={{ fontSize: 10, color: "var(--ink-faint)" }}
-                >
+                <span className="label-caps" style={{ fontSize: 10, color: "var(--ink-faint)" }}>
                   Verified Customer
                 </span>
               </div>
@@ -1278,10 +1192,7 @@ export default function HomePage() {
           ].map((s) => (
             <div key={s.label} className="review-stat">
               <div className="review-stat-num">{s.num}</div>
-              <div
-                className="label-caps"
-                style={{ fontSize: 10, color: "var(--ink-soft)" }}
-              >
+              <div className="label-caps" style={{ fontSize: 10, color: "var(--ink-soft)" }}>
                 {s.label}
               </div>
             </div>
