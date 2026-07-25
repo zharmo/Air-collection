@@ -37,7 +37,7 @@ export default function AdminLayout({
     { name: "Products", path: "/admin/products", icon: FaBoxes },
     { name: "Categories", path: "/admin/categories", icon: FaTags },
     { name: "Orders", path: "/admin/orders", icon: FaShoppingCart },
-    { name: "Reviews", path: "/admin/reviews", icon: FaStar },
+    // { name: "Reviews", path: "/admin/reviews", icon: FaStar },
     { name: "Promo Codes", path: "/admin/promocodes", icon: FaTags },
   ];
 
