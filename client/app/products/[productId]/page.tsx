@@ -339,6 +339,8 @@ export default function ProductDetailPage() {
     );
   };
 
+  const formatPrice = (value: number) => Number(value).toFixed(2);
+
   const thumbs = allThumbs();
   const discount = product?.compare_price
     ? Math.round(
@@ -502,7 +504,10 @@ export default function ProductDetailPage() {
                 }
                 .pd-main-img-wrap img {
                     width: 100%; height: 100%;
-                    object-fit: cover; padding: 0;
+                    /* contain (not cover) so every uploaded image shows in
+                       full, regardless of its original aspect ratio — cover
+                       was cropping/zooming into non-square photos. */
+                    object-fit: contain; padding: 0;
                     transition: transform .5s cubic-bezier(.16,1,.3,1);
                 }
                 .pd-main-img-wrap:hover img { transform: scale(1.04); }
@@ -548,7 +553,7 @@ export default function ProductDetailPage() {
                     cursor: pointer; overflow: hidden; transition: border-color .2s;
                     display: flex; align-items: center; justify-content: center;
                 }
-                .pd-thumb img { width:100%; height:100%; object-fit:cover; padding:0; }
+                .pd-thumb img { width:100%; height:100%; object-fit:contain; padding:0; }
                 .pd-thumb.active { border-color: var(--ink); }
                 .pd-thumb:hover:not(.active) { border-color: var(--border-md); }
 
@@ -748,7 +753,6 @@ export default function ProductDetailPage() {
                     transition: background 0.28s;
                     pointer-events: none;
                 }
-                .ap-card:hover .ap-card-overlay { transform: translateY(0); }
                 .pd-rel-overlay-label {
                     width: 100%;
                     font-family: 'Jost', sans-serif;
@@ -886,7 +890,15 @@ export default function ProductDetailPage() {
                   }}
                 />
               </button>
-              <img src={mainImage} alt={product.name} key={mainImage} />
+              <img
+                src={mainImage}
+                alt={product.name}
+                key={mainImage}
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src =
+                    "/images/placeholders/placeholder.jpg";
+                }}
+              />
             </div>
             {thumbs.length > 1 && (
               <div className="pd-thumbs">
@@ -896,7 +908,14 @@ export default function ProductDetailPage() {
                     className={`pd-thumb${activeThumb === idx ? " active" : ""}`}
                     onClick={() => handleThumbClick(url, idx)}
                   >
-                    <img src={url} alt={`View ${idx + 1}`} />
+                    <img
+                      src={url}
+                      alt={`View ${idx + 1}`}
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src =
+                          "/images/placeholders/placeholder.jpg";
+                      }}
+                    />
                   </div>
                 ))}
               </div>
@@ -936,10 +955,12 @@ export default function ProductDetailPage() {
 
             {/* Price */}
             <div className="pd-price-row">
-              <span className="pd-price">${product.price}</span>
+              <span className="pd-price">${formatPrice(product.price)}</span>
               {product.compare_price && (
                 <>
-                  <span className="pd-compare">${product.compare_price}</span>
+                  <span className="pd-compare">
+                    ${formatPrice(product.compare_price)}
+                  </span>
                   {discount && (
                     <span className="pd-save">Save {discount}%</span>
                   )}
