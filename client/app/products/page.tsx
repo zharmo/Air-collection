@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, Suspense } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import {
   FaSearch,
   FaFilter,
@@ -22,6 +23,11 @@ interface Product {
   category_id: number;
   category_name: string;
   stock_quantity: number;
+  // Optional — populate these from the backend to enable size/color
+  // filtering for a given product. Products without a field are treated
+  // as matching any filter on that field.
+  sizes?: string[];
+  colors?: string[];
 }
 
 interface Category {
@@ -39,6 +45,40 @@ const SORT_LABELS: Record<SortOption, string> = {
   "name-asc": "Name A–Z",
 };
 
+/* ── Size vocab differs by category ──
+   "All Products" (and any apparel-style category) → letter sizes.
+   Footwear-type categories → EU numeric shoe sizes.
+   Categories with no meaningful size axis (accessories, bags, jewelry…)
+   simply don't show a Size section at all. */
+const CLOTHING_SIZES = ["XS", "S", "M", "L", "XL", "XXL"];
+const SHOE_SIZES = ["39", "40", "41", "42", "43", "44", "45", "46"];
+const NO_SIZE_PATTERN = /accessor|bag|jewel|belt|hat|cap|scarf|watch|home|decor|candle|pillow|cushion/i;
+const SHOE_PATTERN = /shoe|footwear|sneaker|boot|sandal|heel|loafer/i;
+
+function getSizeOptionsForCategory(
+  categoryId: number | null,
+  categories: Category[],
+): string[] {
+  if (categoryId === null) return CLOTHING_SIZES; // "All Products"
+  const cat = categories.find((c) => c.id === categoryId);
+  const label = `${cat?.name ?? ""} ${cat?.slug ?? ""}`;
+  if (NO_SIZE_PATTERN.test(label)) return [];
+  if (SHOE_PATTERN.test(label)) return SHOE_SIZES;
+  return CLOTHING_SIZES;
+}
+
+const COLOR_OPTIONS = [
+  { name: "Black", hex: "#0a0a0a" },
+  { name: "White", hex: "#ffffff" },
+  { name: "Grey", hex: "#8a8f98" },
+  { name: "Gold", hex: "#c8a96e" },
+  { name: "Cream", hex: "#f0ecd9" },
+];
+
+const PRICE_MIN = 2;
+const PRICE_MAX = 1000;
+const PRICE_STEP = 2;
+
 // Module-scope cache. Survives a component unmount/remount within the
 // same browser session (e.g. navigating to a product page and then
 // hitting Back), so a revisit paints the real grid immediately instead
@@ -53,7 +93,171 @@ interface ProductsData {
 }
 let productsCache: ProductsData | null = null;
 
-export default function AllProductsPage() {
+/* ────────────────────────────────────────────────────────────────────── */
+/* Shared filter panel — used by both the desktop sidebar and the mobile  */
+/* drawer so the two stay visually and behaviourally in sync.             */
+/* ────────────────────────────────────────────────────────────────────── */
+interface FilterPanelProps {
+  categories: Category[];
+  categoryCounts: Record<number, number>;
+  category: number | null;
+  onCategoryChange: (id: number | null) => void;
+  sizeOptions: string[];
+  priceMax: number;
+  onPriceChange: (val: number) => void;
+  sizes: string[];
+  onSizesChange: (val: string[]) => void;
+  colors: string[];
+  onColorsChange: (val: string[]) => void;
+  searchTerm: string;
+  onSearchChange: (val: string) => void;
+  onClear: () => void;
+  showInlineClear?: boolean;
+}
+
+function FilterPanel({
+  categories,
+  categoryCounts,
+  category,
+  onCategoryChange,
+  sizeOptions,
+  priceMax,
+  onPriceChange,
+  sizes,
+  onSizesChange,
+  colors,
+  onColorsChange,
+  searchTerm,
+  onSearchChange,
+  onClear,
+  showInlineClear = true,
+}: FilterPanelProps) {
+  const toggleSize = (s: string) =>
+    onSizesChange(
+      sizes.includes(s) ? sizes.filter((x) => x !== s) : [...sizes, s],
+    );
+  const toggleColor = (c: string) =>
+    onColorsChange(
+      colors.includes(c) ? colors.filter((x) => x !== c) : [...colors, c],
+    );
+
+  const sliderPct = ((priceMax - PRICE_MIN) / (PRICE_MAX - PRICE_MIN)) * 100;
+
+  return (
+    <>
+      {/* Search */}
+      <div className="ap-search-wrap">
+        <input
+          type="text"
+          className="ap-search-input"
+          placeholder="Search products…"
+          value={searchTerm}
+          onChange={(e) => onSearchChange(e.target.value)}
+        />
+        {searchTerm ? (
+          <button className="ap-search-clear" onClick={() => onSearchChange("")}>
+            <FaTimes size={11} />
+          </button>
+        ) : (
+          <FaSearch className="ap-search-icon" />
+        )}
+      </div>
+
+      {/* Categories */}
+      <div className="ap-filter-section">
+        <p className="ap-sidebar-title">Categories</p>
+        <div className="ap-pill-list">
+          <button
+            className={`ap-pill${category === null ? " active" : ""}`}
+            onClick={() => onCategoryChange(null)}
+          >
+            All Products
+          </button>
+          {categories.map((cat) => (
+            <button
+              key={cat.id}
+              className={`ap-pill${category === cat.id ? " active" : ""}`}
+              onClick={() => onCategoryChange(cat.id)}
+            >
+              {cat.name}
+              <span className="ap-pill-count">{categoryCounts[cat.id] ?? 0}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Price range */}
+      <div className="ap-filter-section">
+        <p className="ap-sidebar-title">Price Range</p>
+        <div className="ap-range-wrap">
+          <input
+            type="range"
+            className="ap-range-input"
+            min={PRICE_MIN}
+            max={PRICE_MAX}
+            step={PRICE_STEP}
+            value={priceMax}
+            onChange={(e) => onPriceChange(Number(e.target.value))}
+            style={{ "--pct": `${sliderPct}%` } as React.CSSProperties}
+          />
+        </div>
+        <div className="ap-range-labels">
+          <span>${PRICE_MIN}</span>
+          <span>{priceMax >= PRICE_MAX ? `$${PRICE_MAX}+` : `$${priceMax}`}</span>
+        </div>
+      </div>
+
+      {/* Size — only shown when this category actually has a size axis */}
+      {sizeOptions.length > 0 && (
+        <div className="ap-filter-section">
+          <p className="ap-sidebar-title">Size</p>
+          <div className="ap-size-grid">
+            {sizeOptions.map((s) => (
+              <button
+                key={s}
+                className={`ap-size-btn${sizes.includes(s) ? " active" : ""}`}
+                onClick={() => toggleSize(s)}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Color */}
+      <div className="ap-filter-section">
+        <p className="ap-sidebar-title">Color</p>
+        <div className="ap-color-list">
+          {COLOR_OPTIONS.map((c) => (
+            <button
+              key={c.name}
+              title={c.name}
+              aria-label={c.name}
+              className={`ap-color-swatch${colors.includes(c.name) ? " active" : ""}`}
+              style={{ background: c.hex }}
+              onClick={() => toggleColor(c.name)}
+            />
+          ))}
+        </div>
+      </div>
+
+      {showInlineClear && (
+        <button className="ap-clear-btn" onClick={onClear}>
+          <FaTimes size={9} /> Clear All Filters
+        </button>
+      )}
+    </>
+  );
+}
+
+/* ────────────────────────────────────────────────────────────────────── */
+
+function AllProductsPageInner() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   const [products, setProducts] = useState<Product[]>(
     productsCache?.products ?? [],
   );
@@ -63,9 +267,49 @@ export default function AllProductsPage() {
   );
   // Only block on loading when nothing is cached yet.
   const [loading, setLoading] = useState(!productsCache);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
-  const [sortBy, setSortBy] = useState<SortOption>("default");
+
+  /* ── Applied filters — seeded from the URL so that navigating to a
+     product and hitting Back lands you exactly where you left off,
+     category and all, instead of resetting to the unfiltered grid. ── */
+  const [searchTerm, setSearchTerm] = useState(() => searchParams.get("q") ?? "");
+  const [selectedCategory, setSelectedCategoryRaw] = useState<number | null>(() => {
+    const c = searchParams.get("category");
+    return c ? Number(c) : null;
+  });
+  const [priceMax, setPriceMax] = useState(() => {
+    const p = searchParams.get("price");
+    return p ? Number(p) : PRICE_MAX;
+  });
+  const [selectedSizes, setSelectedSizes] = useState<string[]>(() => {
+    const s = searchParams.get("size");
+    return s ? s.split(",").filter(Boolean) : [];
+  });
+  const [selectedColors, setSelectedColors] = useState<string[]>(() => {
+    const c = searchParams.get("color");
+    return c ? c.split(",").filter(Boolean) : [];
+  });
+  const [sortBy, setSortBy] = useState<SortOption>(() => {
+    const s = searchParams.get("sort") as SortOption | null;
+    return s && s in SORT_LABELS ? s : "default";
+  });
+
+  // Changing category invalidates the previous size selection, since the
+  // size vocabulary (letters vs. shoe numbers vs. none) is category-specific.
+  const setSelectedCategory = (id: number | null) => {
+    setSelectedCategoryRaw(id);
+    setSelectedSizes([]);
+  };
+
+  // ── Draft filters (mobile drawer only — committed on "Apply Filters") ──
+  const [draftCategory, setDraftCategory] = useState<number | null>(null);
+  const [draftPriceMax, setDraftPriceMax] = useState(PRICE_MAX);
+  const [draftSizes, setDraftSizes] = useState<string[]>([]);
+  const [draftColors, setDraftColors] = useState<string[]>([]);
+  const setDraftCategoryChecked = (id: number | null) => {
+    setDraftCategory(id);
+    setDraftSizes([]);
+  };
+
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [hoveredId, setHoveredId] = useState<number | null>(null);
@@ -84,7 +328,24 @@ export default function AllProductsPage() {
   }, []);
   useEffect(() => {
     filterProducts();
-  }, [searchTerm, selectedCategory, sortBy, products]);
+  }, [searchTerm, selectedCategory, priceMax, selectedSizes, selectedColors, sortBy, products]);
+
+  /* Keep the URL in sync with the applied filters. Using replace (not
+     push) means every filter tweak updates the SAME history entry, so
+     Back from a product page returns to this listing with the last
+     filter state intact — category, price, sizes, colors, sort, search. */
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (selectedCategory !== null) params.set("category", String(selectedCategory));
+    if (priceMax < PRICE_MAX) params.set("price", String(priceMax));
+    if (selectedSizes.length) params.set("size", selectedSizes.join(","));
+    if (selectedColors.length) params.set("color", selectedColors.join(","));
+    if (sortBy !== "default") params.set("sort", sortBy);
+    if (searchTerm) params.set("q", searchTerm);
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCategory, priceMax, selectedSizes, selectedColors, sortBy, searchTerm]);
 
   /* Close sort menu on outside click */
   useEffect(() => {
@@ -136,6 +397,16 @@ export default function AllProductsPage() {
       );
     if (selectedCategory)
       filtered = filtered.filter((p) => p.category_id === selectedCategory);
+    if (priceMax < PRICE_MAX)
+      filtered = filtered.filter((p) => p.price <= priceMax);
+    if (selectedSizes.length)
+      filtered = filtered.filter(
+        (p) => !p.sizes || p.sizes.some((s) => selectedSizes.includes(s)),
+      );
+    if (selectedColors.length)
+      filtered = filtered.filter(
+        (p) => !p.colors || p.colors.some((c) => selectedColors.includes(c)),
+      );
 
     switch (sortBy) {
       case "price-asc":
@@ -169,12 +440,35 @@ export default function AllProductsPage() {
 
   const clearFilters = () => {
     setSearchTerm("");
-    setSelectedCategory(null);
+    setSelectedCategoryRaw(null);
+    setPriceMax(PRICE_MAX);
+    setSelectedSizes([]);
+    setSelectedColors([]);
     setSortBy("default");
   };
 
   const isFiltersActive =
-    searchTerm || selectedCategory !== null || sortBy !== "default";
+    !!searchTerm ||
+    selectedCategory !== null ||
+    priceMax < PRICE_MAX ||
+    selectedSizes.length > 0 ||
+    selectedColors.length > 0 ||
+    sortBy !== "default";
+
+  const activeFilterCount =
+    (selectedCategory !== null ? 1 : 0) +
+    (priceMax < PRICE_MAX ? 1 : 0) +
+    (selectedSizes.length > 0 ? 1 : 0) +
+    (selectedColors.length > 0 ? 1 : 0) +
+    (searchTerm ? 1 : 0);
+
+  const categoryCounts = categories.reduce<Record<number, number>>((acc, cat) => {
+    acc[cat.id] = products.filter((p) => p.category_id === cat.id).length;
+    return acc;
+  }, {});
+
+  const sizeOptions = getSizeOptionsForCategory(selectedCategory, categories);
+  const draftSizeOptions = getSizeOptionsForCategory(draftCategory, categories);
 
   const getDiscount = (p: Product) =>
     p.compare_price
@@ -182,6 +476,31 @@ export default function AllProductsPage() {
       : null;
 
   const formatPrice = (value: number) => Number(value).toFixed(2);
+
+  /* ── Mobile drawer open/apply/clear (draft flow) ── */
+  const openMobileFilters = () => {
+    setDraftCategory(selectedCategory);
+    setDraftPriceMax(priceMax);
+    setDraftSizes(selectedSizes);
+    setDraftColors(selectedColors);
+    setShowMobileFilters(true);
+  };
+
+  const applyMobileFilters = () => {
+    setSelectedCategoryRaw(draftCategory);
+    setPriceMax(draftPriceMax);
+    setSelectedSizes(draftSizes);
+    setSelectedColors(draftColors);
+    setShowMobileFilters(false);
+  };
+
+  const clearDraftFilters = () => {
+    setDraftCategory(null);
+    setDraftPriceMax(PRICE_MAX);
+    setDraftSizes([]);
+    setDraftColors([]);
+    setSearchTerm("");
+  };
 
   /* ─────────────────────────────────────────────────── */
 
@@ -263,21 +582,31 @@ export default function AllProductsPage() {
                     background: var(--white);
                     border: 1px solid var(--border);
                     padding: 28px 24px;
+                    max-height: calc(100vh - 110px);
+                    overflow-y: auto;
                 }
 
                 .ap-sidebar-title {
                     font-family: 'Jost', sans-serif;
                     font-size: 10px; font-weight: 700;
                     letter-spacing: .22em; text-transform: uppercase;
-                    color: var(--ink); margin-bottom: 16px;
+                    color: var(--ink); margin-bottom: 14px;
                     display: flex; align-items: center; gap: 8px;
                 }
                 .ap-sidebar-title svg { color: var(--accent); }
 
+                /* filter sections */
+                .ap-filter-section {
+                    margin-bottom: 26px;
+                    padding-bottom: 26px;
+                    border-bottom: 1px solid var(--border);
+                }
+                .ap-filter-section:last-of-type { border-bottom: none; }
+
                 /* search */
                 .ap-search-wrap {
-                    position: relative; margin-bottom: 28px;
-                    padding-bottom: 28px; border-bottom: 1px solid var(--border);
+                    position: relative; margin-bottom: 26px;
+                    padding-bottom: 26px; border-bottom: 1px solid var(--border);
                 }
                 .ap-search-input {
                     width: 100%; height: 44px;
@@ -302,43 +631,104 @@ export default function AllProductsPage() {
                 }
                 .ap-search-clear:hover { color: var(--ink); }
 
-                /* categories */
-                .ap-cat-section { margin-bottom: 24px; }
-                .ap-cat-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
-                .ap-cat-btn {
-                    width: 100%; background: none; border: none; cursor: pointer;
-                    padding: 10px 12px;
+                /* category pills */
+                .ap-pill-list {
+                    display: flex; flex-wrap: wrap; gap: 8px;
+                }
+                .ap-pill {
                     font-family: 'Jost', sans-serif;
-                    font-size: 12px; font-weight: 400;
-                    letter-spacing: .08em; text-transform: uppercase;
-                    color: var(--ink-soft); text-align: left;
-                    display: flex; align-items: center; justify-content: space-between;
-                    transition: background .15s, color .15s, padding-left .22s;
-                    border-left: 2px solid transparent;
+                    font-size: 11px; font-weight: 500;
+                    letter-spacing: .05em;
+                    color: var(--ink-soft); background: var(--white);
+                    border: 1px solid var(--border-md);
+                    border-radius: 999px;
+                    padding: 9px 16px; cursor: pointer;
+                    display: inline-flex; align-items: center; gap: 6px;
+                    transition: all .18s ease;
+                    white-space: nowrap;
                 }
-                .ap-cat-btn:hover { background: var(--muted); color: var(--ink); padding-left: 16px; }
-                .ap-cat-btn.active {
-                    color: var(--ink); font-weight: 600;
-                    border-left-color: var(--accent);
-                    background: var(--accent-lt);
-                    padding-left: 16px;
+                .ap-pill:hover { border-color: var(--ink); color: var(--ink); }
+                .ap-pill.active {
+                    background: var(--ink); border-color: var(--ink); color: var(--white);
                 }
-                .ap-cat-count {
-                    font-size: 10px; color: var(--ink-faint);
-                    background: var(--muted); padding: 2px 7px;
-                    border-radius: 10px; font-weight: 500;
+                .ap-pill-count { font-size: 10px; opacity: .6; }
+                .ap-pill.active .ap-pill-count { opacity: .75; }
+
+                /* price range */
+                .ap-range-wrap { padding: 4px 2px 2px; }
+                .ap-range-input {
+                    -webkit-appearance: none; appearance: none;
+                    width: 100%; height: 2px;
+                    border-radius: 2px;
+                    background: linear-gradient(to right,
+                        var(--ink) 0%, var(--ink) var(--pct, 50%),
+                        var(--border-md) var(--pct, 50%), var(--border-md) 100%);
+                    cursor: pointer; outline: none;
                 }
-                .ap-cat-btn.active .ap-cat-count { background: rgba(200,169,110,.2); }
+                .ap-range-input::-webkit-slider-thumb {
+                    -webkit-appearance: none; appearance: none;
+                    width: 16px; height: 16px; border-radius: 50%;
+                    background: var(--ink); border: 3px solid var(--white);
+                    box-shadow: 0 0 0 1px var(--ink);
+                    cursor: pointer; transition: transform .15s;
+                }
+                .ap-range-input::-webkit-slider-thumb:hover { transform: scale(1.15); }
+                .ap-range-input::-moz-range-thumb {
+                    width: 16px; height: 16px; border-radius: 50%;
+                    background: var(--ink); border: 3px solid var(--white);
+                    box-shadow: 0 0 0 1px var(--ink);
+                    cursor: pointer; transition: transform .15s;
+                }
+                .ap-range-input::-moz-range-track { height: 2px; background: transparent; }
+                .ap-range-labels {
+                    display: flex; justify-content: space-between;
+                    margin-top: 12px;
+                    font-family: 'Jost', sans-serif;
+                    font-size: 11px; font-weight: 500;
+                    color: var(--ink-soft);
+                }
+
+                /* size grid */
+                .ap-size-grid {
+                    display: grid; grid-template-columns: repeat(4, 1fr);
+                    gap: 8px;
+                }
+                .ap-size-btn {
+                    font-family: 'Jost', sans-serif;
+                    font-size: 12px; font-weight: 500;
+                    color: var(--ink); background: var(--white);
+                    border: 1px solid var(--border-md);
+                    padding: 10px 0; cursor: pointer;
+                    transition: all .18s ease;
+                }
+                .ap-size-btn:hover { border-color: var(--ink); }
+                .ap-size-btn.active {
+                    background: var(--ink); border-color: var(--ink); color: var(--white);
+                }
+
+                /* color swatches */
+                .ap-color-list { display: flex; flex-wrap: wrap; gap: 12px; }
+                .ap-color-swatch {
+                    width: 28px; height: 28px; border-radius: 50%;
+                    border: 1px solid var(--border-md);
+                    cursor: pointer; padding: 0;
+                    position: relative;
+                    transition: transform .15s ease;
+                }
+                .ap-color-swatch:hover { transform: scale(1.1); }
+                .ap-color-swatch.active {
+                    box-shadow: 0 0 0 2px var(--white), 0 0 0 3px var(--ink);
+                }
 
                 /* clear filters */
                 .ap-clear-btn {
-                    margin-top: 20px; width: 100%;
+                    margin-top: 4px; width: 100%;
                     font-family: 'Jost', sans-serif;
                     font-size: 10px; font-weight: 600;
                     letter-spacing: .18em; text-transform: uppercase;
                     color: var(--ink-soft); background: none;
                     border: 1px solid var(--border-md);
-                    padding: 10px; cursor: pointer;
+                    padding: 12px; cursor: pointer;
                     display: flex; align-items: center; justify-content: center; gap: 8px;
                     transition: all .2s;
                 }
@@ -405,9 +795,12 @@ export default function AllProductsPage() {
                     transition: border-color .2s;
                 }
                 .ap-mobile-filter-btn:hover { border-color: var(--ink); }
-                .ap-filter-dot {
-                    width: 6px; height: 6px; border-radius: 50%;
-                    background: var(--accent); flex-shrink: 0;
+                .ap-filter-badge {
+                    min-width: 16px; height: 16px; border-radius: 50%;
+                    background: var(--accent); color: var(--ink);
+                    font-size: 9px; font-weight: 700;
+                    display: flex; align-items: center; justify-content: center;
+                    flex-shrink: 0; padding: 0 4px;
                 }
 
                 /* ── Product grid ── */
@@ -548,10 +941,7 @@ export default function AllProductsPage() {
                     grid-template-columns: repeat(3, 1fr);
                     gap: 20px;
                 }
-                .ap-skeleton-card {
-                    background: var(--white);
-                    overflow: hidden;
-                }
+                .ap-skeleton-card { background: var(--white); overflow: hidden; }
                 .ap-skeleton-img {
                     aspect-ratio: 6/7;
                     background: linear-gradient(90deg, var(--muted) 25%, var(--warm) 50%, var(--muted) 75%);
@@ -576,10 +966,11 @@ export default function AllProductsPage() {
                 }
                 .ap-mobile-drawer {
                     position: fixed; top: 0; right: 0; bottom: 0;
-                    width: min(320px, 88vw);
+                    width: min(340px, 88vw);
                     background: var(--white);
                     z-index: 1001; overflow-y: auto;
-                    padding: 0 0 40px;
+                    padding: 0;
+                    display: flex; flex-direction: column;
                     animation: slideInRight .3s cubic-bezier(.16,1,.3,1);
                 }
                 .ap-drawer-head {
@@ -587,11 +978,11 @@ export default function AllProductsPage() {
                     padding: 24px;
                     border-bottom: 1px solid var(--border);
                     position: sticky; top: 0; background: var(--white); z-index: 2;
+                    flex-shrink: 0;
                 }
                 .ap-drawer-head-title {
-                    font-family: 'Jost', sans-serif;
-                    font-size: 11px; font-weight: 700;
-                    letter-spacing: .2em; text-transform: uppercase;
+                    font-family: 'Cormorant Garamond', serif;
+                    font-size: 22px; font-weight: 600;
                     color: var(--ink);
                 }
                 .ap-drawer-close {
@@ -601,7 +992,24 @@ export default function AllProductsPage() {
                     transition: color .2s;
                 }
                 .ap-drawer-close:hover { color: var(--ink); }
-                .ap-drawer-body { padding: 24px; }
+                .ap-drawer-body { padding: 24px; flex: 1; overflow-y: auto; }
+                .ap-drawer-footer {
+                    display: flex; gap: 12px; padding: 18px 24px;
+                    border-top: 1px solid var(--border);
+                    background: var(--white); flex-shrink: 0;
+                    position: sticky; bottom: 0;
+                }
+                .ap-drawer-footer .ap-clear-btn { margin-top: 0; flex: 0 0 auto; width: auto; padding: 12px 18px; }
+                .ap-apply-btn {
+                    flex: 1;
+                    font-family: 'Jost', sans-serif;
+                    font-size: 11px; font-weight: 700;
+                    letter-spacing: .18em; text-transform: uppercase;
+                    color: #fff; background: var(--ink);
+                    border: none; cursor: pointer;
+                    transition: opacity .2s;
+                }
+                .ap-apply-btn:hover { opacity: .82; }
 
                 /* ── Keyframes ── */
                 @keyframes fadeIn        { from { opacity: 0 } to { opacity: 1 } }
@@ -640,67 +1048,23 @@ export default function AllProductsPage() {
           <p className="ap-sidebar-title">
             <FaSlidersH size={11} /> Filters
           </p>
-
-          {/* Search */}
-          <div className="ap-search-wrap">
-            <input
-              type="text"
-              className="ap-search-input"
-              placeholder="Search products…"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-            {searchTerm ? (
-              <button
-                className="ap-search-clear"
-                onClick={() => setSearchTerm("")}
-              >
-                <FaTimes size={11} />
-              </button>
-            ) : (
-              <FaSearch className="ap-search-icon" />
-            )}
-          </div>
-
-          {/* Categories */}
-          <div className="ap-cat-section">
-            <p className="ap-sidebar-title" style={{ marginBottom: 10 }}>
-              Categories
-            </p>
-            <ul className="ap-cat-list">
-              <li>
-                <button
-                  className={`ap-cat-btn${selectedCategory === null ? " active" : ""}`}
-                  onClick={() => setSelectedCategory(null)}
-                >
-                  All Products
-                  <span className="ap-cat-count">{products.length}</span>
-                </button>
-              </li>
-              {categories.map((cat) => {
-                const count = products.filter(
-                  (p) => p.category_id === cat.id,
-                ).length;
-                return (
-                  <li key={cat.id}>
-                    <button
-                      className={`ap-cat-btn${selectedCategory === cat.id ? " active" : ""}`}
-                      onClick={() => setSelectedCategory(cat.id)}
-                    >
-                      {cat.name}
-                      <span className="ap-cat-count">{count}</span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-
-          {isFiltersActive && (
-            <button className="ap-clear-btn" onClick={clearFilters}>
-              <FaTimes size={9} /> Clear All Filters
-            </button>
-          )}
+          <FilterPanel
+            categories={categories}
+            categoryCounts={categoryCounts}
+            category={selectedCategory}
+            onCategoryChange={setSelectedCategory}
+            sizeOptions={sizeOptions}
+            priceMax={priceMax}
+            onPriceChange={setPriceMax}
+            sizes={selectedSizes}
+            onSizesChange={setSelectedSizes}
+            colors={selectedColors}
+            onColorsChange={setSelectedColors}
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            onClear={clearFilters}
+            showInlineClear={isFiltersActive}
+          />
         </aside>
 
         {/* ── Main content ── */}
@@ -709,12 +1073,11 @@ export default function AllProductsPage() {
           <div className="ap-toolbar">
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               {/* Mobile filter trigger */}
-              <button
-                className="ap-mobile-filter-btn"
-                onClick={() => setShowMobileFilters(true)}
-              >
+              <button className="ap-mobile-filter-btn" onClick={openMobileFilters}>
                 <FaFilter size={11} /> Filters
-                {isFiltersActive && <span className="ap-filter-dot" />}
+                {activeFilterCount > 0 && (
+                  <span className="ap-filter-badge">{activeFilterCount}</span>
+                )}
               </button>
 
               <p className="ap-count">
@@ -885,84 +1248,49 @@ export default function AllProductsPage() {
                 <FaTimes size={16} />
               </button>
             </div>
+
             <div className="ap-drawer-body">
-              {/* Search */}
-              <p className="ap-sidebar-title" style={{ marginBottom: 12 }}>
-                Search
-              </p>
-              <div className="ap-search-wrap">
-                <input
-                  type="text"
-                  className="ap-search-input"
-                  placeholder="Search products…"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-                {searchTerm ? (
-                  <button
-                    className="ap-search-clear"
-                    onClick={() => setSearchTerm("")}
-                  >
-                    <FaTimes size={11} />
-                  </button>
-                ) : (
-                  <FaSearch className="ap-search-icon" />
-                )}
-              </div>
+              <FilterPanel
+                categories={categories}
+                categoryCounts={categoryCounts}
+                category={draftCategory}
+                onCategoryChange={setDraftCategoryChecked}
+                sizeOptions={draftSizeOptions}
+                priceMax={draftPriceMax}
+                onPriceChange={setDraftPriceMax}
+                sizes={draftSizes}
+                onSizesChange={setDraftSizes}
+                colors={draftColors}
+                onColorsChange={setDraftColors}
+                searchTerm={searchTerm}
+                onSearchChange={setSearchTerm}
+                onClear={clearDraftFilters}
+                showInlineClear={false}
+              />
+            </div>
 
-              {/* Categories */}
-              <p className="ap-sidebar-title" style={{ marginBottom: 10 }}>
-                Categories
-              </p>
-              <ul className="ap-cat-list" style={{ marginBottom: 24 }}>
-                <li>
-                  <button
-                    className={`ap-cat-btn${selectedCategory === null ? " active" : ""}`}
-                    onClick={() => {
-                      setSelectedCategory(null);
-                      setShowMobileFilters(false);
-                    }}
-                  >
-                    All Products
-                    <span className="ap-cat-count">{products.length}</span>
-                  </button>
-                </li>
-                {categories.map((cat) => {
-                  const count = products.filter(
-                    (p) => p.category_id === cat.id,
-                  ).length;
-                  return (
-                    <li key={cat.id}>
-                      <button
-                        className={`ap-cat-btn${selectedCategory === cat.id ? " active" : ""}`}
-                        onClick={() => {
-                          setSelectedCategory(cat.id);
-                          setShowMobileFilters(false);
-                        }}
-                      >
-                        {cat.name}
-                        <span className="ap-cat-count">{count}</span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-
-              {isFiltersActive && (
-                <button
-                  className="ap-clear-btn"
-                  onClick={() => {
-                    clearFilters();
-                    setShowMobileFilters(false);
-                  }}
-                >
-                  <FaTimes size={9} /> Clear All Filters
-                </button>
-              )}
+            <div className="ap-drawer-footer">
+              <button className="ap-clear-btn" onClick={clearDraftFilters}>
+                Clear All
+              </button>
+              <button className="ap-apply-btn" onClick={applyMobileFilters}>
+                Apply Filters
+              </button>
             </div>
           </div>
         </>
       )}
     </>
+  );
+}
+
+/* useSearchParams requires a Suspense boundary at build time in the
+   Next.js app router — wrapping here keeps that self-contained so this
+   file can be dropped in as a page without editing its parent. */
+export default function AllProductsPage() {
+  return (
+    <Suspense fallback={null}>
+      <AllProductsPageInner />
+    </Suspense>
   );
 }

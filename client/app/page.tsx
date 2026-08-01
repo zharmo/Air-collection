@@ -8,6 +8,10 @@ import {
   FaStarHalfAlt,
   FaArrowRight,
   FaQuoteLeft,
+  FaGem,
+  FaShippingFast,
+  FaShieldAlt,
+  FaUndo,
 } from "react-icons/fa";
 import axiosInstance from "@/utils/axiosConfig";
 import { useCart } from "@/context/CartContext";
@@ -226,11 +230,11 @@ export default function HomePage() {
     return (
       <span style={{ display: "inline-flex", gap: 3 }}>
         {[...Array(full)].map((_, i) => (
-          <FaStar key={i} style={{ color: "#c8a96e" }} />
+          <FaStar key={i} style={{ color: "#c8a96a" }} />
         ))}
-        {half && <FaStarHalfAlt style={{ color: "#c8a96e" }} />}
+        {half && <FaStarHalfAlt style={{ color: "#c8a96a" }} />}
         {[...Array(empty)].map((_, i) => (
-          <FaRegStar key={i} style={{ color: "#c8a96e" }} />
+          <FaRegStar key={i} style={{ color: "#c8a96a" }} />
         ))}
       </span>
     );
@@ -331,7 +335,7 @@ export default function HomePage() {
               height: 40,
               borderRadius: "50%",
               border: "2px solid #e5e5e5",
-              borderTopColor: "#0a0a0a",
+              borderTopColor: "#111111",
               animation: "spin 0.8s linear infinite",
             }}
           />
@@ -358,20 +362,23 @@ export default function HomePage() {
         @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Jost:wght@300;400;500;600&display=swap');
 
         :root {
-          --ink: #0a0a0a;
+          --ink: #111111;
           --ink-soft: #6b6b6b;
           --ink-faint: #ababab;
           --surface: #ffffff;
           --surface-warm: #fafaf7;
-          --surface-muted: #f4f2ef;
-          --accent: #c8a96e;
+          --surface-muted: #F6F6F6;
+          --accent: #c8a96a;
           --accent-light: #f0e8d8;
           --border: rgba(0,0,0,0.08);
           --border-strong: rgba(0,0,0,0.15);
           --product-bg: #f7f6f3;
-          --radius: 0px;
+          --radius: 14px;
+          --radius-lg: 22px;
           --card-shadow: 0 2px 20px rgba(0,0,0,0.06);
-          --card-shadow-hover: 0 12px 48px rgba(0,0,0,0.12);
+          --card-shadow-hover: 0 20px 56px rgba(0,0,0,0.14);
+          --glass-bg: rgba(255,255,255,0.55);
+          --glass-border: rgba(255,255,255,0.6);
           --home-x: 36px;
           --home-pad-x: max(var(--home-x), calc((100vw - 1400px) / 2 + var(--home-x)));
         }
@@ -487,7 +494,8 @@ export default function HomePage() {
           background: var(--ink);
           color: #fff;
           border: 1.5px solid var(--ink);
-          padding: 14px 22px;
+          padding: 14px 26px;
+          border-radius: 100px;
           text-decoration: none;
           display: inline-flex;
           align-items: center;
@@ -499,6 +507,8 @@ export default function HomePage() {
         .btn-primary-ink:hover {
           background: transparent;
           color: var(--ink);
+          transform: translateY(-2px);
+          box-shadow: 0 12px 28px rgba(0,0,0,0.12);
         }
 
         .btn-ghost-ink {
@@ -538,7 +548,7 @@ export default function HomePage() {
           aspect-ratio: 1;
           border-radius: 50%;
           background: linear-gradient(135deg, #fff 0%, #e8dfd0 100%);
-          box-shadow: 0 40px 100px rgba(200, 169, 110, 0.25), 0 0 0 1px rgba(200,169,110,0.1);
+          box-shadow: 0 40px 100px rgba(200, 169, 106, 0.28), 0 0 0 1px rgba(200,169,106,0.12);
           display: flex;
           align-items: center;
           justify-content: center;
@@ -554,16 +564,22 @@ export default function HomePage() {
         .hero-stat-bar {
           position: absolute;
           bottom: 60px;
-          left: 0;
-          right: 0;
+          left: 40px;
+          right: 40px;
           display: flex;
           gap: 0;
+          background: var(--glass-bg);
+          border: 1px solid var(--glass-border);
+          border-radius: var(--radius-lg);
+          backdrop-filter: blur(14px);
+          -webkit-backdrop-filter: blur(14px);
+          box-shadow: 0 20px 50px rgba(0,0,0,0.08);
+          overflow: hidden;
         }
 
         .hero-stat {
           flex: 1;
-          padding: 24px 0;
-          border-top: 1px solid var(--border-strong);
+          padding: 22px 0;
           text-align: center;
         }
 
@@ -585,18 +601,23 @@ export default function HomePage() {
         .product-grid-4 {
           display: grid;
           grid-template-columns: repeat(3, 1fr);
-          gap: 15px;
+          gap: 18px;
         }
 
         .product-card {
           background: var(--surface);
           cursor: pointer;
           position: relative;
-          transition: box-shadow 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+          border-radius: var(--radius);
+          overflow: hidden;
+          box-shadow: var(--card-shadow);
+          transition: box-shadow 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+                      transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
         .product-card:hover {
           box-shadow: var(--card-shadow-hover);
+          transform: translateY(-4px);
         }
 
         .product-card-image {
@@ -634,7 +655,8 @@ export default function HomePage() {
           font-weight: 700;
           letter-spacing: .08em;
           text-transform: uppercase;
-          padding: 3px 6px;
+          padding: 4px 8px;
+          border-radius: 100px;
           background: var(--ink);
           color: #fff;
           z-index: 2;
@@ -682,7 +704,7 @@ export default function HomePage() {
         .product-card-overlay button:disabled { opacity: .35; cursor: not-allowed; }
 
         .product-card-body {
-          padding: 20px 6px 8px;
+          padding: 20px 14px 16px;
         }
 
         .product-card-name {
@@ -723,7 +745,7 @@ export default function HomePage() {
         .category-grid {
           display: grid;
           grid-template-columns: repeat(4, 1fr);
-          gap: 16px;
+          gap: 18px;
         }
 
         .category-card {
@@ -734,6 +756,14 @@ export default function HomePage() {
           text-decoration: none;
           background: var(--product-bg);
           border: 1px solid var(--border);
+          border-radius: var(--radius);
+          box-shadow: var(--card-shadow);
+          transition: box-shadow 0.35s ease, transform 0.35s ease;
+        }
+
+        .category-card:hover {
+          box-shadow: var(--card-shadow-hover);
+          transform: translateY(-4px);
         }
 
         .category-card-media {
@@ -850,6 +880,133 @@ export default function HomePage() {
           to { transform: translateX(-50%); }
         }
 
+        /* ── Why Choose Us ── */
+        .why-section {
+          padding: 100px var(--home-pad-x);
+          background: var(--surface);
+        }
+
+        .why-grid {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 20px;
+        }
+
+        .why-card {
+          background: var(--glass-bg);
+          border: 1px solid var(--glass-border);
+          border-radius: var(--radius-lg);
+          backdrop-filter: blur(10px);
+          -webkit-backdrop-filter: blur(10px);
+          padding: 34px 26px;
+          text-align: left;
+          box-shadow: var(--card-shadow);
+          transition: transform 0.35s cubic-bezier(0.16,1,0.3,1), box-shadow 0.35s ease;
+        }
+
+        .why-card:hover {
+          transform: translateY(-6px);
+          box-shadow: var(--card-shadow-hover);
+        }
+
+        .why-icon {
+          width: 52px;
+          height: 52px;
+          border-radius: 50%;
+          background: linear-gradient(150deg, var(--accent-light), var(--accent));
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: var(--ink);
+          font-size: 18px;
+          margin-bottom: 20px;
+        }
+
+        .why-title {
+          font-family: 'Cormorant Garamond', serif;
+          font-size: 22px;
+          font-weight: 600;
+          color: var(--ink);
+          margin: 0 0 8px;
+        }
+
+        .why-desc {
+          font-family: 'Jost', sans-serif;
+          font-size: 13px;
+          font-weight: 300;
+          color: var(--ink-soft);
+          line-height: 1.7;
+          margin: 0;
+        }
+
+        /* ── Promotional Banner ── */
+        .promo-cta-section {
+          margin: 0 var(--home-pad-x) 20px;
+          border-radius: var(--radius-lg);
+          background: linear-gradient(135deg, #111111 0%, #2a2620 55%, #3a3020 100%);
+          padding: 90px 60px;
+          text-align: center;
+          position: relative;
+          overflow: hidden;
+        }
+
+        .promo-cta-section::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: radial-gradient(circle at 30% 20%, rgba(200,169,106,0.22) 0%, transparent 55%),
+                      radial-gradient(circle at 80% 80%, rgba(200,169,106,0.14) 0%, transparent 60%);
+          pointer-events: none;
+        }
+
+        .promo-cta-eyebrow {
+          font-family: 'Jost', sans-serif;
+          font-size: 11px;
+          font-weight: 600;
+          letter-spacing: 0.28em;
+          text-transform: uppercase;
+          color: var(--accent);
+          margin-bottom: 18px;
+          position: relative;
+          z-index: 1;
+        }
+
+        .promo-cta-heading {
+          font-family: 'Cormorant Garamond', serif;
+          font-size: clamp(32px, 4.5vw, 56px);
+          font-weight: 500;
+          color: #fff;
+          margin: 0 0 32px;
+          letter-spacing: -0.01em;
+          position: relative;
+          z-index: 1;
+        }
+
+        .promo-cta-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          background: var(--accent);
+          color: #111111;
+          font-family: 'Jost', sans-serif;
+          font-size: 12px;
+          font-weight: 700;
+          letter-spacing: 0.18em;
+          text-transform: uppercase;
+          padding: 16px 32px;
+          border-radius: 100px;
+          text-decoration: none;
+          position: relative;
+          z-index: 1;
+          transition: transform 0.3s cubic-bezier(0.16,1,0.3,1), box-shadow 0.3s ease, background 0.3s ease;
+        }
+
+        .promo-cta-btn:hover {
+          background: #e3c48c;
+          transform: translateY(-3px);
+          box-shadow: 0 16px 36px rgba(200,169,106,0.35);
+        }
+
         /* ── Review Section ── */
         .review-section {
           background: var(--surface-warm);
@@ -901,7 +1058,7 @@ export default function HomePage() {
           font-family: 'Jost', sans-serif;
           font-size: 9px; font-weight: 700;
           letter-spacing: .08em; text-transform: uppercase;
-          padding: 3px 6px; display: inline-block; width: fit-content;
+          padding: 4px 8px; border-radius: 100px; display: inline-block; width: fit-content;
         }
 
         .ap-badge-sale    { background: var(--ink); color: #fff; }
@@ -911,14 +1068,18 @@ export default function HomePage() {
         .review-stat-grid {
           display: grid;
           grid-template-columns: 1fr 1fr;
-          gap: 1px;
-          background: var(--border-strong);
+          gap: 14px;
         }
 
         .review-stat {
-          background: var(--surface-warm);
+          background: var(--glass-bg);
+          border: 1px solid var(--glass-border);
+          backdrop-filter: blur(10px);
+          -webkit-backdrop-filter: blur(10px);
+          border-radius: var(--radius);
           padding: 36px 32px;
           text-align: center;
+          box-shadow: var(--card-shadow);
         }
 
         .review-stat-num {
@@ -939,6 +1100,8 @@ export default function HomePage() {
           .product-grid-4 { grid-template-columns: repeat(2, 1fr); }
           .category-grid { grid-template-columns: repeat(2, 1fr); }
           .review-section { grid-template-columns: 1fr; gap: 48px; }
+          .why-grid { grid-template-columns: repeat(2, 1fr); }
+          .promo-cta-section { padding: 70px 32px; }
         }
 
         @media (max-width: 768px) {
@@ -946,6 +1109,7 @@ export default function HomePage() {
           .section { padding-top: 64px; padding-bottom: 64px; }
           .category-section { padding-top: 64px; padding-bottom: 64px; }
           .review-section { padding-top: 64px; padding-bottom: 64px; }
+          .why-section { padding-top: 64px; padding-bottom: 64px; }
         }
 
         @media (max-width: 640px) {
@@ -956,6 +1120,9 @@ export default function HomePage() {
         @media (max-width: 480px) {
           .product-grid-4 { grid-template-columns: 1fr 1fr; }
           .category-grid { grid-template-columns: 1fr 1fr; }
+          .why-grid { grid-template-columns: 1fr; }
+          .review-stat-grid { grid-template-columns: 1fr 1fr; }
+          .promo-cta-section { margin: 0 16px 20px; padding: 56px 22px; }
         }
 
         @media (max-width: 360px) {
@@ -1131,6 +1298,56 @@ export default function HomePage() {
           </div>
         </section>
       )}
+
+      {/* ── WHY CHOOSE AIR COLLECTION ── */}
+      <section className="why-section">
+        <div className="section-header" style={{ marginBottom: 48 }}>
+          <div>
+            <h2 className="h-section">Why Choose Air Collection</h2>
+          </div>
+        </div>
+        <div className="why-grid">
+          {[
+            {
+              icon: <FaGem size={18} />,
+              title: "Premium Quality",
+              desc: "Every piece is crafted from natural fabrics chosen for comfort, durability, and a refined finish.",
+            },
+            {
+              icon: <FaShippingFast size={18} />,
+              title: "Fast Delivery",
+              desc: "Orders are packed and dispatched promptly, so your new pieces reach you without the wait.",
+            },
+            {
+              icon: <FaShieldAlt size={18} />,
+              title: "Secure Payment",
+              desc: "Checkout with confidence — every transaction is handled through a secure, verified process.",
+            },
+            {
+              icon: <FaUndo size={18} />,
+              title: "Easy Returns",
+              desc: "Not the right fit? Our straightforward returns process makes it simple to sort out.",
+            },
+          ].map((f) => (
+            <div key={f.title} className="why-card">
+              <div className="why-icon">{f.icon}</div>
+              <h3 className="why-title">{f.title}</h3>
+              <p className="why-desc">{f.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── PROMOTIONAL BANNER ── */}
+      <section className="promo-cta-section">
+        <div className="promo-cta-eyebrow">Air Collection</div>
+        <h2 className="promo-cta-heading">
+          Upgrade Your Wardrobe Today
+        </h2>
+        <Link href="/products" className="promo-cta-btn">
+          Shop Collection <FaArrowRight size={12} />
+        </Link>
+      </section>
 
       {/* ── AI RECOMMENDED ── */}
       {aiRecommended.length > 0 && (

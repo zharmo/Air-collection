@@ -16,6 +16,7 @@ import {
   FaMinus,
   FaPlus,
   FaChevronLeft,
+  FaShareAlt,
 } from "react-icons/fa";
 import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
@@ -107,6 +108,7 @@ export default function ProductDetailPage() {
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [addedToCart, setAddedToCart] = useState(false);
   const [sizeError, setSizeError] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
 
   /* ── Related products state ── */
   const [related, setRelated] = useState<RelatedProduct[]>([]);
@@ -322,6 +324,24 @@ export default function ProductDetailPage() {
     else addToWishlist(product!.id);
   };
 
+  /* ── Share Product — native share sheet, falls back to copy-link ── */
+  const handleShare = async () => {
+    const url = typeof window !== "undefined" ? window.location.href : "";
+    try {
+      if (typeof navigator !== "undefined" && (navigator as any).share) {
+        await (navigator as any).share({ title: product?.name, url });
+        return;
+      }
+      if (typeof navigator !== "undefined" && navigator.clipboard) {
+        await navigator.clipboard.writeText(url);
+        setShareCopied(true);
+        setTimeout(() => setShareCopied(false), 2000);
+      }
+    } catch {
+      /* user cancelled the share sheet — ignore */
+    }
+  };
+
   const renderStars = (rating: number) => {
     const full = Math.floor(rating),
       half = rating % 1 !== 0,
@@ -329,11 +349,11 @@ export default function ProductDetailPage() {
     return (
       <span style={{ display: "inline-flex", gap: 2 }}>
         {[...Array(full)].map((_, i) => (
-          <FaStar key={i} style={{ color: "#c8a96e" }} />
+          <FaStar key={i} style={{ color: "#c8a96a" }} />
         ))}
-        {half && <FaStarHalfAlt style={{ color: "#c8a96e" }} />}
+        {half && <FaStarHalfAlt style={{ color: "#c8a96a" }} />}
         {[...Array(empty)].map((_, i) => (
-          <FaRegStar key={i} style={{ color: "#c8a96e" }} />
+          <FaRegStar key={i} style={{ color: "#c8a96a" }} />
         ))}
       </span>
     );
@@ -366,7 +386,7 @@ export default function ProductDetailPage() {
               width: 36,
               height: 36,
               border: "1.5px solid #eee",
-              borderTopColor: "#0a0a0a",
+              borderTopColor: "#111111",
               borderRadius: "50%",
               animation: "spin .8s linear infinite",
               margin: "0 auto 16px",
@@ -404,7 +424,7 @@ export default function ProductDetailPage() {
           style={{
             fontFamily: "Cormorant Garamond,serif",
             fontSize: 28,
-            color: "#0a0a0a",
+            color: "#111111",
           }}
         >
           Product not found
@@ -416,9 +436,9 @@ export default function ProductDetailPage() {
             fontSize: 11,
             letterSpacing: "0.2em",
             textTransform: "uppercase",
-            color: "#0a0a0a",
+            color: "#111111",
             textDecoration: "none",
-            borderBottom: "1px solid #0a0a0a",
+            borderBottom: "1px solid #111111",
             paddingBottom: 2,
           }}
         >
@@ -453,19 +473,26 @@ export default function ProductDetailPage() {
                 *, *::before, *::after { box-sizing: border-box; }
 
                 :root {
-                    --ink:        #0a0a0a;
+                    --ink:        #111111;
                     --ink-soft:   #5c5c5c;
                     --ink-faint:  #aaa;
                     --white:      #ffffff;
-                    --warm:       #fafaf7;
-                    --muted:      #f4f2ef;
+                    --warm:       #F7F7F7;
+                    --muted:      #f0efec;
                     --product-bg: #f7f6f3;
-                    --accent:     #c8a96e;
+                    --accent:     #c8a96a;
                     --accent-lt:  #f0e8d8;
                     --success:    #2d7a4f;
                     --danger:     #c0392b;
                     --border:     rgba(0,0,0,0.08);
                     --border-md:  rgba(0,0,0,0.13);
+                    --radius:     16px;
+                    --radius-sm:  10px;
+                    --shadow-sm:  0 2px 16px rgba(0,0,0,0.06);
+                    --shadow-md:  0 8px 32px rgba(0,0,0,0.08);
+                    --shadow-lg:  0 20px 56px rgba(0,0,0,0.14);
+                    --glass-bg:     rgba(255,255,255,0.6);
+                    --glass-border: rgba(255,255,255,0.65);
                 }
 
                 .pd-page {
@@ -486,6 +513,7 @@ export default function ProductDetailPage() {
                 .pd-crumb a { color: var(--ink-faint); text-decoration: none; transition: color .2s; }
                 .pd-crumb a:hover { color: var(--ink); }
                 .pd-crumb-sep { font-size: 9px; opacity: .4; }
+                .pd-crumb-current { color: var(--ink); }
 
                 .pd-grid {
                     display: grid;
@@ -501,12 +529,19 @@ export default function ProductDetailPage() {
                     aspect-ratio: 1/1;
                     display: flex; align-items: center; justify-content: center;
                     overflow: hidden; position: relative;
+                    border-radius: var(--radius);
+                    box-shadow: var(--shadow-sm);
                 }
                 .pd-main-img-wrap img {
                     width: 100%; height: 100%;
                     /* contain (not cover) so every uploaded image shows in
                        full, regardless of its original aspect ratio — cover
-                       was cropping/zooming into non-square photos. */
+                       was cropping/zooming into non-square photos. A blurred
+                       backdrop layer was tried here too, but it smears badly
+                       on photos with hard edges (skin, mannequin parts) near
+                       the border, so a plain neutral box is the safer,
+                       more professional default. See note below the code
+                       for the real fix to backdrop-color mismatches. */
                     object-fit: contain; padding: 0;
                     transition: transform .5s cubic-bezier(.16,1,.3,1);
                 }
@@ -518,7 +553,7 @@ export default function ProductDetailPage() {
                     font-family: 'Jost', sans-serif;
                     font-size: 10px; font-weight: 700;
                     letter-spacing: .15em; text-transform: uppercase;
-                    padding: 6px 12px; z-index: 2;
+                    padding: 7px 14px; border-radius: 100px; z-index: 2;
                 }
                 .pd-stock-pill {
                     position: absolute; top: 20px; left: 20px;
@@ -526,19 +561,22 @@ export default function ProductDetailPage() {
                     font-family: 'Jost', sans-serif;
                     font-size: 10px; font-weight: 700;
                     letter-spacing: .15em; text-transform: uppercase;
-                    padding: 6px 12px; z-index: 2;
+                    padding: 7px 14px; border-radius: 100px; z-index: 2;
                 }
 
                 .pd-wish-fab {
                     position: absolute; top: 16px; right: 16px;
-                    width: 40px; height: 40px; border-radius: 50%;
-                    background: var(--white);
-                    box-shadow: 0 2px 12px rgba(0,0,0,.1);
-                    border: none; cursor: pointer;
+                    width: 42px; height: 42px; border-radius: 50%;
+                    background: var(--glass-bg);
+                    border: 1px solid var(--glass-border);
+                    backdrop-filter: blur(10px);
+                    -webkit-backdrop-filter: blur(10px);
+                    box-shadow: 0 4px 18px rgba(0,0,0,.1);
+                    cursor: pointer;
                     display: flex; align-items: center; justify-content: center;
                     transition: transform .2s, box-shadow .2s; z-index: 2;
                 }
-                .pd-wish-fab:hover { transform: scale(1.08); box-shadow: 0 4px 20px rgba(0,0,0,.14); }
+                .pd-wish-fab:hover { transform: scale(1.08); box-shadow: 0 6px 22px rgba(0,0,0,.14); }
 
                 .pd-thumbs {
                     display: flex; gap: 10px; margin-top: 14px;
@@ -547,20 +585,21 @@ export default function ProductDetailPage() {
                 .pd-thumbs::-webkit-scrollbar { height: 3px; }
                 .pd-thumbs::-webkit-scrollbar-thumb { background: var(--border-md); }
                 .pd-thumb {
-                    flex-shrink: 0; width: 72px; height: 72px;
+                    flex-shrink: 0; width: 76px; height: 76px;
                     background: var(--product-bg);
                     border: 1.5px solid transparent;
-                    cursor: pointer; overflow: hidden; transition: border-color .2s;
+                    border-radius: var(--radius-sm);
+                    cursor: pointer; overflow: hidden; transition: border-color .2s, transform .2s;
                     display: flex; align-items: center; justify-content: center;
                 }
                 .pd-thumb img { width:100%; height:100%; object-fit:contain; padding:0; }
                 .pd-thumb.active { border-color: var(--ink); }
-                .pd-thumb:hover:not(.active) { border-color: var(--border-md); }
+                .pd-thumb:hover:not(.active) { border-color: var(--border-md); transform: translateY(-2px); }
 
                 .pd-info { padding-top: 8px; }
 
                 .pd-tags { display:flex; align-items:center; gap:10px; margin-bottom:18px; flex-wrap:wrap; }
-                .pd-tag { font-family:'Jost',sans-serif; font-size:10px; font-weight:600; letter-spacing:.18em; text-transform:uppercase; padding:5px 12px; }
+                .pd-tag { font-family:'Jost',sans-serif; font-size:10px; font-weight:600; letter-spacing:.18em; text-transform:uppercase; padding:6px 13px; border-radius:100px; }
                 .pd-tag-green { background:var(--success); color:#fff; }
                 .pd-tag-gold  { background:var(--accent-lt); color:var(--ink); }
 
@@ -579,20 +618,48 @@ export default function ProductDetailPage() {
                 .pd-price-row { display:flex; align-items:baseline; gap:14px; margin-bottom:26px; }
                 .pd-price { font-family:'Cormorant Garamond',serif; font-size:36px; font-weight:600; color:var(--ink); line-height:1; }
                 .pd-compare { font-family:'Jost',sans-serif; font-size:16px; font-weight:300; color:var(--ink-faint); text-decoration:line-through; }
-                .pd-save { font-family:'Jost',sans-serif; font-size:11px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--success); padding:4px 8px; background:rgba(45,122,79,.09); }
+                .pd-save { font-family:'Jost',sans-serif; font-size:11px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--success); padding:4px 10px; border-radius:100px; background:rgba(45,122,79,.09); }
 
                 .pd-desc { font-family:'Jost',sans-serif; font-size:14px; font-weight:300; color:var(--ink-soft); line-height:1.75; margin-bottom:32px; padding-bottom:32px; border-bottom:1px solid var(--border); }
 
-                .pd-label { font-family:'Jost',sans-serif; font-size:10px; font-weight:600; letter-spacing:.22em; text-transform:uppercase; color:var(--ink-soft); margin-bottom:12px; display:block; }
+                .pd-label { font-family:'Jost',sans-serif; font-size:10px; font-weight:600; letter-spacing:.22em; text-transform:uppercase; color:var(--ink-soft); margin-bottom:14px; display:block; }
 
-                .pd-color-row { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:28px; }
-                .pd-color-btn { font-family:'Jost',sans-serif; font-size:11px; font-weight:500; letter-spacing:.1em; text-transform:uppercase; padding:9px 18px; background:none; border:1px solid var(--border-md); cursor:pointer; color:var(--ink); transition:border-color .2s, background .2s; }
-                .pd-color-btn:hover { border-color:var(--ink); }
-                .pd-color-btn.active { background:var(--ink); color:#fff; border-color:var(--ink); }
+                /* ── Color swatches — circular, real product image, animated ring ── */
+                .pd-color-row { display:flex; gap:14px; flex-wrap:wrap; margin-bottom:28px; }
+                .pd-color-swatch {
+                    position: relative;
+                    width: 42px; height: 42px;
+                    border-radius: 50%;
+                    padding: 0;
+                    border: 2px solid var(--white);
+                    box-shadow: 0 0 0 1px var(--border-md);
+                    cursor: pointer;
+                    overflow: hidden;
+                    background: var(--muted);
+                    transition: transform .2s cubic-bezier(.16,1,.3,1);
+                }
+                .pd-color-swatch img { width:100%; height:100%; object-fit:cover; display:block; }
+                .pd-color-swatch:hover { transform: scale(1.08); }
+                .pd-color-swatch.active { box-shadow: 0 0 0 1px var(--ink); }
+                .pd-color-swatch.active::after {
+                    content: '';
+                    position: absolute;
+                    inset: -5px;
+                    border-radius: 50%;
+                    border: 1.5px solid var(--accent);
+                    animation: pd-ring-pop .3s cubic-bezier(.16,1,.3,1);
+                }
+                @keyframes pd-ring-pop {
+                    from { transform: scale(.72); opacity: 0; }
+                    to   { transform: scale(1);   opacity: 1; }
+                }
+
+                .pd-size-head-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+                .pd-size-head-row .pd-label { margin-bottom:0; }
 
                 .pd-size-row { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
-                .pd-size-btn { font-family:'Jost',sans-serif; font-size:12px; font-weight:500; letter-spacing:.08em; text-transform:uppercase; min-width:56px; height:48px; padding:0 14px; background:none; border:1px solid var(--border-md); cursor:pointer; color:var(--ink); display:flex; flex-direction:column; align-items:center; justify-content:center; transition:border-color .2s, background .2s; position:relative; }
-                .pd-size-btn:hover:not(:disabled) { border-color:var(--ink); }
+                .pd-size-btn { font-family:'Jost',sans-serif; font-size:12px; font-weight:500; letter-spacing:.08em; text-transform:uppercase; min-width:56px; height:48px; padding:0 14px; background:none; border:1px solid var(--border-md); border-radius:var(--radius-sm); cursor:pointer; color:var(--ink); display:flex; flex-direction:column; align-items:center; justify-content:center; transition:border-color .2s, background .2s, transform .15s; position:relative; }
+                .pd-size-btn:hover:not(:disabled) { border-color:var(--ink); transform: translateY(-1px); }
                 .pd-size-btn.active { background:var(--ink); color:#fff; border-color:var(--ink); }
                 .pd-size-btn:disabled { opacity:.3; cursor:not-allowed; text-decoration:line-through; }
                 .pd-size-sub { font-size:9px; font-weight:300; letter-spacing:.04em; margin-top:2px; opacity:.7; }
@@ -601,7 +668,7 @@ export default function ProductDetailPage() {
                 @keyframes shakeX { 0%,100%{transform:translateX(0)} 20%,60%{transform:translateX(-6px)} 40%,80%{transform:translateX(6px)} }
 
                 /* ── Size Guide Panel ── */
-                .pd-size-guide { margin-top:12px; margin-bottom:28px; border:1px solid var(--border); overflow:hidden; }
+                .pd-size-guide { margin-top:12px; margin-bottom:28px; border:1px solid var(--border); border-radius:var(--radius-sm); overflow:hidden; }
                 .pd-size-guide-btn {
                     width:100%; background:var(--warm); border:none; cursor:pointer;
                     padding:12px 16px;
@@ -633,26 +700,81 @@ export default function ProductDetailPage() {
                     white-space:pre-wrap; word-break:break-word;
                 }
 
-                .pd-qty-row { display:flex; align-items:center; gap:0; margin-bottom:28px; width:fit-content; border:1px solid var(--border-md); }
+                .pd-qty-row { display:flex; align-items:center; gap:0; margin-bottom:28px; width:fit-content; border:1px solid var(--border-md); border-radius:var(--radius-sm); overflow:hidden; }
                 .pd-qty-btn { width:44px; height:44px; background:none; border:none; cursor:pointer; color:var(--ink); display:flex; align-items:center; justify-content:center; transition:background .18s; }
                 .pd-qty-btn:hover { background:var(--muted); }
                 .pd-qty-btn:disabled { opacity:.35; cursor:not-allowed; }
                 .pd-qty-btn:disabled:hover { background:transparent; }
                 .pd-qty-val { width:52px; height:44px; font-family:'Jost',sans-serif; font-size:15px; font-weight:500; color:var(--ink); background:var(--warm); display:flex; align-items:center; justify-content:center; border-left:1px solid var(--border-md); border-right:1px solid var(--border-md); user-select:none; }
 
-                .pd-actions { display:flex; gap:10px; margin-bottom:28px; flex-wrap:wrap; }
-                .pd-btn-cart { flex:1; min-width:140px; font-family:'Jost',sans-serif; font-size:11px; font-weight:700; letter-spacing:.2em; text-transform:uppercase; min-height:54px; padding:14px 24px; background:var(--ink); color:#fff; border:1.5px solid var(--ink); cursor:pointer; display:flex; align-items:center; justify-content:center; gap:10px; line-height:1.2; transition:background .25s, color .25s; }
-                .pd-btn-cart:hover:not(:disabled) { background:transparent; color:var(--ink); }
+                /* ── Actions: gold Add to Cart + inline wishlist, then full-width black Buy Now ── */
+                .pd-actions-row { display:flex; gap:10px; margin-bottom:12px; }
+                .pd-btn-cart {
+                    flex:1; min-width:140px;
+                    font-family:'Jost',sans-serif; font-size:11px; font-weight:700; letter-spacing:.2em; text-transform:uppercase;
+                    min-height:54px; padding:14px 24px;
+                    background:var(--accent); color:var(--ink);
+                    border:1.5px solid var(--accent);
+                    border-radius:var(--radius-sm);
+                    cursor:pointer; display:flex; align-items:center; justify-content:center; gap:10px; line-height:1.2;
+                    transition:background .25s, transform .2s, box-shadow .25s;
+                }
+                .pd-btn-cart:hover:not(:disabled) { background:#dabb84; transform: translateY(-2px); box-shadow: 0 12px 28px rgba(200,169,106,.35); }
                 .pd-btn-cart:disabled { opacity:.45; cursor:not-allowed; }
                 .pd-btn-cart.success { background:var(--success); border-color:var(--success); color:#fff; }
-                .pd-btn-buy { flex:1; min-width:140px; font-family:'Jost',sans-serif; font-size:11px; font-weight:600; letter-spacing:.18em; text-transform:uppercase; min-height:54px; padding:14px 24px; background:transparent; color:var(--ink); border:1.5px solid var(--border-md); cursor:pointer; display:flex; align-items:center; justify-content:center; gap:10px; line-height:1.2; transition:border-color .22s, background .22s; }
-                .pd-btn-buy:hover:not(:disabled) { border-color:var(--ink); background:var(--warm); }
+
+                .pd-btn-wish-inline {
+                    width:54px; height:54px; flex-shrink:0;
+                    background:var(--white); border:1.5px solid var(--border-md); border-radius:var(--radius-sm);
+                    cursor:pointer; display:flex; align-items:center; justify-content:center;
+                    transition:border-color .2s, transform .2s;
+                }
+                .pd-btn-wish-inline:hover { border-color:var(--ink); transform: translateY(-2px); }
+
+                .pd-btn-buy {
+                    width:100%;
+                    font-family:'Jost',sans-serif; font-size:11px; font-weight:600; letter-spacing:.18em; text-transform:uppercase;
+                    min-height:54px; padding:14px 24px;
+                    background:var(--ink); color:#fff;
+                    border:1.5px solid var(--ink);
+                    border-radius:var(--radius-sm);
+                    cursor:pointer; display:flex; align-items:center; justify-content:center; gap:10px; line-height:1.2;
+                    transition:background .22s, transform .2s;
+                    margin-bottom: 14px;
+                }
+                .pd-btn-buy:hover:not(:disabled) { background:#2a2a2a; transform: translateY(-2px); }
                 .pd-btn-buy:disabled { opacity:.4; cursor:not-allowed; }
 
-                .pd-delivery { display:flex; gap:0; flex-wrap:wrap; border:1px solid var(--border); margin-bottom:28px; }
-                .pd-del-item { flex:1; min-width:120px; display:flex; align-items:center; gap:12px; padding:16px 18px; font-family:'Jost',sans-serif; font-size:12px; font-weight:400; color:var(--ink-soft); border-right:1px solid var(--border); }
-                .pd-del-item:last-child { border-right:none; }
-                .pd-del-icon { color:var(--accent); flex-shrink:0; }
+                .pd-btn-share {
+                    display:inline-flex; align-items:center; gap:8px;
+                    font-family:'Jost',sans-serif; font-size:10px; font-weight:600; letter-spacing:.16em; text-transform:uppercase;
+                    color:var(--ink-soft); background:none; border:none; cursor:pointer;
+                    padding:4px 0; margin-bottom:28px;
+                    transition:color .2s;
+                }
+                .pd-btn-share:hover { color:var(--ink); }
+                .pd-share-copied { color:var(--success); }
+
+                /* ── Delivery strip — glass cards ── */
+                .pd-delivery { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:28px; }
+                .pd-del-item {
+                    flex:1; min-width:150px; display:flex; align-items:center; gap:12px;
+                    padding:16px 18px;
+                    background: var(--glass-bg);
+                    border: 1px solid var(--glass-border);
+                    border-radius: var(--radius-sm);
+                    backdrop-filter: blur(8px);
+                    -webkit-backdrop-filter: blur(8px);
+                    box-shadow: var(--shadow-sm);
+                    font-family:'Jost',sans-serif; font-size:12px; font-weight:400; color:var(--ink-soft);
+                }
+                .pd-del-icon-wrap {
+                    width:34px; height:34px; border-radius:50%;
+                    background: var(--accent-lt);
+                    display:flex; align-items:center; justify-content:center;
+                    flex-shrink:0;
+                }
+                .pd-del-icon { color:var(--ink); flex-shrink:0; }
 
                 .pd-accordion { border-top:1px solid var(--border); }
                 .pd-accordion-item { border-bottom:1px solid var(--border); }
@@ -721,6 +843,8 @@ export default function ProductDetailPage() {
                     display: flex;
                     flex-direction: column;
                     text-decoration: none;
+                    border-radius: var(--radius-sm);
+                    overflow: hidden;
                     /* hardware-accelerate hover transform */
                     will-change: transform;
                     transition: box-shadow .35s cubic-bezier(.16,1,.3,1), transform .35s cubic-bezier(.16,1,.3,1);
@@ -773,7 +897,7 @@ export default function ProductDetailPage() {
 
                 /* Text block below image */
                 .pd-rel-info {
-                    padding: 14px 2px 0;
+                    padding: 14px 6px 10px;
                     display: flex;
                     flex-direction: column;
                     gap: 5px;
@@ -809,6 +933,7 @@ export default function ProductDetailPage() {
                 }
                 .pd-rel-skel-img {
                     width: 100%; aspect-ratio: 3/4;
+                    border-radius: var(--radius-sm);
                     background: linear-gradient(90deg, var(--muted) 25%, var(--product-bg) 50%, var(--muted) 75%);
                     background-size: 200% 100%;
                     animation: pd-shimmer 1.4s infinite;
@@ -837,12 +962,10 @@ export default function ProductDetailPage() {
                 }
                 @media (max-width: 640px) {
                     .pd-page { padding:20px 16px 80px; }
-                    .pd-actions { flex-direction:column; gap:12px; }
+                    .pd-actions-row { flex-direction:row; }
                     .pd-btn-cart, .pd-btn-buy { width:100%; min-height:56px; padding:16px 18px; }
-                    .pd-delivery { display:grid; grid-template-columns:1fr 1fr; border:1px solid var(--border-md); }
-                    .pd-del-item { min-width:0; align-items:center; padding:24px 20px; border-right:1px solid var(--border); border-bottom:1px solid var(--border); }
-                    .pd-del-item:nth-child(2n) { border-right:none; }
-                    .pd-del-item:last-child { grid-column:1 / -1; border-right:none; border-bottom:none; }
+                    .pd-delivery { flex-direction: column; }
+                    .pd-del-item { min-width:0; }
                     /* Stack related grid to 2 cols on small screens */
                     .pd-related-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
                     .pd-related-header { gap: 14px; }
@@ -859,11 +982,20 @@ export default function ProductDetailPage() {
             style={{ transform: "rotate(180deg)" }}
           />
           <Link href="/products">Products</Link>
+          {product.category_name && (
+            <>
+              <FaChevronLeft
+                className="pd-crumb-sep"
+                style={{ transform: "rotate(180deg)" }}
+              />
+              <span>{product.category_name}</span>
+            </>
+          )}
           <FaChevronLeft
             className="pd-crumb-sep"
             style={{ transform: "rotate(180deg)" }}
           />
-          <span style={{ color: "var(--ink)" }}>{product.name}</span>
+          <span className="pd-crumb-current">{product.name}</span>
         </nav>
 
         <div className="pd-grid">
@@ -971,7 +1103,7 @@ export default function ProductDetailPage() {
             {/* Description */}
             <p className="pd-desc">{product.description}</p>
 
-            {/* Color */}
+            {/* Color — circular swatches using each variant's real image */}
             {product.colors?.length > 0 && (
               <div style={{ marginBottom: 28 }}>
                 <span className="pd-label">
@@ -984,10 +1116,19 @@ export default function ProductDetailPage() {
                   {product.colors.map((color) => (
                     <button
                       key={color.id}
-                      className={`pd-color-btn${selectedColor?.id === color.id ? " active" : ""}`}
+                      className={`pd-color-swatch${selectedColor?.id === color.id ? " active" : ""}`}
                       onClick={() => setSelectedColor(color)}
+                      aria-label={color.color_name}
+                      title={color.color_name}
                     >
-                      {color.color_name}
+                      <img
+                        src={getFullImageUrl(color.image_url)}
+                        alt={color.color_name}
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src =
+                            "/images/placeholders/placeholder.jpg";
+                        }}
+                      />
                     </button>
                   ))}
                 </div>
@@ -997,7 +1138,9 @@ export default function ProductDetailPage() {
             {/* Size */}
             {availableSizes.length > 0 ? (
               <div style={{ marginBottom: 8 }}>
-                <span className="pd-label">Select Size</span>
+                <div className="pd-size-head-row">
+                  <span className="pd-label">Select Size</span>
+                </div>
                 <div className="pd-size-row">
                   {availableSizes.map((size) => (
                     <button
@@ -1074,7 +1217,7 @@ export default function ProductDetailPage() {
             </div>
 
             {/* Action buttons */}
-            <div className="pd-actions">
+            <div className="pd-actions-row">
               <button
                 className={`pd-btn-cart${addedToCart ? " success" : ""}`}
                 onClick={handleAddToCart}
@@ -1093,18 +1236,43 @@ export default function ProductDetailPage() {
                 )}
               </button>
               <button
-                className="pd-btn-buy"
-                onClick={handleBuyNow}
-                disabled={isActionDisabled}
+                className="pd-btn-wish-inline"
+                onClick={handleToggleWishlist}
+                aria-label={
+                  isWishlisted ? "Remove from wishlist" : "Add to wishlist"
+                }
               >
-                Buy Now
+                <FaHeart
+                  size={16}
+                  style={{
+                    color: isWishlisted ? "#c0392b" : "#ccc",
+                    transition: "color .2s",
+                  }}
+                />
               </button>
             </div>
+
+            <button
+              className="pd-btn-buy"
+              onClick={handleBuyNow}
+              disabled={isActionDisabled}
+            >
+              Buy Now
+            </button>
+
+            <button className="pd-btn-share" onClick={handleShare}>
+              <FaShareAlt size={11} />
+              <span className={shareCopied ? "pd-share-copied" : ""}>
+                {shareCopied ? "Link copied" : "Share Product"}
+              </span>
+            </button>
 
             {/* Delivery strip */}
             <div className="pd-delivery">
               <div className="pd-del-item">
-                <FaTruck className="pd-del-icon" size={14} />
+                <span className="pd-del-icon-wrap">
+                  <FaTruck className="pd-del-icon" size={13} />
+                </span>
                 <div>
                   <div
                     style={{
@@ -1123,7 +1291,9 @@ export default function ProductDetailPage() {
                 </div>
               </div>
               <div className="pd-del-item">
-                <FaUndo className="pd-del-icon" size={13} />
+                <span className="pd-del-icon-wrap">
+                  <FaUndo className="pd-del-icon" size={12} />
+                </span>
                 <div>
                   <div
                     style={{
@@ -1142,7 +1312,9 @@ export default function ProductDetailPage() {
                 </div>
               </div>
               <div className="pd-del-item">
-                <FaShieldAlt className="pd-del-icon" size={13} />
+                <span className="pd-del-icon-wrap">
+                  <FaShieldAlt className="pd-del-icon" size={12} />
+                </span>
                 <div>
                   <div
                     style={{
